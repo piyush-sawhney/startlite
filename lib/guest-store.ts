@@ -1,0 +1,949 @@
+/**
+ * The guest workspace.
+ *
+ * StartLite must be usable before login. This module is the local source of
+ * truth for a signed-out merchant: shop details, catalog, sales, payments, and
+ * expenses live in localStorage until the merchant saves the shop.
+ *
+ * Money is stored as decimal strings and every derived total uses integer
+ * paise. The server recomputes all totals again when guest data is imported.
+ */
+
+import { getPack } from "./packs";
+import {
+  fromPaise,
+  multiplyPaise,
+  toPaise,
+} from "./paise";
+
+export const GUEST_STORE_KEY = "startlite_guest_v2";
+
+export type GuestPaymentMode = "cash" | "upi" | "bank" | "other";
+export type GuestOrderStatus = "open_tab" | "settled" | "cancelled";
+
+export type GuestShop = {
+  name: string;
+  pack: string;
+  whatsapp: string;
+  upi: string;
+  locality: string;
+  privacyMode: boolean;
+  addressPlaceholder: string;
+  bankName: string;
+  bankNumber: string;
+  bankIfsc: string;
+};
+
+export type GuestItem = {
+  id: string;
+  name: string;
+  price: string;
+  unitLabel: string;
+  isAvailable: boolean;
+  sortOrder: number;
+  createdAt: string;
+};
+
+export type GuestLine = {
+  id: string;
+  itemId: string | null;
+  itemName: string;
+  optionName: string | null;
+  extras: Array<{ name: string; priceDelta: string }>;
+  quantity: string;
+  unitPrice: string;
+  unitLabel: string;
+  note: string | null;
+};
+
+export type GuestPayment = {
+  id: string;
+  amount: string;
+  mode: GuestPaymentMode;
+  paidAt: string;
+};
+
+export type GuestOrder = {
+  id: string;
+  code: string;
+  status: GuestOrderStatus;
+  customerName: string;
+  customerPhone: string;
+  note: string;
+  neededBy: string;
+  createdAt: string;
+  billNo: number;
+  lines: GuestLine[];
+  payments: GuestPayment[];
+};
+
+export type GuestExpense = {
+  id: string;
+  title: string;
+  amount: string;
+  date: string;
+  createdAt: string;
+};
+
+export type GuestState = {
+  version: 2;
+  shop: GuestShop;
+  items: GuestItem[];
+  orders: GuestOrder[];
+  expenses: GuestExpense[];
+  nextBillNo: number;
+};
+
+export type GuestOrderInput = {
+  customerName?: string;
+  customerPhone?: string;
+  note?: string;
+  neededBy?: string;
+  lines: Array<{
+    itemId?: string | null;
+    itemName: string;
+    optionName?: string | null;
+    extras?: Array<{ name: string; priceDelta: string }>;
+    quantity: string;
+    unitPrice: string;
+    unitLabel: string;
+    note?: string | null;
+  }>;
+  paidAmount?: string;
+  paymentMode?: GuestPaymentMode;
+};
+
+export type GuestImportPayload = {
+  items: Array<{
+    name: string;
+    price: string;
+    unitLabel: string;
+    isAvailable: boolean;
+  }>;
+  orders: Array<{
+    code: string;
+    customerName: string | null;
+    customerPhone: string | null;
+    note: string | null;
+    neededBy: string;
+    createdAt: string;
+    status: GuestOrderStatus;
+    lines: Array<{
+      itemName: string;
+      optionName: string | null;
+      extras: Array<{ name: string; priceDelta: string }>;
+      quantity: string;
+      unitPrice: string;
+      unitLabel: string;
+      note: string | null;
+    }>;
+    payments: Array<{
+      amount: string;
+      mode: GuestPaymentMode;
+      paidAt: string;
+    }>;
+  }>;
+  expenses: Array<{
+    title: string;
+    amount: string;
+    date: string;
+  }>;
+};
+
+const MAX_ITEMS = 300;
+const MAX_ORDERS = 500;
+const MAX_EXPENSES = 500;
+const MAX_LINES = 50;
+
+export function guestToday(): string {
+  return new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
+}
+
+export function guestDay(offsetDays: number): string {
+  return new Date(Date.now() + 5.5 * 3600_000 + offsetDays * 864e5)
+    .toISOString()
+    .slice(0, 10);
+}
+
+export function guestNow(): string {
+  return new Date().toISOString();
+}
+
+function newId(prefix: string): string {
+  const random =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2) + Date.now().toString(36);
+  return `${prefix}_${random}`;
+}
+
+function clampText(value: unknown, max: number, fallback = ""): string {
+  if (typeof value !== "string") return fallback;
+  return value.slice(0, max);
+}
+
+function cleanMoney(value: unknown): string {
+  return fromPaise(toPaise(typeof value === "string" ? value : "0"));
+}
+
+function cleanQuantity(value: unknown): string {
+  const text = typeof value === "string" ? value.trim() : "";
+  if (!/^\d+(\.\d{1,2})?$/.test(text)) return "0";
+  return text;
+}
+
+function cleanDate(value: unknown, fallback: string): string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return fallback;
+  }
+  return value;
+}
+
+function cleanTimestamp(value: unknown, fallback: string): string {
+  if (typeof value !== "string") return fallback;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return fallback;
+  return date.toISOString();
+}
+
+function cleanPhone(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value.replace(/\D/g, "").slice(-10);
+}
+
+export function starterItems(
+  packId: string,
+  createdAt = guestNow(),
+): GuestItem[] {
+  const pack = getPack(packId);
+  return pack.starters.map((starter, index) => ({
+    id: `seed_${pack.id}_${index}`,
+    name: starter.name,
+    price: cleanMoney(starter.price),
+    unitLabel: starter.unit,
+    isAvailable: true,
+    sortOrder: index,
+    createdAt,
+  }));
+}
+
+export function createGuestState(packId = "grocery"): GuestState {
+  const pack = getPack(packId);
+  return {
+    version: 2,
+    shop: {
+      name: "My shop",
+      pack: pack.id,
+      whatsapp: "",
+      upi: "",
+      locality: "",
+      privacyMode: false,
+      addressPlaceholder: pack.note,
+      bankName: "",
+      bankNumber: "",
+      bankIfsc: "",
+    },
+    items: starterItems(pack.id),
+    orders: [],
+    expenses: [],
+    nextBillNo: 1,
+  };
+}
+
+function normalizeShop(value: unknown): GuestShop {
+  const raw = (value ?? {}) as Partial<GuestShop>;
+  const pack = getPack(clampText(raw.pack, 40, "grocery"));
+  return {
+    name: clampText(raw.name, 80).trim() || "My shop",
+    pack: pack.id,
+    whatsapp: cleanPhone(raw.whatsapp),
+    upi: clampText(raw.upi, 80).trim(),
+    locality: clampText(raw.locality, 80).trim(),
+    privacyMode: raw.privacyMode === true,
+    addressPlaceholder:
+      clampText(raw.addressPlaceholder, 120).trim() || pack.note,
+    bankName: clampText(raw.bankName, 80).trim(),
+    bankNumber: clampText(raw.bankNumber, 40).trim(),
+    bankIfsc: clampText(raw.bankIfsc, 20).trim(),
+  };
+}
+
+function normalizeItem(value: unknown, index: number, now: string): GuestItem | null {
+  const raw = (value ?? {}) as Partial<GuestItem>;
+  const name = clampText(raw.name, 80).trim();
+  if (!name) return null;
+  return {
+    id: clampText(raw.id, 80) || newId("item"),
+    name,
+    price: cleanMoney(raw.price),
+    unitLabel: clampText(raw.unitLabel, 20).trim() || "item",
+    isAvailable: raw.isAvailable !== false,
+    sortOrder:
+      typeof raw.sortOrder === "number" && Number.isFinite(raw.sortOrder)
+        ? raw.sortOrder
+        : index,
+    createdAt: cleanTimestamp(raw.createdAt, now),
+  };
+}
+
+function normalizeLine(value: unknown, index: number): GuestLine | null {
+  const raw = (value ?? {}) as Partial<GuestLine>;
+  const itemName = clampText(raw.itemName, 80).trim();
+  if (!itemName) return null;
+  const extras = Array.isArray(raw.extras)
+    ? raw.extras
+        .slice(0, 20)
+        .map((extra) => ({
+          name: clampText(extra?.name, 80).trim(),
+          priceDelta: cleanMoney(extra?.priceDelta),
+        }))
+        .filter((extra) => extra.name)
+    : [];
+  return {
+    id: clampText(raw.id, 80) || `line_${index}`,
+    itemId: clampText(raw.itemId, 80) || null,
+    itemName,
+    optionName: clampText(raw.optionName, 80).trim() || null,
+    extras,
+    quantity: cleanQuantity(raw.quantity),
+    unitPrice: cleanMoney(raw.unitPrice),
+    unitLabel: clampText(raw.unitLabel, 20).trim() || "item",
+    note: clampText(raw.note, 200).trim() || null,
+  };
+}
+
+function normalizePayment(value: unknown): GuestPayment | null {
+  const raw = (value ?? {}) as Partial<GuestPayment>;
+  const amount = cleanMoney(raw.amount);
+  if (toPaise(amount) <= 0) return null;
+  const mode =
+    raw.mode === "upi" || raw.mode === "bank" || raw.mode === "other"
+      ? raw.mode
+      : "cash";
+  return {
+    id: clampText(raw.id, 80) || newId("pay"),
+    amount,
+    mode,
+    paidAt: cleanTimestamp(raw.paidAt, guestNow()),
+  };
+}
+
+function normalizeOrder(value: unknown, now: string): GuestOrder | null {
+  const raw = (value ?? {}) as Partial<GuestOrder>;
+  const lines = Array.isArray(raw.lines)
+    ? raw.lines
+        .slice(0, MAX_LINES)
+        .map((line, index) => normalizeLine(line, index))
+        .filter((line): line is GuestLine => line !== null)
+    : [];
+  if (lines.length === 0) return null;
+
+  const payments = Array.isArray(raw.payments)
+    ? raw.payments
+        .slice(0, MAX_LINES)
+        .map(normalizePayment)
+        .filter((payment): payment is GuestPayment => payment !== null)
+    : [];
+
+  const status =
+    raw.status === "cancelled" || raw.status === "settled"
+      ? raw.status
+      : "open_tab";
+
+  return {
+    id: clampText(raw.id, 80) || newId("order"),
+    code: clampText(raw.code, 20).trim() || guestOrderCode(),
+    status,
+    customerName: clampText(raw.customerName, 80).trim(),
+    customerPhone: cleanPhone(raw.customerPhone),
+    note: clampText(raw.note, 500).trim(),
+    neededBy: cleanDate(raw.neededBy, guestToday()),
+    createdAt: cleanTimestamp(raw.createdAt, now),
+    billNo:
+      typeof raw.billNo === "number" && Number.isFinite(raw.billNo)
+        ? Math.max(1, Math.floor(raw.billNo))
+        : 1,
+    lines,
+    payments,
+  };
+}
+
+function normalizeExpense(value: unknown, now: string): GuestExpense | null {
+  const raw = (value ?? {}) as Partial<GuestExpense>;
+  const title = clampText(raw.title, 80).trim();
+  if (!title) return null;
+  return {
+    id: clampText(raw.id, 80) || newId("expense"),
+    title,
+    amount: cleanMoney(raw.amount),
+    date: cleanDate(raw.date, guestToday()),
+    createdAt: cleanTimestamp(raw.createdAt, now),
+  };
+}
+
+export function normalizeGuestState(value: unknown): GuestState | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Partial<GuestState>;
+  const now = guestNow();
+  const shop = normalizeShop(raw.shop);
+
+  const items = Array.isArray(raw.items)
+    ? raw.items
+        .slice(0, MAX_ITEMS)
+        .map((item, index) => normalizeItem(item, index, now))
+        .filter((item): item is GuestItem => item !== null)
+    : starterItems(shop.pack, now);
+
+  const orders = Array.isArray(raw.orders)
+    ? raw.orders
+        .slice(0, MAX_ORDERS)
+        .map((order) => normalizeOrder(order, now))
+        .filter((order): order is GuestOrder => order !== null)
+    : [];
+
+  const expenses = Array.isArray(raw.expenses)
+    ? raw.expenses
+        .slice(0, MAX_EXPENSES)
+        .map((expense) => normalizeExpense(expense, now))
+        .filter((expense): expense is GuestExpense => expense !== null)
+    : [];
+
+  const highestBill = orders.reduce(
+    (highest, order) => Math.max(highest, order.billNo),
+    0,
+  );
+  const nextBillNo =
+    typeof raw.nextBillNo === "number" && Number.isFinite(raw.nextBillNo)
+      ? Math.max(Math.floor(raw.nextBillNo), highestBill + 1, 1)
+      : highestBill + 1;
+
+  return {
+    version: 2,
+    shop,
+    items,
+    orders,
+    expenses,
+    nextBillNo,
+  };
+}
+
+export function readGuestState(): GuestState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(GUEST_STORE_KEY);
+    if (!raw) return null;
+    return normalizeGuestState(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
+export function loadGuestState(): GuestState {
+  return readGuestState() ?? createGuestState();
+}
+
+export function writeGuestState(state: GuestState): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(GUEST_STORE_KEY, JSON.stringify(state));
+  } catch {
+    // A full or blocked localStorage must never stop a sale.
+  }
+}
+
+export function clearGuestState(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(GUEST_STORE_KEY);
+  } catch {
+    // Nothing to clear.
+  }
+}
+
+export function guestOrderCode(): string {
+  const random = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `G-${random}`;
+}
+
+export function guestOrderTotals(order: GuestOrder): {
+  totalPaise: number;
+  paidPaise: number;
+  duePaise: number;
+  status: GuestOrderStatus;
+} {
+  const totalPaise = order.lines.reduce(
+    (total, line) => total + multiplyPaise(line.quantity, line.unitPrice),
+    0,
+  );
+  const paidPaise = order.payments.reduce(
+    (total, payment) => total + toPaise(payment.amount),
+    0,
+  );
+  const duePaise = Math.max(0, totalPaise - paidPaise);
+  const status: GuestOrderStatus =
+    order.status === "cancelled"
+      ? "cancelled"
+      : paidPaise >= totalPaise && totalPaise > 0
+        ? "settled"
+        : "open_tab";
+  return { totalPaise, paidPaise, duePaise, status };
+}
+
+export function guestOrdersNewestFirst(state: GuestState): GuestOrder[] {
+  return [...state.orders].sort(
+    (a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+}
+
+export function guestStartOfToday(): number {
+  const now = new Date();
+  const ist = new Date(now.getTime() + 5.5 * 3600_000);
+  return new Date(
+    Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate()) -
+      5.5 * 3600_000,
+  ).getTime();
+}
+
+export function guestStartOfMonth(): number {
+  const now = new Date();
+  const ist = new Date(now.getTime() + 5.5 * 3600_000);
+  return new Date(
+    Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), 1) - 5.5 * 3600_000,
+  ).getTime();
+}
+
+export function guestSummary(state: GuestState) {
+  const todayStart = guestStartOfToday();
+  const monthStart = guestStartOfMonth();
+
+  let todaySalesPaise = 0;
+  let receivedTodayPaise = 0;
+  let pendingPaise = 0;
+  let monthExpensePaise = 0;
+
+  for (const order of state.orders) {
+    if (order.status === "cancelled") continue;
+    const totals = guestOrderTotals(order);
+    if (new Date(order.createdAt).getTime() >= todayStart) {
+      todaySalesPaise += totals.totalPaise;
+    }
+    if (totals.status !== "settled") pendingPaise += totals.duePaise;
+    for (const payment of order.payments) {
+      if (new Date(payment.paidAt).getTime() >= todayStart) {
+        receivedTodayPaise += toPaise(payment.amount);
+      }
+    }
+  }
+
+  for (const expense of state.expenses) {
+    if (new Date(`${expense.date}T00:00:00`).getTime() >= monthStart) {
+      monthExpensePaise += toPaise(expense.amount);
+    }
+  }
+
+  return {
+    todaySalesPaise,
+    receivedTodayPaise,
+    pendingPaise,
+    monthExpensePaise,
+    orderCount: state.orders.length,
+    itemCount: state.items.length,
+    customerCount: guestCustomers(state).length,
+  };
+}
+
+export type GuestCustomer = {
+  key: string;
+  name: string;
+  phone: string;
+  pendingPaise: number;
+  totalPaise: number;
+  orderCount: number;
+  lastPaidAt: string | null;
+};
+
+export function guestCustomerKey(order: GuestOrder): string | null {
+  if (order.customerPhone) return `phone:${order.customerPhone}`;
+  const name = order.customerName.trim().toLowerCase();
+  if (name) return `name:${name}`;
+  return null;
+}
+
+export function guestCustomers(state: GuestState): GuestCustomer[] {
+  const map = new Map<string, GuestCustomer>();
+
+  for (const order of state.orders) {
+    if (order.status === "cancelled") continue;
+    const key = guestCustomerKey(order);
+    if (!key) continue;
+    const totals = guestOrderTotals(order);
+    const entry =
+      map.get(key) ??
+      ({
+        key,
+        name: order.customerName || "Buyer",
+        phone: order.customerPhone,
+        pendingPaise: 0,
+        totalPaise: 0,
+        orderCount: 0,
+        lastPaidAt: null,
+      } satisfies GuestCustomer);
+
+    entry.name = order.customerName || entry.name;
+    entry.phone = order.customerPhone || entry.phone;
+    entry.pendingPaise +=
+      totals.status === "settled" ? 0 : totals.duePaise;
+    entry.totalPaise += totals.totalPaise;
+    entry.orderCount += 1;
+    for (const payment of order.payments) {
+      if (!entry.lastPaidAt || payment.paidAt > entry.lastPaidAt) {
+        entry.lastPaidAt = payment.paidAt;
+      }
+    }
+    map.set(key, entry);
+  }
+
+  return [...map.values()].sort((a, b) => {
+    if (b.pendingPaise !== a.pendingPaise) {
+      return b.pendingPaise - a.pendingPaise;
+    }
+    return a.name.localeCompare(b.name);
+  });
+}
+
+export function guestCustomerOrders(
+  state: GuestState,
+  key: string,
+): GuestOrder[] {
+  return guestOrdersNewestFirst(state).filter(
+    (order) => guestCustomerKey(order) === key,
+  );
+}
+
+export function addGuestOrder(
+  state: GuestState,
+  input: GuestOrderInput,
+): { state: GuestState; orderId: string } {
+  const lines: GuestLine[] = input.lines
+    .slice(0, MAX_LINES)
+    .map((line, index) => ({
+      id: `line_${Date.now()}_${index}`,
+      itemId: line.itemId ?? null,
+      itemName: line.itemName,
+      optionName: line.optionName ?? null,
+      extras: line.extras ?? [],
+      quantity: cleanQuantity(line.quantity),
+      unitPrice: cleanMoney(line.unitPrice),
+      unitLabel: line.unitLabel || "item",
+      note: line.note?.trim() || null,
+    }))
+    .filter(
+      (line) => multiplyPaise(line.quantity, line.unitPrice) > 0,
+    );
+
+  if (lines.length === 0) return { state, orderId: "" };
+
+  const totalPaise = lines.reduce(
+    (total, line) => total + multiplyPaise(line.quantity, line.unitPrice),
+    0,
+  );
+
+  const paidInput = Math.min(
+    Math.max(toPaise(input.paidAmount ?? "0"), 0),
+    totalPaise,
+  );
+
+  let code = guestOrderCode();
+  const codes = new Set(state.orders.map((order) => order.code));
+  while (codes.has(code)) code = guestOrderCode();
+
+  const order: GuestOrder = {
+    id: newId("order"),
+    code,
+    status: paidInput >= totalPaise ? "settled" : "open_tab",
+    customerName: input.customerName?.trim().slice(0, 80) ?? "",
+    customerPhone: cleanPhone(input.customerPhone),
+    note: input.note?.trim().slice(0, 500) ?? "",
+    neededBy: cleanDate(input.neededBy, guestToday()),
+    createdAt: guestNow(),
+    billNo: state.nextBillNo,
+    lines,
+    payments:
+      paidInput > 0
+        ? [
+            {
+              id: newId("pay"),
+              amount: fromPaise(paidInput),
+              mode: input.paymentMode ?? "cash",
+              paidAt: guestNow(),
+            },
+          ]
+        : [],
+  };
+
+  return {
+    orderId: order.id,
+    state: {
+      ...state,
+      orders: [order, ...state.orders].slice(0, MAX_ORDERS),
+      nextBillNo: state.nextBillNo + 1,
+    },
+  };
+}
+
+export function addGuestPayment(
+  state: GuestState,
+  orderId: string,
+  amount: string,
+  mode: GuestPaymentMode,
+): GuestState {
+  const order = state.orders.find((entry) => entry.id === orderId);
+  if (!order || order.status === "cancelled") return state;
+  const totals = guestOrderTotals(order);
+  const value = Math.min(Math.max(toPaise(amount), 0), totals.duePaise);
+  if (value <= 0) return state;
+
+  const paidPaise = totals.paidPaise + value;
+  return {
+    ...state,
+    orders: state.orders.map((entry) =>
+      entry.id === orderId
+        ? {
+            ...entry,
+            status: paidPaise >= totals.totalPaise ? "settled" : "open_tab",
+            payments: [
+              ...entry.payments,
+              {
+                id: newId("pay"),
+                amount: fromPaise(value),
+                mode,
+                paidAt: guestNow(),
+              },
+            ],
+          }
+        : entry,
+    ),
+  };
+}
+
+export function setGuestOrderStatus(
+  state: GuestState,
+  orderId: string,
+  status: GuestOrderStatus,
+): GuestState {
+  return {
+    ...state,
+    orders: state.orders.map((order) =>
+      order.id === orderId ? { ...order, status } : order,
+    ),
+  };
+}
+
+export function addGuestItem(
+  state: GuestState,
+  input: { name: string; price: string; unitLabel: string },
+): GuestState {
+  const name = input.name.trim().slice(0, 80);
+  if (!name) return state;
+  const item: GuestItem = {
+    id: newId("item"),
+    name,
+    price: cleanMoney(input.price),
+    unitLabel: input.unitLabel.trim().slice(0, 20) || "item",
+    isAvailable: true,
+    sortOrder: state.items.length,
+    createdAt: guestNow(),
+  };
+  return { ...state, items: [...state.items, item].slice(0, MAX_ITEMS) };
+}
+
+export function updateGuestItem(
+  state: GuestState,
+  id: string,
+  patch: Partial<Pick<GuestItem, "name" | "price" | "unitLabel" | "isAvailable">>,
+): GuestState {
+  return {
+    ...state,
+    items: state.items.map((item) =>
+      item.id === id
+        ? {
+            ...item,
+            ...patch,
+            name: patch.name?.trim().slice(0, 80) || item.name,
+            price:
+              patch.price === undefined
+                ? item.price
+                : cleanMoney(patch.price),
+            unitLabel:
+              patch.unitLabel?.trim().slice(0, 20) || item.unitLabel,
+          }
+        : item,
+    ),
+  };
+}
+
+export function deleteGuestItem(state: GuestState, id: string): GuestState {
+  return {
+    ...state,
+    items: state.items.filter((item) => item.id !== id),
+  };
+}
+
+export function addGuestExpense(
+  state: GuestState,
+  input: { title: string; amount: string; date: string },
+): GuestState {
+  const title = input.title.trim().slice(0, 80);
+  const amount = cleanMoney(input.amount);
+  if (!title || toPaise(amount) <= 0) return state;
+  const expense: GuestExpense = {
+    id: newId("expense"),
+    title,
+    amount,
+    date: cleanDate(input.date, guestToday()),
+    createdAt: guestNow(),
+  };
+  return { ...state, expenses: [expense, ...state.expenses].slice(0, MAX_EXPENSES) };
+}
+
+export function deleteGuestExpense(state: GuestState, id: string): GuestState {
+  return {
+    ...state,
+    expenses: state.expenses.filter((expense) => expense.id !== id),
+  };
+}
+
+export function updateGuestShop(
+  state: GuestState,
+  patch: Partial<GuestShop>,
+): GuestState {
+  const shop = normalizeShop({ ...state.shop, ...patch });
+  return { ...state, shop };
+}
+
+export function guestCashSummary(
+  state: GuestState,
+  since: number | null,
+): { receivedPaise: number; spentPaise: number; leftPaise: number } {
+  let receivedPaise = 0;
+  for (const order of state.orders) {
+    if (order.status === "cancelled") continue;
+    for (const payment of order.payments) {
+      if (since === null || new Date(payment.paidAt).getTime() >= since) {
+        receivedPaise += toPaise(payment.amount);
+      }
+    }
+  }
+
+  let spentPaise = 0;
+  for (const expense of state.expenses) {
+    if (
+      since === null ||
+      new Date(`${expense.date}T00:00:00`).getTime() >= since
+    ) {
+      spentPaise += toPaise(expense.amount);
+    }
+  }
+
+  return {
+    receivedPaise,
+    spentPaise,
+    leftPaise: receivedPaise - spentPaise,
+  };
+}
+
+export function guestCustomItems(state: GuestState): GuestItem[] {
+  const baseline = starterItems(state.shop.pack);
+  const baselineByName = new Map(
+    baseline.map((item) => [item.name.toLowerCase(), item]),
+  );
+
+  return state.items.filter((item) => {
+    const original = baselineByName.get(item.name.toLowerCase());
+    if (!original) return true;
+    return (
+      original.price !== item.price ||
+      original.unitLabel !== item.unitLabel ||
+      original.isAvailable !== item.isAvailable
+    );
+  });
+}
+
+export function guestHasContent(state: GuestState): boolean {
+  return (
+    state.orders.length > 0 ||
+    state.expenses.length > 0 ||
+    guestCustomItems(state).length > 0 ||
+    state.items.length !== starterItems(state.shop.pack).length
+  );
+}
+
+export function guestImportPayload(
+  state: GuestState,
+): GuestImportPayload | null {
+  if (!guestHasContent(state)) return null;
+
+  return {
+    items: state.items.map((item) => ({
+      name: item.name,
+      price: item.price,
+      unitLabel: item.unitLabel,
+      isAvailable: item.isAvailable,
+    })),
+    orders: guestOrdersNewestFirst(state).map((order) => ({
+      code: order.code,
+      customerName: order.customerName || null,
+      customerPhone: order.customerPhone || null,
+      note: order.note || null,
+      neededBy: order.neededBy,
+      createdAt: order.createdAt,
+      status: order.status,
+      lines: order.lines.map((line) => ({
+        itemName: line.itemName,
+        optionName: line.optionName,
+        extras: line.extras,
+        quantity: line.quantity,
+        unitPrice: line.unitPrice,
+        unitLabel: line.unitLabel,
+        note: line.note,
+      })),
+      payments: order.payments.map((payment) => ({
+        amount: payment.amount,
+        mode: payment.mode,
+        paidAt: payment.paidAt,
+      })),
+    })),
+    expenses: state.expenses.map((expense) => ({
+      title: expense.title,
+      amount: expense.amount,
+      date: expense.date,
+    })),
+  };
+}
+
+export function guestSalesCsv(state: GuestState): string {
+  const rows = [
+    ["order_code", "date", "customer", "phone", "status", "total", "paid", "due"],
+  ];
+  for (const order of guestOrdersNewestFirst(state)) {
+    const totals = guestOrderTotals(order);
+    rows.push([
+      order.code,
+      order.createdAt.slice(0, 10),
+      order.customerName || "Walk-in",
+      order.customerPhone,
+      totals.status,
+      fromPaise(totals.totalPaise),
+      fromPaise(totals.paidPaise),
+      fromPaise(totals.duePaise),
+    ]);
+  }
+  return rows
+    .map((row) =>
+      row
+        .map((cell) => `"${String(cell).replaceAll('"', '""')}"`)
+        .join(","),
+    )
+    .join("\n");
+}
