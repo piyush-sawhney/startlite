@@ -10,6 +10,7 @@ import {
   orderItems,
   orderPayments,
   orders,
+  platformSettings,
   user,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
@@ -31,6 +32,24 @@ async function main() {
 
   const [owner] = await db.select().from(user).where(eq(user.email, EMAIL));
   if (!owner) throw new Error("Seed user was not created");
+
+  const [settings] = await db
+    .select()
+    .from(platformSettings)
+    .where(eq(platformSettings.id, 1))
+    .limit(1);
+
+  if (!settings) {
+    await db.insert(platformSettings).values({
+      id: 1,
+      legalName: "StartLite Technologies Pvt Ltd",
+      gstin: "27AAAAA0000A1Z5",
+      registeredAddress: "Kothrud, Pune 411038, Maharashtra, India",
+      sac: "998314",
+      invoicePrefix: "SL",
+      nextInvoiceNo: 3,
+    });
+  }
 
   const [old] = await db
     .select()

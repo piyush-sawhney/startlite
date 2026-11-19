@@ -30,3 +30,14 @@ export async function requireApiUser(request: Request) {
   }
   return { user: session.user };
 }
+
+export async function requireApiAdmin(request: Request) {
+  const session = await auth.api.getSession({ headers: request.headers });
+  if (!session?.user) {
+    return { error: apiError("AUTH_REQUIRED", "Sign in to continue.") };
+  }
+  if (session.user.role !== "platform_admin") {
+    return { error: apiError("FORBIDDEN", "Platform admin required.") };
+  }
+  return { user: session.user };
+}

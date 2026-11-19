@@ -45,3 +45,11 @@ export async function businessByHandle(handle: string) {
     .limit(1);
   return business ?? null;
 }
+
+export async function requireAdmin() {
+  const user = await requireUser();
+  if (user.role !== "platform_admin") {
+    return { user, authorized: false as const };
+  }
+  return { user, authorized: true as const };
+}

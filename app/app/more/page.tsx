@@ -110,6 +110,12 @@ export default async function MorePage() {
         </a>
       </Group>
 
+      {user.role === "platform_admin" ? (
+        <Group title="Platform">
+          <Row href="/admin" label="Admin Console" />
+        </Group>
+      ) : null}
+
       <div className="mt-6 space-y-3">
         <p className="text-center text-xs text-ink-subtle">
           Signed in as {user.email}
