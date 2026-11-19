@@ -122,9 +122,15 @@ export default async function OrderPage({
               <dd className="tnum">{formatAmount(order.tdsTotal)}</dd>
             </div>
           ) : null}
-          <div className="flex justify-between font-semibold">
-            <dt>Due</dt>
-            <dd className="tnum">{formatAmount(due)}</dd>
+          <div
+            className={
+              Number(due) > 0
+                ? "flex justify-between font-semibold text-warning"
+                : "flex justify-between font-semibold text-success"
+            }
+          >
+            <dt>{Number(due) > 0 ? "Due" : "Status"}</dt>
+            <dd className="tnum">{Number(due) > 0 ? formatAmount(due) : "Fully settled"}</dd>
           </div>
         </dl>
       </Card>

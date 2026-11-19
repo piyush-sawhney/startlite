@@ -41,8 +41,24 @@ export default async function CustomerPage({
         subtitle={customer.phone ?? "No phone"}
         action={
           <div className="text-right">
-            <p className="tnum text-lg font-semibold">{formatAmount(pending)}</p>
-            <p className="text-[11px] text-ink-subtle">Pending</p>
+            <p
+              className={
+                Number(pending) > 0
+                  ? "tnum text-lg font-bold text-warning"
+                  : "tnum text-lg font-semibold text-success"
+              }
+            >
+              {formatAmount(pending)}
+            </p>
+            <p
+              className={
+                Number(pending) > 0
+                  ? "text-[11px] font-semibold text-warning"
+                  : "text-[11px] font-medium text-success"
+              }
+            >
+              {Number(pending) > 0 ? "Pending" : "No dues"}
+            </p>
           </div>
         }
       />
@@ -51,15 +67,21 @@ export default async function CustomerPage({
         <div className="flex gap-2">
           <a
             href={`tel:${customer.phone}`}
-            className="inline-flex min-h-11 flex-1 items-center justify-center rounded-md border border-line bg-surface text-sm font-medium"
+            className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-line bg-surface text-sm font-medium transition hover:bg-muted"
           >
             Call
           </a>
           <a
-            href={`https://wa.me/91${customer.phone.replace(/\D/g, "").slice(-10)}`}
+            href={`https://wa.me/91${customer.phone.replace(/\D/g, "").slice(-10)}${
+              Number(pending) > 0
+                ? `?text=${encodeURIComponent(
+                    `Namaste ${customer.name}, gentle reminder from ${business.businessName} regarding pending balance of ${formatAmount(pending)}.`,
+                  )}`
+                : ""
+            }`}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex min-h-11 flex-1 items-center justify-center rounded-md border border-line bg-surface text-sm font-medium"
+            className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-line bg-surface text-sm font-semibold text-ink transition hover:bg-muted"
           >
             WhatsApp
           </a>

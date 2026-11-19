@@ -4,13 +4,13 @@ import { z } from "zod";
 import { db } from "@/db";
 import { businesses, pendingOrders } from "@/db/schema";
 import { clientIp, apiData, apiError, readJson } from "@/lib/api";
-import { whatsappLink } from "@/lib/bill";
+import { formatNeededBy, whatsappLink } from "@/lib/bill";
 import { serverEnv } from "@/lib/env";
 import { newPendingCode } from "@/lib/pending-code";
 import { priceLines } from "@/lib/pending";
 import { rateLimit } from "@/lib/rate-limit";
 import { reviewUrl, storefrontStatus } from "@/lib/shop";
-import { formatAmount } from "@/lib/money";
+import { dec, formatAmount } from "@/lib/money";
 
 const lineSchema = z.object({
   itemId: z.string().min(1),
@@ -146,15 +146,43 @@ export async function POST(request: Request) {
   });
 
   const link = reviewUrl(code);
-  const itemCount = snapshotLines.reduce(
-    (total, line) => total + Number(line.quantity),
-    0,
-  );
-  const message = [
-    `New order from ${body.buyerName.trim()}`,
-    `${itemCount} item${itemCount === 1 ? "" : "s"} · ${formatAmount(priced.cart.grandTotal)}`,
-    link,
-  ].join("\n");
+
+  const linesSummary = snapshotLines.map((line) => {
+    const qty = dec(line.quantity).toFixed(2).replace(/\.00$/, "");
+    const optionPart = line.optionName ? ` (${line.optionName})` : "";
+    const extrasPart =
+      line.extraNames && line.extraNames.length > 0
+        ? ` + ${line.extraNames.join(", ")}`
+        : "";
+    return `• ${qty} × ${line.itemName}${optionPart}${extrasPart}   ${formatAmount(line.lineTotal)}`;
+  });
+
+  const messageParts: string[] = [
+    `*Order from ${body.buyerName.trim()}*`,
+    `Shop: ${shop.businessName}`,
+    `Phone: +91 ${phone}`,
+    "",
+    "Items:",
+    ...linesSummary,
+    "",
+    `*Total: ${formatAmount(priced.cart.grandTotal)}*`,
+  ];
+
+  if (body.neededBy) {
+    const needed = formatNeededBy(body.neededBy) ?? body.neededBy;
+    const slot = body.timeSlot ? ` (${body.timeSlot})` : "";
+    messageParts.push(`Needed by: ${needed}${slot}`);
+  }
+
+  if (body.note?.trim()) {
+    messageParts.push(`Note: ${body.note.trim()}`);
+  }
+
+  messageParts.push("");
+  messageParts.push(`Order Code: #${code}`);
+  messageParts.push(`Review order: ${link}`);
+
+  const message = messageParts.join("\n");
 
   return apiData(
     {

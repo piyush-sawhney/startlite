@@ -82,7 +82,7 @@ export function SettingsForm({ initial }: { initial: Settings }) {
         <div id="link">
           <Label>Store link</Label>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-ink-muted">/b/</span>
+            <span className="text-sm font-medium text-ink-muted">startlite.in/b/</span>
             <input
               className={inputClass}
               value={form.handle}

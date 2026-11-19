@@ -153,7 +153,7 @@ export function OnboardingWizard({ name }: { name: string }) {
           <div className="mt-6">
             <Label>Store link</Label>
             <div className="flex items-center gap-1">
-              <span className="shrink-0 text-sm text-ink-muted">/b/</span>
+              <span className="shrink-0 text-sm font-medium text-ink-muted">startlite.in/b/</span>
               <input
                 className={inputClass}
                 value={handle}

@@ -12,6 +12,7 @@ import { dec, formatAmount } from "@/lib/money";
 import { formatBillDate } from "@/lib/bill";
 import { getMerchantSnapshot, startOfTodayIst } from "@/lib/queries";
 import { requireBusiness } from "@/lib/session";
+import { displayShopLink } from "@/lib/shop";
 
 export const dynamic = "force-dynamic";
 
@@ -161,7 +162,13 @@ export default async function HomePage() {
                           <p className="tnum font-semibold">
                             {formatAmount(order.grandTotal)}
                           </p>
-                          <p className="mt-0.5 text-xs text-ink-muted">
+                          <p
+                            className={
+                              due > 0
+                                ? "mt-0.5 text-xs font-semibold text-warning"
+                                : "mt-0.5 text-xs font-medium text-success"
+                            }
+                          >
                             {due > 0 ? `${formatAmount(due)} due` : "Paid"}
                           </p>
                         </div>
@@ -196,7 +203,7 @@ export default async function HomePage() {
           <div className="rounded-2xl border border-line bg-gradient-to-br from-accent-soft via-sand to-canvas p-4">
             <SectionLabel>Your store</SectionLabel>
             <p className="mt-1 break-all text-sm font-semibold text-accent-strong">
-              /b/{business.handle}
+              {displayShopLink(business.handle)}
             </p>
             <p className="mt-1 text-xs leading-5 text-ink-muted">
               Share this link on WhatsApp. Buyers order without an account.

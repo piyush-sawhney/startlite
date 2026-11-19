@@ -7,8 +7,11 @@ import {
   CheckCircle2,
   Copy,
   MapPin,
+  MessageCircle,
   Minus,
   Plus,
+  Search,
+  ShieldCheck,
   ShoppingBag,
   Store,
   X,
@@ -36,6 +39,8 @@ export type ShopView = {
   bankAccountName: string | null;
   bankAccountNumber: string | null;
   bankIfsc: string | null;
+  whatsappNumber?: string;
+  appUrl?: string;
 };
 
 type CartLine = {
@@ -94,6 +99,7 @@ export function Storefront({
   const [draftQuantity, setDraftQuantity] = useState("1");
   const [draftNote, setDraftNote] = useState("");
   const [filter, setFilter] = useState<"all" | "product" | "service">("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [copied, setCopied] = useState(false);
 
   const [name, setName] = useState("");
@@ -108,6 +114,21 @@ export function Storefront({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const domain = (
+    shop.appUrl ||
+    (typeof window !== "undefined" && window.location.host
+      ? window.location.host
+      : "startlite.in")
+  )
+    .replace(/^https?:\/\//, "")
+    .replace(/\/$/, "");
+
+  const displayLink = `${domain}/b/${shop.handle}`;
+  const fullShareUrl =
+    typeof window !== "undefined" && window.location.href
+      ? window.location.href
+      : `${(shop.appUrl || "https://startlite.in").replace(/\/$/, "")}/b/${shop.handle}`;
+
   const itemById = useMemo(
     () => new Map(items.map((item) => [item.id, item])),
     [items],
@@ -121,7 +142,7 @@ export function Storefront({
   ).length;
   const showFilters = productCount > 0 && serviceCount > 0;
 
-  const visibleItems =
+  const filteredByType =
     filter === "all"
       ? items
       : items.filter((item) =>
@@ -129,6 +150,17 @@ export function Storefront({
             ? item.itemType === "service"
             : item.itemType !== "service",
         );
+
+  const query = searchQuery.trim().toLowerCase();
+  const visibleItems = query
+    ? filteredByType.filter((item) => {
+        return (
+          item.name.toLowerCase().includes(query) ||
+          (item.subtitle && item.subtitle.toLowerCase().includes(query)) ||
+          item.unitLabel.toLowerCase().includes(query)
+        );
+      })
+    : filteredByType;
 
   useEffect(() => {
     try {
@@ -269,7 +301,7 @@ export function Storefront({
 
   async function copyLink() {
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      await navigator.clipboard.writeText(fullShareUrl);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -470,25 +502,30 @@ export function Storefront({
 
   return (
     <main className="min-h-dvh bg-canvas pb-28 lg:pb-16">
-      <header className="sticky top-0 z-30 border-b border-line/80 bg-canvas/90 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-line/80 bg-canvas/95 backdrop-blur-md">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3 lg:px-8">
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-accent text-white">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-accent text-white shadow-sm">
               <Store className="h-4 w-4" />
             </span>
-            <span className="truncate text-sm font-semibold tracking-tight">
-              {shop.name}
-            </span>
+            <div className="min-w-0">
+              <span className="block truncate text-sm font-semibold tracking-tight text-ink">
+                {shop.name}
+              </span>
+              <span className="block truncate text-[11px] font-medium text-ink-muted sm:hidden">
+                {displayLink}
+              </span>
+            </div>
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            <span className="hidden max-w-[220px] truncate rounded-full border border-line bg-surface px-3 py-1.5 text-[11px] font-medium text-ink-muted sm:block">
-              /b/{shop.handle}
+            <span className="hidden max-w-[320px] truncate rounded-full border border-line bg-surface px-3 py-1 text-xs font-medium text-ink-muted sm:block">
+              {displayLink}
             </span>
             <button
               type="button"
               onClick={copyLink}
-              className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-[11px] font-semibold text-ink-muted transition active:bg-muted"
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-xs font-semibold text-ink-muted transition hover:bg-muted active:bg-muted"
             >
               {copied ? (
                 <Check className="h-3.5 w-3.5 text-success" />
@@ -497,121 +534,191 @@ export function Storefront({
               )}
               {copied ? "Copied" : "Copy link"}
             </button>
+            {cartCount > 0 ? (
+              <button
+                type="button"
+                onClick={() => setSheet({ kind: "cart" })}
+                className="hidden items-center gap-1.5 rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-accent-strong sm:inline-flex"
+              >
+                <ShoppingBag className="h-3.5 w-3.5" />
+                <span>{cartCount}</span>
+                <span>·</span>
+                <span className="tnum">{formatPaise(cartTotal)}</span>
+              </button>
+            ) : null}
           </div>
         </div>
       </header>
 
       <div className="mx-auto w-full max-w-6xl px-4 pt-4 lg:px-8 lg:pt-7">
-        <section className="overflow-hidden rounded-3xl border border-line/80 bg-gradient-to-br from-accent-soft via-sand to-canvas p-5 lg:p-7">
+        <section className="relative overflow-hidden rounded-3xl border border-line/80 bg-gradient-to-br from-accent-soft/80 via-surface to-canvas p-5 shadow-[0_1px_3px_rgb(20_18_15/0.04)] lg:p-7">
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] lg:items-center">
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3 py-1 text-[11px] font-semibold text-white">
-                  <ShoppingBag className="h-3 w-3" />
-                  Order on WhatsApp
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200/60 px-2.5 py-1 text-[11px] font-semibold text-emerald-800">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+                  </span>
+                  Accepting orders
                 </span>
                 {shop.locality ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-line/70 bg-surface/70 px-3 py-1 text-[11px] font-medium text-ink-muted">
-                    <MapPin className="h-3 w-3" />
+                  <span className="inline-flex items-center gap-1 rounded-full border border-line/80 bg-surface/90 px-2.5 py-1 text-[11px] font-medium text-ink-muted">
+                    <MapPin className="h-3 w-3 text-ink-subtle" />
                     {shop.locality}
                   </span>
                 ) : null}
+                <span className="inline-flex items-center gap-1 rounded-full border border-line/80 bg-surface/90 px-2.5 py-1 text-[11px] font-medium text-ink-muted">
+                  <ShieldCheck className="h-3 w-3 text-accent" />
+                  Verified store
+                </span>
               </div>
 
-              <h1 className="mt-3 text-[34px] font-semibold leading-[1.05] tracking-tight text-ink lg:text-[44px]">
+              <h1 className="mt-3.5 text-[32px] font-bold leading-[1.1] tracking-tight text-ink lg:text-[42px]">
                 {shop.name}
               </h1>
 
               {shop.tagline ? (
-                <p className="mt-2 max-w-[52ch] text-[15px] leading-6 text-ink-muted lg:text-base">
+                <p className="mt-2 max-w-[54ch] text-[15px] leading-6 text-ink-muted lg:text-base">
                   {shop.tagline}
                 </p>
               ) : (
-                <p className="mt-2 max-w-[52ch] text-[15px] leading-6 text-ink-muted">
-                  See prices and send your order in a minute. No app and no
-                  account.
+                <p className="mt-2 max-w-[54ch] text-[15px] leading-6 text-ink-muted">
+                  Browse our catalog, check prices, and send your order directly on WhatsApp. No account needed.
                 </p>
               )}
 
-              <p className="mt-4 text-xs font-medium text-ink-subtle">
-                {items.length} item{items.length === 1 ? "" : "s"} · Prices in
-                INR · Pay after the shop confirms
-              </p>
+              <div className="mt-4 flex flex-wrap items-center gap-3 pt-1">
+                {shop.whatsappNumber ? (
+                  <a
+                    href={`https://wa.me/91${shop.whatsappNumber.replace(/\D/g, "").slice(-10)}?text=${encodeURIComponent(
+                      `Namaste ${shop.name}! I am browsing your store on ${displayLink}.`,
+                    )}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-[#25D366] px-3.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#20ba5a] active:bg-[#1da851]"
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" />
+                    Chat on WhatsApp
+                  </a>
+                ) : null}
+                <p className="text-xs font-medium text-ink-subtle">
+                  {items.length} item{items.length === 1 ? "" : "s"} · Direct WhatsApp confirmation
+                </p>
+              </div>
             </div>
 
-            <ol className="hidden gap-2 rounded-2xl border border-white/70 bg-white/55 p-4 backdrop-blur lg:grid">
+            <ol className="hidden gap-2.5 rounded-2xl border border-line/70 bg-surface/80 p-4 shadow-sm backdrop-blur lg:grid">
               {[
-                ["1", "Pick what you need"],
-                ["2", "Send the order on WhatsApp"],
-                ["3", "Pay after the shop confirms"],
-              ].map(([step, label]) => (
-                <li key={step} className="flex items-center gap-3">
-                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-accent-soft text-[11px] font-semibold text-accent-strong">
+                ["1", "Select items", "Browse menu and customize options"],
+                ["2", "Send on WhatsApp", "Instant order message sent to shop"],
+                ["3", "Pay after confirmation", "UPI & cash payment when ready"],
+              ].map(([step, title, desc]) => (
+                <li key={step} className="flex items-start gap-3">
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-accent-soft text-xs font-bold text-accent-strong">
                     {step}
                   </span>
-                  <span className="text-sm font-medium text-ink">{label}</span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-ink">{title}</p>
+                    <p className="text-xs text-ink-muted">{desc}</p>
+                  </div>
                 </li>
               ))}
             </ol>
           </div>
 
           {shop.notice ? (
-            <p className="mt-4 rounded-xl border border-warning/25 bg-warning/10 px-3.5 py-2.5 text-sm leading-6 text-warning">
-              {shop.notice}
-            </p>
+            <div className="mt-4 flex items-start gap-2.5 rounded-2xl border border-warning/30 bg-warning/10 p-3 text-sm text-ink">
+              <span className="mt-0.5 inline-block h-2 w-2 shrink-0 rounded-full bg-warning" />
+              <p className="leading-5">{shop.notice}</p>
+            </div>
           ) : null}
         </section>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
           <section className="min-w-0">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-semibold tracking-tight">
-                  {filter === "service" ? "Services" : "Menu"}
-                </h2>
-                <p className="mt-0.5 text-sm text-ink-muted">
-                  {visibleItems.length} item
-                  {visibleItems.length === 1 ? "" : "s"} available
-                </p>
+            {/* Search and Category Filters */}
+            <div className="space-y-3">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-subtle" />
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search menu items, flavors, services..."
+                  className="block min-h-11 w-full rounded-2xl border border-line bg-surface pl-10 pr-9 text-[14px] text-ink placeholder:text-ink-subtle focus:border-accent/50 focus:outline-none focus:ring-1 focus:ring-accent/50"
+                />
+                {searchQuery ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    aria-label="Clear search"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-subtle hover:text-ink"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                ) : null}
               </div>
 
-              {showFilters ? (
-                <div className="flex items-center gap-1.5 rounded-full border border-line bg-surface p-1">
-                  {(
-                    [
-                      ["all", "All", items.length],
-                      ["product", "Products", productCount],
-                      ["service", "Services", serviceCount],
-                    ] as const
-                  ).map(([value, label, count]) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setFilter(value)}
-                      className={cn(
-                        "min-h-8 rounded-full px-3 text-xs font-semibold transition",
-                        filter === value
-                          ? "bg-ink text-white"
-                          : "text-ink-muted hover:bg-muted",
-                      )}
-                    >
-                      {label}
-                      <span className="ml-1 opacity-60">{count}</span>
-                    </button>
-                  ))}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  <h2 className="text-lg font-semibold tracking-tight text-ink">
+                    {filter === "service" ? "Services" : "Menu"}
+                  </h2>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-ink-muted">
+                    {visibleItems.length}
+                  </span>
                 </div>
-              ) : null}
+
+                {showFilters ? (
+                  <div className="flex items-center gap-1 rounded-full border border-line bg-surface p-1">
+                    {(
+                      [
+                        ["all", "All", items.length],
+                        ["product", "Products", productCount],
+                        ["service", "Services", serviceCount],
+                      ] as const
+                    ).map(([value, label, count]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setFilter(value)}
+                        className={cn(
+                          "min-h-7 rounded-full px-2.5 text-xs font-semibold transition",
+                          filter === value
+                            ? "bg-ink text-white shadow-sm"
+                            : "text-ink-muted hover:bg-muted",
+                        )}
+                      >
+                        {label} <span className="opacity-60">{count}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             </div>
 
             <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
               {items.length === 0 ? (
-                <p className="rounded-2xl border border-dashed border-line px-5 py-10 text-center text-sm text-ink-muted md:col-span-2">
-                  The menu is being updated. Check back soon.
-                </p>
+                <div className="rounded-2xl border border-dashed border-line bg-surface px-5 py-12 text-center md:col-span-2">
+                  <p className="font-semibold text-ink">Catalog being updated</p>
+                  <p className="mt-1 text-sm text-ink-muted">The shop will post new items shortly.</p>
+                </div>
               ) : visibleItems.length === 0 ? (
-                <p className="rounded-2xl border border-dashed border-line px-5 py-10 text-center text-sm text-ink-muted md:col-span-2">
-                  Nothing in this section yet.
-                </p>
+                <div className="rounded-2xl border border-dashed border-line bg-surface px-5 py-10 text-center md:col-span-2">
+                  <p className="font-semibold text-ink">No items match &quot;{searchQuery}&quot;</p>
+                  <p className="mt-1 text-sm text-ink-muted">Try searching for something else or clear the filter.</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setFilter("all");
+                    }}
+                    className="mt-3 inline-flex min-h-9 items-center rounded-xl border border-line bg-surface px-3 text-xs font-semibold text-ink hover:bg-muted"
+                  >
+                    Clear filters
+                  </button>
+                </div>
               ) : (
                 visibleItems.map((item) => (
                   <ItemCard
@@ -638,10 +745,26 @@ export function Storefront({
               </div>
             ) : null}
 
-            <p className="mt-6 text-center text-[11px] leading-5 text-ink-subtle">
-              Powered by <span className="font-semibold">StartLite</span> · A
-              store link and a cash book for small shops.
-            </p>
+            <div className="mt-8 border-t border-line/60 pt-6 text-center">
+              <p className="text-xs font-medium text-ink-muted">
+                ⚡ Run a business on WhatsApp?{" "}
+                <a
+                  href="https://startlite.in"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-accent hover:underline"
+                >
+                  Get your free digital store at StartLite.in
+                </a>
+              </p>
+              <div className="mt-2 flex items-center justify-center gap-3 text-[11px] text-ink-subtle">
+                <a href="/terms" className="hover:text-ink">Terms</a>
+                <span>·</span>
+                <a href="/privacy" className="hover:text-ink">Privacy</a>
+                <span>·</span>
+                <a href="/refund" className="hover:text-ink">Refunds</a>
+              </div>
+            </div>
           </section>
 
           <aside className="hidden lg:sticky lg:top-24 lg:block">
@@ -916,50 +1039,56 @@ export function Storefront({
                   </div>
 
                   <button
-                    className="min-h-12 w-full rounded-xl bg-accent text-[15px] font-semibold text-white transition active:bg-accent-strong disabled:opacity-50"
+                    className="min-h-12 w-full rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-[15px] font-semibold text-white transition active:bg-[#1da851] disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
                     disabled={busy}
                   >
-                    {busy ? "Sending…" : "Send on WhatsApp"}
+                    <MessageCircle className="h-4 w-4" />
+                    {busy ? "Preparing order…" : "Send on WhatsApp"}
                   </button>
                   <p className="text-center text-[11px] leading-5 text-ink-subtle">
-                    The shop confirms your order first. Pay after that.
+                    The shop confirms your order first. Pay after confirmation.
                   </p>
                 </div>
               </form>
             ) : null}
 
             {sheet.kind === "success" ? (
-              <div>
-                <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-success/10 text-success">
+              <div className="text-center">
+                <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm">
                   <CheckCircle2 className="h-7 w-7" />
                 </div>
-                <h2 className="mt-3 text-center text-2xl font-semibold tracking-tight">
-                  Order ready
+                <h2 className="mt-3.5 text-center text-2xl font-bold tracking-tight text-ink">
+                  Order placed!
                 </h2>
                 <p className="mt-1 text-center text-sm text-ink-muted">
-                  Code {sheet.code}. Send it to the shop on WhatsApp.
+                  Order Code: <span className="font-semibold text-ink">#{sheet.code}</span>
                 </p>
-                <pre className="mt-4 whitespace-pre-wrap rounded-2xl bg-muted p-3.5 font-sans text-sm leading-6">
-                  {sheet.message}
-                </pre>
+                <div className="mt-4 rounded-2xl border border-line bg-muted/50 p-3.5 text-left">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-subtle">
+                    WhatsApp Message Preview
+                  </p>
+                  <pre className="mt-2 whitespace-pre-wrap font-sans text-xs leading-5 text-ink">
+                    {sheet.message}
+                  </pre>
+                </div>
                 <a
                   href={sheet.whatsappUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-3 flex min-h-12 items-center justify-center rounded-xl bg-accent text-[15px] font-semibold text-white transition active:bg-accent-strong"
+                  className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 text-[15px] font-semibold text-white shadow-sm transition hover:bg-[#20ba5a] active:bg-[#1da851]"
                 >
-                  Send on WhatsApp
+                  <MessageCircle className="h-5 w-5" />
+                  Send Order on WhatsApp
                 </a>
                 <button
                   type="button"
-                  className="mt-2 min-h-11 w-full rounded-xl border border-line bg-surface text-sm font-medium"
+                  className="mt-2.5 min-h-11 w-full rounded-xl border border-line bg-surface text-sm font-medium transition hover:bg-muted"
                   onClick={() => setSheet(null)}
                 >
-                  Done
+                  Back to store
                 </button>
                 <p className="mt-3 text-center text-[11px] leading-5 text-ink-subtle">
-                  The link opens the shop’s review page. The shop accepts the
-                  order, then sends you a bill.
+                  Tap above to send this order to the shop on WhatsApp. The shop will confirm and provide payment details.
                 </p>
               </div>
             ) : null}
@@ -1029,6 +1158,11 @@ function ItemCard({
           >
             {isService ? "Service" : "Product"}
           </span>
+          {item.options.length > 0 || item.extras.length > 0 ? (
+            <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold text-accent-strong">
+              Customisable
+            </span>
+          ) : null}
           <span className="truncate text-[11px] text-ink-subtle">
             {item.unitLabel}
           </span>
@@ -1097,7 +1231,7 @@ function ItemCard({
               onClick={onAdd}
               className="inline-flex min-h-8 items-center gap-1 rounded-lg bg-accent-soft px-3 text-xs font-semibold text-accent-strong transition active:bg-accent active:text-white"
             >
-              Choose <ArrowRight className="h-3.5 w-3.5" />
+              Customise <ArrowRight className="h-3.5 w-3.5" />
             </button>
           )}
         </div>

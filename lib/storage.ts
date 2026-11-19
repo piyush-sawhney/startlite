@@ -4,7 +4,7 @@ import path from "node:path";
 import sharp from "sharp";
 
 export const MEDIA_ROOT = path.resolve(
-  process.env.MEDIA_ROOT ?? "./.data/media",
+  /*turbopackIgnore: true*/ process.env.MEDIA_ROOT ?? "./.data/media",
 );
 
 export const VARIANTS = [320, 640, 1280] as const;
@@ -28,7 +28,7 @@ function safeKey(key: string): string {
 }
 
 export function mediaPath(key: string): string {
-  return path.join(MEDIA_ROOT, safeKey(key));
+  return path.join(/*turbopackIgnore: true*/ MEDIA_ROOT, safeKey(key));
 }
 
 export async function storeImage(

@@ -66,13 +66,19 @@ export function GuestCustomersList({ state, go }: GuestViewProps) {
                   <p
                     className={
                       customer.pendingPaise > 0
-                        ? "tnum font-semibold text-ink"
+                        ? "tnum font-semibold text-warning"
                         : "tnum font-semibold text-ink-subtle"
                     }
                   >
                     {formatPaise(customer.pendingPaise)}
                   </p>
-                  <p className="text-[11px] text-ink-subtle">
+                  <p
+                    className={
+                      customer.pendingPaise > 0
+                        ? "text-[11px] font-semibold text-warning"
+                        : "text-[11px] font-medium text-success"
+                    }
+                  >
                     {customer.pendingPaise > 0 ? "Pending" : "No dues"}
                   </p>
                 </div>
@@ -120,10 +126,24 @@ export function GuestCustomerDetail({
           </p>
         </div>
         <div className="text-right">
-          <p className="tnum text-lg font-semibold">
+          <p
+            className={
+              customer.pendingPaise > 0
+                ? "tnum text-lg font-bold text-warning"
+                : "tnum text-lg font-semibold text-success"
+            }
+          >
             {formatPaise(customer.pendingPaise)}
           </p>
-          <p className="text-[11px] text-ink-subtle">Pending</p>
+          <p
+            className={
+              customer.pendingPaise > 0
+                ? "text-[11px] font-semibold text-warning"
+                : "text-[11px] font-medium text-success"
+            }
+          >
+            {customer.pendingPaise > 0 ? "Pending" : "No dues"}
+          </p>
         </div>
       </div>
 

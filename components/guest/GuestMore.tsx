@@ -73,7 +73,7 @@ export function GuestMore({ state, go, signInHref }: GuestViewProps) {
           <p className="text-[11px] font-medium text-ink-muted">Store link</p>
           <p className="mt-1 text-sm text-ink-muted">
             Created after you save
-            {handle.length >= 3 ? ` · /b/${handle}` : ""}
+            {handle.length >= 3 ? ` · startlite.in/b/${handle}` : ""}
           </p>
         </div>
 
@@ -238,7 +238,7 @@ export function GuestSettings({
         <div>
           <Label>Store link</Label>
           <div className="flex items-center gap-1">
-            <span className="shrink-0 text-sm text-ink-muted">/b/</span>
+            <span className="shrink-0 text-sm font-medium text-ink-muted">startlite.in/b/</span>
             <input
               className={inputClass}
               value={handle}

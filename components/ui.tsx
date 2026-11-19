@@ -178,7 +178,7 @@ export function StatusPill({ status }: { status: string }) {
     open_tab: { label: "Open", className: "bg-accent-soft text-accent-strong" },
     ready: { label: "Ready", className: "bg-warning/10 text-warning" },
     settled: { label: "Paid", className: "bg-success/10 text-success" },
-    cancelled: { label: "Cancelled", className: "bg-muted text-ink-subtle" },
+    cancelled: { label: "Cancelled", className: "bg-danger/10 text-danger" },
   };
   const entry = map[status] ?? { label: status, className: "bg-muted text-ink-muted" };
   return (

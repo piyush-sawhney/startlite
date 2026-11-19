@@ -4,7 +4,7 @@ import { SignOutButton } from "@/components/SignOutButton";
 import { Card, PageHeader } from "@/components/ui";
 import { formatBillDate } from "@/lib/bill";
 import { getPack } from "@/lib/packs";
-import { storefrontStatus } from "@/lib/shop";
+import { displayShopLink, shopUrl, storefrontStatus } from "@/lib/shop";
 import { requireBusiness } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -13,8 +13,8 @@ export default async function MorePage() {
   const { user, business } = await requireBusiness();
   const status = storefrontStatus(business);
   const pack = getPack(business.categoryPack);
-  const link = `/b/${business.handle}`;
-  const absolute = `${(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}${link}`;
+  const displayLink = displayShopLink(business.handle);
+  const absolute = shopUrl(business.handle);
 
   const rows = [
     { href: "/app/more/expenses", label: "Expenses" },
@@ -52,18 +52,18 @@ export default async function MorePage() {
         <div className="mt-4 rounded-md bg-muted px-3 py-2.5">
           <p className="text-[11px] font-medium text-ink-muted">Store link</p>
           <div className="mt-1 flex items-center justify-between gap-2">
-            <p className="truncate text-sm font-medium">{link}</p>
+            <p className="truncate text-sm font-semibold text-accent-strong">{displayLink}</p>
             <CopyButton value={absolute} />
           </div>
         </div>
 
         <a
           href={`https://wa.me/?text=${encodeURIComponent(
-            `See my shop: ${absolute}`,
+            `Namaste! Visit our digital store to browse items and place orders directly on WhatsApp:\n${absolute}`,
           )}`}
           target="_blank"
           rel="noreferrer"
-          className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-md border border-line bg-surface text-sm font-medium"
+          className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface text-sm font-semibold transition hover:bg-muted"
         >
           Share on WhatsApp
         </a>

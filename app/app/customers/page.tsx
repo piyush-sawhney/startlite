@@ -62,13 +62,19 @@ export default async function CustomersPage() {
                     <p
                       className={
                         Number(pending) > 0
-                          ? "tnum font-semibold text-ink"
+                          ? "tnum font-semibold text-warning"
                           : "tnum font-semibold text-ink-subtle"
                       }
                     >
                       {formatAmount(pending)}
                     </p>
-                    <p className="text-[11px] text-ink-subtle">
+                    <p
+                      className={
+                        Number(pending) > 0
+                          ? "text-[11px] font-semibold text-warning"
+                          : "text-[11px] font-medium text-success"
+                      }
+                    >
                       {Number(pending) > 0 ? "Pending" : "No dues"}
                     </p>
                   </div>

@@ -52,9 +52,18 @@ export function validateHandle(input: string): string | null {
   return null;
 }
 
+export function shopDomain(): string {
+  const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://startlite.in";
+  return base.replace(/^https?:\/\//, "").replace(/\/$/, "");
+}
+
 export function shopUrl(handle: string): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://startlite.in";
   return `${base.replace(/\/$/, "")}/b/${handle}`;
+}
+
+export function displayShopLink(handle: string): string {
+  return `${shopDomain()}/b/${handle}`;
 }
 
 export function reviewUrl(code: string): string {

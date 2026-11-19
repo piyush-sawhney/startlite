@@ -115,6 +115,8 @@ export default async function StorefrontPage({
           bankAccountName: shop.bankAccountName,
           bankAccountNumber: shop.bankAccountNumber,
           bankIfsc: shop.bankIfsc,
+          whatsappNumber: shop.whatsappNumber,
+          appUrl: process.env.NEXT_PUBLIC_APP_URL ?? "https://startlite.in",
         }}
         items={items}
       />

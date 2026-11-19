@@ -139,7 +139,13 @@ export default async function SalesPage({
                       <p className="tnum font-semibold">
                         {formatAmount(order.grandTotal)}
                       </p>
-                      <p className="text-xs text-ink-muted">
+                      <p
+                        className={
+                          due > 0
+                            ? "text-xs font-semibold text-warning"
+                            : "text-xs font-medium text-success"
+                        }
+                      >
                         {due > 0 ? `${formatAmount(due)} due` : "Paid"}
                       </p>
                     </div>

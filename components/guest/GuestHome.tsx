@@ -157,7 +157,13 @@ export function GuestHome({ state, go, signInHref }: GuestViewProps) {
                           <p className="tnum font-semibold">
                             {formatPaise(totals.totalPaise)}
                           </p>
-                          <p className="mt-0.5 text-xs text-ink-muted">
+                          <p
+                            className={
+                              totals.duePaise > 0
+                                ? "mt-0.5 text-xs font-semibold text-warning"
+                                : "mt-0.5 text-xs font-medium text-success"
+                            }
+                          >
                             {totals.duePaise > 0
                               ? `${formatPaise(totals.duePaise)} due`
                               : "Paid"}
