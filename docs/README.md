@@ -20,6 +20,7 @@ payments, and sends a bill. StartLite stores no buyer photos.
 |---|---|---|
 | [product.md](product.md) | Who it serves, what it charges, what it must never do | Deciding whether a feature belongs |
 | [category-packs.md](category-packs.md) | Defaults for 100+ categories | Onboarding a merchant |
+| [50-micro-businesses.md](50-micro-businesses.md) | Real-world workflows, items & customers for 50 Indian micro-businesses | Designing features, UX flows, and copywriting |
 | [merchant-language.md](merchant-language.md) | The words on screen, per pack and per locale | Writing any label or message |
 | [tech-stack.md](tech-stack.md) | What we build with, and the repository layout | Setting up or adding a dependency |
 | [architecture.md](architecture.md) | How the parts fit, how a request flows, the API contract | Building a route, a flow, or an integration |

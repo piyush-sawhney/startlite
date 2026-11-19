@@ -732,39 +732,23 @@ export function Storefront({
               )}
             </div>
 
-            {shop.showBankDetails &&
-            (shop.bankAccountNumber || shop.bankIfsc) ? (
-              <div className="mt-5 rounded-2xl border border-line bg-surface px-4 py-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-subtle">
-                  Bank transfer
+            <footer className="mt-12 border-t border-line/60 pt-8 pb-10 text-center">
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-[11px] font-semibold tracking-wider text-ink-subtle uppercase">
+                  Powered by StartLite
+                </span>
+                <p className="max-w-md text-xs text-ink-muted">
+                  Digital catalog and cash-flow ledger for independent businesses.
                 </p>
-                <p className="mt-1 text-sm leading-6 text-ink-muted">
-                  {shop.bankAccountName} · {shop.bankAccountNumber} ·{" "}
-                  {shop.bankIfsc}
-                </p>
+                <div className="mt-3 flex items-center justify-center gap-4 text-xs font-medium text-ink-muted">
+                  <a href="/terms" className="hover:text-accent transition">Terms</a>
+                  <span>·</span>
+                  <a href="/privacy" className="hover:text-accent transition">Privacy</a>
+                  <span>·</span>
+                  <a href="/refund" className="hover:text-accent transition">Refunds</a>
+                </div>
               </div>
-            ) : null}
-
-            <div className="mt-8 border-t border-line/60 pt-6 text-center">
-              <p className="text-xs font-medium text-ink-muted">
-                ⚡ Run a business on WhatsApp?{" "}
-                <a
-                  href="https://startlite.in"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-semibold text-accent hover:underline"
-                >
-                  Get your free digital store at StartLite.in
-                </a>
-              </p>
-              <div className="mt-2 flex items-center justify-center gap-3 text-[11px] text-ink-subtle">
-                <a href="/terms" className="hover:text-ink">Terms</a>
-                <span>·</span>
-                <a href="/privacy" className="hover:text-ink">Privacy</a>
-                <span>·</span>
-                <a href="/refund" className="hover:text-ink">Refunds</a>
-              </div>
-            </div>
+            </footer>
           </section>
 
           <aside className="hidden lg:sticky lg:top-24 lg:block">

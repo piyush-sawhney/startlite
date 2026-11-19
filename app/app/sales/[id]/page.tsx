@@ -164,7 +164,16 @@ export default async function OrderPage({
         </Card>
       ) : null}
 
-      <OrderActions orderId={order.id} status={order.status} due={due} />
+      <OrderActions
+        orderId={order.id}
+        status={order.status}
+        due={due}
+        orderCode={order.orderCode}
+        customerName={order.customerName}
+        customerPhone={order.customerPhone}
+        shopName={business.businessName}
+        upiId={business.upiId}
+      />
     </>
   );
 }

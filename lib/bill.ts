@@ -76,7 +76,7 @@ export function compileBill(input: BillInput): string {
   ];
 
   if (input.customerName) rows.push(input.customerName);
-  rows.push("");
+  rows.push("────────────────────────────");
 
   for (const line of input.lines) {
     if (input.privacyMode) {
@@ -127,10 +127,100 @@ export function compileBill(input: BillInput): string {
 
   if (input.referral !== false) {
     rows.push("");
-    rows.push("⚡ Run a business on WhatsApp?");
-    rows.push("Get your free digital store at StartLite.in");
+    rows.push("Thank you for your business! 🙏");
+    rows.push("StartLite · Simple shop catalog & ledger");
   }
 
+  return rows.join("\n");
+}
+
+export function compileOrderAccepted(input: {
+  shopName: string;
+  orderCode: string;
+  customerName: string;
+  total?: string;
+  neededBy?: string | null;
+}): string {
+  const rows = [
+    `*Order Confirmed · ${input.shopName}*`,
+    `Namaste ${input.customerName}! 🙏`,
+    `Your order #${input.orderCode} has been accepted and is being prepared.`,
+  ];
+  if (input.total) {
+    rows.push(`Total: ${formatAmount(input.total)}`);
+  }
+  if (input.neededBy) {
+    rows.push(`Needed by: ${input.neededBy}`);
+  }
+  rows.push("");
+  rows.push("We will notify you on WhatsApp as soon as your order is ready!");
+  return rows.join("\n");
+}
+
+export function compileOrderReady(input: {
+  shopName: string;
+  orderCode: string;
+  customerName: string;
+  due: string;
+  upiId?: string | null;
+}): string {
+  const rows = [
+    `*Order Ready · ${input.shopName}*`,
+    `Namaste ${input.customerName}! 🎉`,
+    `Good news — your order #${input.orderCode} is ready!`,
+  ];
+  if (dec(input.due).greaterThan(0)) {
+    rows.push("");
+    rows.push(`Amount due: ${formatAmount(input.due)}`);
+    if (input.upiId) {
+      rows.push(`Pay by UPI: ${input.upiId}`);
+      rows.push("PhonePe · GPay · Paytm");
+    }
+  } else {
+    rows.push("Payment: Fully Paid ✓");
+  }
+  rows.push("");
+  rows.push("Thank you for supporting our shop!");
+  return rows.join("\n");
+}
+
+export function compileOrderDeclined(input: {
+  shopName: string;
+  orderCode: string;
+  customerName: string;
+  reason?: string | null;
+}): string {
+  const rows = [
+    `*Order Update · ${input.shopName}*`,
+    `Namaste ${input.customerName},`,
+    `We regret to inform you that we cannot fulfill order #${input.orderCode} right now${
+      input.reason ? `: ${input.reason}` : "."
+    }`,
+    "",
+    "We sincerely apologize for the inconvenience and hope to serve you next time.",
+  ];
+  return rows.join("\n");
+}
+
+export function compilePaymentReceived(input: {
+  shopName: string;
+  customerName: string;
+  billNo: string;
+  amountPaid: string;
+  remainingDue: string;
+}): string {
+  const rows = [
+    `*Payment Received · ${input.shopName}*`,
+    `Namaste ${input.customerName}! 🙏`,
+    `We have received your payment of ${formatAmount(input.amountPaid)} for Bill ${input.billNo}.`,
+  ];
+  if (dec(input.remainingDue).greaterThan(0)) {
+    rows.push(`Remaining balance: ${formatAmount(input.remainingDue)}`);
+  } else {
+    rows.push("Balance: Fully Settled ✓ (No dues remaining)");
+  }
+  rows.push("");
+  rows.push("Thank you for your business!");
   return rows.join("\n");
 }
 

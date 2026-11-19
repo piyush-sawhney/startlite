@@ -124,7 +124,15 @@ export default async function ReviewOrderPage({
         </div>
       </Card>
 
-      <PendingOrderActions code={pending.code} changed={anyChanged} />
+      <PendingOrderActions
+        code={pending.code}
+        changed={anyChanged}
+        customerName={pending.buyerName}
+        customerPhone={pending.buyerPhone}
+        shopName={business.businessName}
+        total={priced.ok ? priced.cart.grandTotal : pending.grandTotal}
+        neededBy={pending.neededBy}
+      />
 
       <p className="mt-4 text-center text-xs text-ink-subtle">
         Accepting saves the order at today’s price. It does not send a bill.

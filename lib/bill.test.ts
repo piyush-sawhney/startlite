@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   compileBill,
+  compileOrderAccepted,
+  compileOrderDeclined,
+  compileOrderReady,
+  compilePaymentReceived,
   compileReminder,
   formatNeededBy,
   upiUri,
@@ -41,7 +45,7 @@ describe("bill text", () => {
     expect(text).toContain("Due      ₹600.00");
     expect(text).toContain("Pay by UPI: anita@okhdfcbank");
     expect(text).toContain("Needed by: Today");
-    expect(text.trim().endsWith("Get your free digital store at StartLite.in")).toBe(
+    expect(text.trim().endsWith("StartLite · Simple shop catalog & ledger")).toBe(
       true,
     );
   });
@@ -113,5 +117,56 @@ describe("bill text", () => {
     expect(whatsappLink("9876543210", "Hi")).toBe(
       "https://wa.me/919876543210?text=Hi",
     );
+  });
+
+  it("compiles order accepted message", () => {
+    const text = compileOrderAccepted({
+      shopName: "Anita's Bakes",
+      orderCode: "K39P",
+      customerName: "Rohan",
+      total: "570.00",
+      neededBy: "Tomorrow",
+    });
+    expect(text).toContain("*Order Confirmed · Anita's Bakes*");
+    expect(text).toContain("Namaste Rohan!");
+    expect(text).toContain("#K39P");
+    expect(text).toContain("₹570.00");
+  });
+
+  it("compiles order ready message", () => {
+    const text = compileOrderReady({
+      shopName: "Anita's Bakes",
+      orderCode: "K39P",
+      customerName: "Rohan",
+      due: "570.00",
+      upiId: "anita@okhdfcbank",
+    });
+    expect(text).toContain("*Order Ready · Anita's Bakes*");
+    expect(text).toContain("Amount due: ₹570.00");
+    expect(text).toContain("anita@okhdfcbank");
+  });
+
+  it("compiles order declined message", () => {
+    const text = compileOrderDeclined({
+      shopName: "Anita's Bakes",
+      orderCode: "K39P",
+      customerName: "Rohan",
+      reason: "Out of fresh strawberries",
+    });
+    expect(text).toContain("*Order Update · Anita's Bakes*");
+    expect(text).toContain("Out of fresh strawberries");
+  });
+
+  it("compiles payment received receipt", () => {
+    const text = compilePaymentReceived({
+      shopName: "Anita's Bakes",
+      customerName: "Rohan",
+      billNo: "42",
+      amountPaid: "570.00",
+      remainingDue: "0.00",
+    });
+    expect(text).toContain("*Payment Received · Anita's Bakes*");
+    expect(text).toContain("Bill 42");
+    expect(text).toContain("Fully Settled");
   });
 });
