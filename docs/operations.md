@@ -377,23 +377,6 @@ a daily dependency, but it is the only way back into an account.
 4. If the domain is blocked, switch `MAIL_FROM` to the backup domain and redeploy.
 5. Tell affected merchants to use the password reset again.
 
-## Cost
-
-| Item | Monthly |
-|---|---|
-| VPS (existing) | Already paid |
-| Domain (existing) | Already paid |
-| Cloudflare | Free plan |
-| Media disk | Part of the 80 GB VPS volume |
-| Resend | Free up to 3,000 emails |
-| GitHub Actions and GHCR | Free tier |
-| Sentry | Free tier |
-| Backblaze B2, about 55 GB | About $0.35 |
-| **Incremental** | **About ₹40** |
-
-Costs rise with email volume, backup size, and database size. Media egress costs
-nothing, because Cloudflare caches the files and the VPS serves the misses.
-
 ## Capacity triggers
 
 | Signal | Action |

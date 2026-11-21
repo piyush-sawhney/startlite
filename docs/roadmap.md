@@ -106,7 +106,7 @@ flowchart LR
 - Item prompt and WhatsApp media flag.
 - Media upload, local storage, and variant generation. Logo and one image per
   item.
-- Store settings: notice banner, time slots, advance text, address placeholder,
+- Store settings: notice banner, time precision, advance text, address placeholder,
   privacy mode, locale.
 - Category pack defaults applied at onboarding: tab noun, starter items, unit
   labels.
@@ -129,8 +129,8 @@ flowchart LR
 - Filters: All, Products, Services.
 - Option sheet with live price, extra deltas, and the item prompt.
 - Cart, decimal quantity where allowed, floating cart bar.
-- Checkout: name, phone, note, needed-by pills defaulting to Today, optional time
-  slot, advance badge.
+- Checkout: name, phone, note, requested date defaulting to Today, optional time
+  window, advance badge.
 - Turnstile in managed mode on submit.
 - `POST /public/orders` writes a pending order with a price snapshot and returns a
   10-character code.
@@ -153,19 +153,18 @@ flowchart LR
 
 **Deliverables**
 
-- Five tabs: Home, Sales, Customers, the pack noun, More.
-- Home shows three numbers, each with a period: Today's sales, Received today,
-  Pending across all open orders.
-- Quick actions: add sale, share store link, send bill.
+- Five-tab shell: Home, Sales, Customers, the pack noun, More.
+- Daily loop: add sale, log payment, log expense, copy bill.
 - Pending-order strip with a review action.
-- Sales list with All, Pending, and Paid filters.
-- Order detail: add item, extra or discount, progress note, follow-up date,
+- Order changes: add item, extra or discount, progress note, follow-up date,
   status change.
-- Payment sheet with installments, partial payments, and the hidden TDS link.
+- Partial payments, instalments, and the hidden TDS link.
 - Customers sorted by pending amount. Repeat last bill. Payment reminder.
 - Opening dues: add a previous due from paper in three fields.
 - TanStack Query with `refetchOnWindowFocus`. Optimistic writes with rollback.
 - Follow-up strip for orders due today.
+
+Screen layout is specified per screen as each screen is built.
 
 **Exit criteria**
 
@@ -204,8 +203,9 @@ flowchart LR
 
 **Deliverables**
 
-- Six live locales: `en`, `hi`, `hi-Latn`, `mr`, `gu`, `ta`. Eighteen beta locales
-  with a report link.
+- The live and beta locales from
+  [architecture.md](architecture.md#internationalization). Beta locales carry a
+  report link.
 - RTL support and script-specific font loading.
 - PWA manifest, service worker, install flow, offline read fallback.
 - Accessibility pass with TalkBack on the four primary flows.
@@ -234,8 +234,8 @@ flowchart LR
 | Managed Postgres with point-in-time recovery | 5,000 paying merchants |
 | Charts and trends | Only if merchants ask. Still not before 5,000. |
 
-Automated billing waits for 500 merchants because annual prepay volume at that
-scale still fits one weekly batch. The math is in [economics.md](economics.md).
+Automated billing waits for 500 merchants. Below that, a weekly manual batch is
+enough work for one person.
 
 ## Definition of Done
 
@@ -247,7 +247,8 @@ scale still fits one weekly batch. The math is in [economics.md](economics.md).
 - [ ] A pending order over 32 KB or 50 lines is rejected.
 - [ ] A repeated accept returns the first order and writes nothing.
 - [ ] Buyer checkout requires name and phone only. No login, OTP, or password.
-- [ ] Checkout defaults needed-by to Today in one tap.
+- [ ] Checkout defaults the requested date to Today in one tap. Time opens at the
+      pack's precision and can be left empty.
 - [ ] The bill text matches the golden file for three seeded orders.
 - [ ] The QR appears only on a bill with an amount due, and carries the total only.
 - [ ] Cash left equals revenue payments minus expenses for the seed data.

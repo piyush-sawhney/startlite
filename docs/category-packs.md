@@ -17,7 +17,7 @@ A pack has four jobs:
 1. Name the catalog tab: Menu, Items, or Services.
 2. Suggest three starter items.
 3. Set the default note placeholder and unit labels.
-4. Set sensible defaults for time slots and privacy mode.
+4. Set the date label, the default time precision, and privacy mode.
 
 ## The twelve packs
 
@@ -41,43 +41,45 @@ A pack has four jobs:
 An empty catalog shows three suggestions as chips. One tap adds the item. The app
 never creates rows without a tap, so a new shop never starts with fake data.
 
-| Pack | Starter items | Common options | Common extras |
-|---|---|---|---|
-| Food and tiffin | Veg thali ₹120 · Dal and rice ₹90 · Chapati (4) ₹40 | Half, Full | Extra roti +₹10 · Less spicy ₹0 |
-| Bakery and cakes | Chocolate cake 500 g ₹450 · Birthday cake 1 kg ₹900 · Cookies 250 g ₹150 | 500 g, 1 kg | Eggless +₹50 · Message on cake ₹0 |
-| Grocery | Atta 5 kg ₹240 · Milk 500 ml ₹28 · Oil 1 L ₹140 | 500 g, 1 kg, 5 kg | None |
-| Tailoring | Blouse stitching ₹450 · Kurti stitching ₹600 · Alteration ₹150 | Simple, Designer | Lining +₹100 · Urgent +₹150 |
-| Beauty and salon | Haircut ₹150 · Facial ₹600 · Full-arm waxing ₹300 | Basic, Premium | Threading +₹50 |
-| Tutoring | Maths tuition ₹1,500/month · Science tuition ₹1,500/month · Spoken English ₹2,000/month | Group, One-to-one | Test series +₹300 |
-| Repairs | Screen replacement ₹1,200 · Fan repair ₹350 · Laptop service ₹800 | By model | Pickup +₹100 · Urgent +₹200 |
-| Rentals and events | Chair ₹10/day · Tent ₹2,500/day · Sound system ₹1,500/day | Half day, Full day | Delivery +₹500 · Setup +₹800 |
-| Freelance | Logo design ₹2,500 · Social post ₹500 · Landing page ₹3,000 | Basic, Standard, Premium | Rush +25% |
-| Home services | Deep cleaning 2BHK ₹2,500 · Plumber visit ₹300 · AC service ₹600 | 1BHK, 2BHK, 3BHK | Sofa cleaning +₹800 |
-| Health and wellness | Yoga month ₹1,200 · Physiotherapy session ₹600 · Diet plan ₹1,500 | Single, Monthly | Home visit +₹300 |
-| Pets and other | Dog food 3 kg ₹900 · Grooming ₹800 · Cat litter 5 kg ₹450 | 1 kg, 3 kg | Nail trim +₹200 |
-
-Prices are examples. They are editable before the first save.
+Each pack takes its three chips from the first business in its category in
+[business-catalog.md](business-catalog.md#how-this-feeds-the-build). The chip
+name and the base variant price come from that row. Prices are examples and are
+editable before the first save.
 
 ## Pack defaults
 
-| Pack | Note placeholder | Time slots | Privacy mode | Unit labels |
-|---|---|---|---|---|
-| Food and tiffin | "Delivery address or tiffin note" | On | Off | plate, box, piece |
-| Bakery and cakes | "Message on cake, delivery area" | On | Off | 500 g, 1 kg, piece |
-| Grocery | "Delivery address" | On | Off | g, kg, litre, packet |
-| Tailoring | "Measurements, delivery date" | Off | Off | piece, set |
-| Beauty and salon | "Preferred time, home service" | On | On | visit, session |
-| Tutoring | "Class, board, preferred slot" | On | On | month, class |
-| Repairs | "Device model, problem" | Off | Off | job, piece |
-| Rentals and events | "Event date, venue, delivery" | Off | Off | day, piece |
-| Freelance | "Scope, deadline, brand notes" | Off | Off | project, page, post |
-| Home services | "Address, area, preferred slot" | On | On | visit, room |
-| Health and wellness | "Preferred slot, health note" | On | On | session, month |
-| Pets and other | "Pet, breed, delivery" | On | Off | kg, visit, piece |
+| Pack | Note placeholder | Date label | Precision | Privacy mode | Unit labels |
+|---|---|---|---|---|---|
+| Food and tiffin | "Delivery address or tiffin note" | Delivery | period | Off | plate, box, piece |
+| Bakery and cakes | "Message on cake, delivery area" | Needed by | exact | Off | 500 g, 1 kg, piece |
+| Grocery | "Delivery address" | Delivery | period | Off | g, kg, litre, packet |
+| Tailoring | "Measurements, delivery date" | Needed by | date | Off | piece, set |
+| Beauty and salon | "Preferred time, home service" | Visit on | exact | On | visit, session |
+| Tutoring | "Class, board, preferred slot" | Starts | window | On | month, class |
+| Repairs | "Device model, problem" | Promised | date | Off | job, piece |
+| Rentals and events | "Event date, venue, delivery" | From | date | Off | day, piece |
+| Freelance | "Scope, deadline, brand notes" | Deadline | date | Off | project, page, post |
+| Home services | "Address, area, preferred slot" | Visit on | window | On | visit, room |
+| Health and wellness | "Preferred slot, health note" | Session on | exact | On | session, month |
+| Pets and other | "Pet, breed, delivery" | Visit on | window | Off | kg, visit, piece |
 
 Privacy mode changes the bill header to "Consultation Receipt". It hides the item
 names from a forwarded bill. Use it where the item name reveals a health or
 personal matter.
+
+## Time per pack
+
+A pack never owns a list of times. It owns two words and a default:
+
+- **Date label.** "Needed by" for a cake, "Visit on" for a salon, "From" for a
+  tent, "Starts" for a class. The order sheet asks one question.
+- **Precision.** The form opens at this level. The merchant or the client can
+  move to a lower or higher one in the same field. The five levels are `none`,
+  `date`, `period`, `window`, and `exact`.
+
+A tutor types 5–6. A makeup artist types 3–7. A salon types 11:30. No pack
+enumerates those times, and no pack change alters the data model. The full model
+lives in [data-model.md](data-model.md#requested-time).
 
 ## How a pack is applied
 

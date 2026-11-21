@@ -114,7 +114,7 @@ expiry, and an IP hash.
 | `bank_ifsc` | TEXT | Optional |
 | `default_locale` | TEXT | Default `en` |
 | `notice_banner` | TEXT | Optional |
-| `enable_time_slots` | BOOLEAN | Default false |
+| `time_precision_default` | TEXT | Nullable. Overrides the pack default: `none`, `date`, `period`, `window`, or `exact`. |
 | `advance_policy_text` | TEXT | Optional |
 | `address_placeholder` | TEXT | Pack default |
 | `privacy_mode` | BOOLEAN | Default false |
@@ -252,8 +252,16 @@ Two levels only. A third level needs a decision in
 | `customer_name` | TEXT | Snapshot |
 | `customer_phone` | TEXT | Snapshot, nullable |
 | `delivery_note` | TEXT | Snapshot |
-| `needed_by` | DATE | Default `CURRENT_DATE`. The UI shows Today, Tomorrow, or a date. |
-| `time_slot` | TEXT | `Morning`, `Afternoon`, or `Evening` |
+| `requested_date` | DATE | Nullable. The day the client asked for. |
+| `requested_end_date` | DATE | Nullable. Only for a span: rental return, multi-day event. |
+| `requested_from` | TIME | Nullable. Start of the asked interval. |
+| `requested_to` | TIME | Nullable. End of the asked interval. |
+| `requested_precision` | TEXT | `none`, `date`, `period`, `window`, or `exact`. |
+| `confirmed_date` | DATE | Nullable. Set on accept. |
+| `confirmed_from` | TIME | Nullable. |
+| `confirmed_to` | TIME | Nullable. |
+| `confirmed_source` | TEXT | `as_requested` or `changed`. |
+| `confirmed_at` | TIMESTAMPTZ | Nullable. When the owner accepted. |
 | `follow_up_date` | DATE | Optional |
 | `progress_note` | TEXT | For example "4/10 sessions done" |
 | `adjustment_amount` | NUMERIC(10,2) | Negative for a discount |
@@ -266,6 +274,36 @@ Two levels only. A third level needs a decision in
 | `bill_no` | TEXT | Nullable. Merchant bill serial, set on first bill. Not a GST invoice. |
 | `created_at`, `updated_at` | TIMESTAMPTZ | |
 
+### Requested time
+
+A business does not pick from a fixed list of times. It says the time it works
+in. The same five columns hold a tutor's 5–6 batch, a makeup artist's 3–7 block,
+a salon's 11:30 appointment, a tent's Friday-to-Sunday rental, and a kirana order
+with no time at all.
+
+| Precision | Example | `from` / `to` | `date` |
+|---|---|---|---|
+| `none` | Counter sale, walk-in | — | — |
+| `date` | Repair promised tomorrow | — | ✓ |
+| `period` | Tiffin at lunch | — | ✓ |
+| `window` | Tutor 5–6, makeup 3–7 | ✓ | ✓ |
+| `exact` | Salon 11:30, shoot 16:00 | ✓ | ✓ |
+
+Rules:
+
+- `requested_*` is what the client asked for. Accept never overwrites it.
+- `confirmed_*` is what both sides agreed. The calendar, the bill, and reminders
+  read only this.
+- A changed time is a record, not a proposal. The owner changes it after agreeing
+  with the client outside the app. `confirmed_source` says `changed`. There is no
+  client-side accept step.
+- There is no availability grid, no slot table, no capacity, and no exclusion
+  constraint. A double booking is visible, never blocked.
+- When a request opens, the owner sees the last confirmed order before it, any
+  order that overlaps it, and the first confirmed order after it. The strip is
+  read-only and owner-only. It never renders on the client link.
+- Time is stored in IST. `TIME` is wall-clock, `DATE` is the service day.
+
 ### `pending_orders`
 
 The buyer's cart, held for the merchant to accept.
@@ -277,8 +315,11 @@ The buyer's cart, held for the merchant to accept.
 | `code` | TEXT | Unique. 10 characters, Crockford base32 |
 | `buyer_name` | TEXT | Required |
 | `buyer_phone` | TEXT | Required at checkout |
-| `needed_by` | DATE | Default `CURRENT_DATE` |
-| `time_slot` | TEXT | Optional |
+| `requested_date` | DATE | Nullable. |
+| `requested_end_date` | DATE | Nullable. |
+| `requested_from` | TIME | Nullable. |
+| `requested_to` | TIME | Nullable. |
+| `requested_precision` | TEXT | `none`, `date`, `period`, `window`, or `exact`. |
 | `note` | TEXT | Optional |
 | `lines` | JSONB | Snapshot: item id, name, option, extras, quantity, unit price, line total |
 | `revenue_subtotal` | NUMERIC(10,2) | Recomputed at accept |
@@ -295,6 +336,8 @@ Rules:
 - `lines` is capped at 50 entries and 32 KB.
 - Prices in `lines` are a snapshot. The server recomputes at accept.
 - No row survives longer than 7 days, so PII has a hard ceiling.
+- The buyer states a requested time. The merchant accepts it as asked, accepts a
+  different time agreed with the client, or declines. A decline leaves no row.
 
 ### `order_items`
 
@@ -341,9 +384,9 @@ overpayment is rejected with `CONFLICT`.
 
 ### `subscription_payments`
 
-`id`, `business_id`, `invoice_no` (GST serial), `amount_inr` (130.98), `method`
-(`manual` in v1), `status` (`created`, `captured`, `failed`), `valid_from`,
-`valid_until`, `activated_by`, `note`, `created_at`.
+`id`, `business_id`, `invoice_no` (GST serial), `amount_inr` (total charged for
+one period), `method` (`manual` in v1), `status` (`created`, `captured`,
+`failed`), `valid_from`, `valid_until`, `activated_by`, `note`, `created_at`.
 
 ### `audit_log`
 
@@ -361,7 +404,7 @@ activation.
 | Order totals | Recomputed inside one transaction after every item or payment change |
 | Deposit and reimbursement | Included in `grand_total`, excluded from revenue |
 | Settlement | `paid_total + tds_total >= grand_total` moves the order to `settled` |
-| Subscription | 111.00 plus 19.98 GST equals 130.98. Store 130.98. |
+| Subscription | Store the total charged for one period. The price is out of scope for these docs. |
 | Display | `Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' })` |
 
 The API never accepts a computed total from the client. It accepts lines and
@@ -470,6 +513,11 @@ Allowed edits:
 | `settled` | No | No | No | None |
 | `cancelled` | No | No | No | None |
 
+A `quote` is a request. The owner accepts it at the requested time, accepts a
+different time, or cancels. A changed time is a record of an agreement made
+outside the app: the client is notified, and there is no second confirmation.
+`confirmed_source` says which path was taken.
+
 ## Pending order lifecycle
 
 ```mermaid
@@ -485,7 +533,9 @@ Order of operations on accept, in one transaction:
 
 1. Lock the pending row.
 2. Recompute totals from current prices.
-3. Insert the order and its lines.
+3. Insert the order and its lines. Copy the requested time into `confirmed_*`, or
+   write the time the owner agreed with the client and set
+   `confirmed_source = changed`.
 4. Delete the pending row.
 5. Commit.
 
@@ -539,6 +589,7 @@ Required tests:
 | Options | `(item_id, sort_order)` |
 | Extras | `(item_id, parent_option_id, sort_order)` |
 | Order list | `(business_id, status, created_at DESC)` |
+| Day sheet | `(business_id, confirmed_date, confirmed_from)` |
 | Order items | `(order_id)` |
 | Payments | `(order_id)` |
 | Pending by shop | `(business_id, created_at DESC)` |

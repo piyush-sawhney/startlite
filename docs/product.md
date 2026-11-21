@@ -57,20 +57,17 @@ accounting only or a website only. Neither fits a shop that runs inside a chat.
 | WhatsApp Business catalogue | No public URL, no ledger, no bills. |
 | Spreadsheets | No storefront and no reminders. |
 
-## Business model
+## Access
 
-| Item | Value |
-|---|---|
-| Trial | 90 days, full features |
-| Price | ₹111 + 18% GST = **₹130.98 per quarter** |
-| Collection | Manual activation in the owner admin during v1 |
-| Renewal | Prepaid, 90 days per activation, no AutoPay mandate |
-| On expiry | The public storefront pauses. The merchant keeps login and full data export. |
-| Tax | StartLite is GST-registered. The invoice carries GSTIN and SAC 998314. |
-| Buyer payments | Direct buyer-to-merchant UPI or bank transfer. StartLite never holds funds. |
+- 90 days of full features from signup.
+- Renewal is prepaid for another 90 days, activated from the owner admin in v1.
+  There is no AutoPay mandate.
+- On expiry the public storefront pauses. The merchant keeps login and full data
+  export.
+- Buyer payments go straight to the merchant by UPI or bank transfer. StartLite
+  never holds funds.
 
-The price is set for volume, not for margin per shop. The math lives in
-[economics.md](economics.md#unit-economics).
+Pricing, cost, and growth math are out of scope for these docs.
 
 ## Distribution
 
@@ -85,13 +82,15 @@ No paid WhatsApp API. No referral fee. No ads.
 Do not build any of the following.
 
 1. Merchant GST, e-invoicing, HSN codes, GSTR-1, or input tax credit.
-2. Warehouse, FIFO, or batch inventory. Use an availability toggle and an optional slot counter.
+2. Warehouse, FIFO, or batch inventory. Use an availability toggle and an optional
+   stock count.
 3. Paid WhatsApp Business API, Twilio, Interakt, Wati, or an in-app chat.
 4. Buyer accounts, buyer OTPs, or buyer passwords.
 5. Payment aggregation, escrow, or a nodal account.
 6. Multiple staff accounts or multiple branches in v1. One owner per shop.
 7. Floating-point money math.
-8. Offline write queue or background sync. Guest mode is a local workspace, not a sync queue. It never claims a server write or reconciles later.
+8. Offline write queue or background sync. The workspace is local, not a sync
+   queue. See [ADR-004](decisions.md#adr-004-no-offline-write-queue).
 9. Native mobile apps or app store listings in v1.
 10. Field-level column encryption in v1. Use RLS and disk encryption.
 11. Charts, graphs, or dashboards in v1. Show numbers and lists.
@@ -111,7 +110,7 @@ value and the document that specifies it.
 | 5 | Reconciliation | Instalments, TDS, deposits, reimbursements | [data-model](data-model.md#money) |
 | 6 | Order handoff | The buyer's cart is saved on the server. The merchant accepts it from a short link. | [architecture](architecture.md#order-handoff) |
 | 7 | Item prompt and media flag | One optional question per item, and an optional request for a photo in chat | [data-model](data-model.md#catalog) |
-| 8 | Store switches | Notice banner, time slots, advance policy, address placeholder, privacy mode, buyer phone rule, buyer memory | [architecture](architecture.md#store-settings) |
+| 8 | Store switches | Notice banner, time precision, advance policy, address placeholder, privacy mode, buyer phone rule, buyer memory | [architecture](architecture.md#store-settings) |
 | 9 | Bills and outputs | A text bill by default. A PNG receipt, status card, and flyer on demand. Repeat bill and reminder. | [design-system](design-system.md#canvas-outputs) |
 | 10 | Expenses and cash left | Log an expense. See money received minus expenses. | [data-model](data-model.md#money) |
 | 11 | Paper migration | Walk-in sale, quick sale with a free-text amount, and a previous due | [data-model](data-model.md#order-sources) |
@@ -129,8 +128,7 @@ value and the document that specifies it.
 | Order link | `/o/{code}` | Merchant, login required |
 | Owner admin | `/admin/*` | Platform owner only |
 
-The five tabs are **Home**, **Sales**, **Customers**, the pack noun, and
-**More**. The pack noun is Menu, Items, or Services. The rules live in
+The tab labels and their translations live in
 [merchant-language.md](merchant-language.md#tab-labels).
 
 ## Simplicity budget
@@ -142,7 +140,6 @@ The five tabs are **Home**, **Sales**, **Customers**, the pack noun, and
 | Walk-in sale | 3 taps to save |
 | Buyer checkout | 2 required inputs and 1 optional note |
 | New item | 3 fields to publish |
-| Home | 3 numbers above the fold |
 | Bill | 1 tap to send |
 | Save guest work | 1 sign-in, then the existing onboarding |
 | Any new feature | Removes a field, or stays hidden |
@@ -177,7 +174,6 @@ If it does none, it waits. The filter protects the simplicity budget.
 | First order within 7 days | 40% of new merchants |
 | Weekly active merchants | 35% of signups |
 | Pending amount collected within 30 days | 60% |
-| Trial to paid conversion | 15% |
 | Export used at least once | 20% of merchants |
 | Checkout finished in under 60 seconds | 80% |
 | Order accepted within 24 hours | 80% |
@@ -185,7 +181,7 @@ If it does none, it waits. The filter protects the simplicity budget.
 
 ## Scope boundary
 
-V1 ships the capability map, the five surfaces, and the payment model above.
+V1 ships the capability map and the surfaces above.
 
 V1 excludes native apps, offline writes, field-level encryption, automated
 billing, merchant GST, multiple users per shop, multiple branches, buyer

@@ -116,19 +116,9 @@ still usable.
 
 ## Main routes
 
-| Route | Screen |
-|---|---|
-| `/` | Workspace. Signed out: local app. Signed in: redirect to the shop. |
-| `/login` | Sign in and sign up |
-| `/onboarding` | Create a shop |
-| `/app` | Merchant Home |
-| `/app/sales` | Sales list |
-| `/app/catalog` | Menu, items, or services |
-| `/app/customers` | Customers and dues |
-| `/app/more` | Settings, expenses, cash left, export |
-| `/b/{handle}` | Public storefront |
-| `/o/{code}` | Merchant review of a pending order |
-| `/api/health` | Database health check |
+The route list and the surface each route serves live in
+[product.md](product.md#surfaces). The folder that renders each one lives in
+[tech-stack.md](tech-stack.md#repository-layout).
 
 ## Test guest import
 

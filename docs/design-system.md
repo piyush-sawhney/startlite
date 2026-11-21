@@ -26,14 +26,15 @@ animated money counters, or emoji in navigation.
 
 ## Frictionless rule
 
-- Every screen opens without login. There is no auth modal.
+The behavior rules for the signed-out workspace live in
+[product.md](product.md#frictionless-first) and
+[ADR-029](decisions.md#adr-029-guest-workspace-before-login). The visual rules
+are:
+
 - The save prompt is a quiet card, never a gate. It never blocks a write.
 - The signed-out workspace shows one state: **Saved on this phone**. The save
   action is secondary.
-- After signup, local work copies into the shop before the first interaction.
-  Show one line when it finishes.
 - Do not say "guest" on screen. Say "this phone".
-- A failed save or copy leaves the current screen and data intact.
 
 ## Color tokens
 
@@ -171,20 +172,12 @@ Rules:
 
 ## Navigation
 
-Five tabs. Four names are fixed. The fifth comes from the shop's category pack.
-
-| Position | Label | Icon meaning |
-|---|---|---|
-| 1 | Home | Shop overview |
-| 2 | Sales | Orders and bills |
-| 3 | Customers | People who owe money |
-| 4 | Menu, Items, or Services | The catalog |
-| 5 | More | Everything else |
+Five tabs. The pack noun supplies the fourth label. The names and their
+translations live in [merchant-language.md](merchant-language.md#tab-labels).
 
 Rules:
 
 - A tab label is one word. Never a metaphor.
-- The pack noun comes from [category-packs.md](category-packs.md).
 - No tab is ever named Galla, Bikri, Khata, or Samaan.
 - The active tab uses `accent` and weight 600.
 - The bar never hides on scroll.
@@ -200,137 +193,27 @@ when it is needed.
 |---|---|---|
 | 0 | Always | Home, Sales, Customers, Add sale, Send bill |
 | 1 | After the first item is published | Catalog tab, item images, options and extras |
-| 2 | More → Advanced, on request | TDS, bank details, time slots, privacy mode, paper import |
+| 2 | More → Advanced, on request | TDS, bank details, time precision, privacy mode, paper import |
 
 Hidden is not removed. A search field in More finds an advanced setting by name.
 
-## Screens
-
-### Home
-
-Three numbers above the fold. Each states its period.
-
-| Slot | Content |
-|---|---|
-| 1 | **Today's sales** · revenue of orders created today |
-| 2 | **Received today** · payments logged today |
-| 3 | **Pending** · unpaid amount across all open orders |
-
-Below the numbers:
-
-- A pending-order strip, only when at least one order waits. Newest first.
-- Three recent orders.
-- One primary button: **Add sale**.
-- A quiet **Saved on this phone** card with one save action. It sits below the
-  other content, never above it.
-
-No charts. No sparklines. No "insights".
-
-### Sales
-
-A list, newest first. Filters: All, Pending, Paid. Search by name, phone, or
-order code.
-
-Each row shows customer, item count, total, and a status pill. A row opens a
-sheet with actions: add item, log payment, send bill, send reminder.
-
-The row also states the date. Never show a bare amount without a date or a
-period.
-
-### Customers
-
-A list sorted by pending amount, highest first. Each row shows name, pending
-amount, and the last payment date.
-
-Actions in the row sheet: repeat last bill, log payment, send reminder, add
-previous due.
-
-### Catalog tab
-
-The label is Menu, Items, or Services, from the pack. A list with a photo
-thumbnail, name, price, and an in-stock toggle. One primary button: **Add item**.
-
-The add form has three fields: name, price, and availability. Options and extras
-sit below, closed by default.
-
-### More
-
-| Group | Rows |
-|---|---|
-| Money | Expenses, Cash left, Bills |
-| Shop | Store link, Store settings, Share on WhatsApp |
-| Language | Current language, Change |
-| Data | Download data |
-| Help | How it works, Contact us |
-| Advanced | TDS, Bank details, Time slots, Privacy mode, Previous dues |
-
-`Cash left` opens a period picker: Today, This month, All. It shows money
-received, expenses, and the difference. It also shows one line: "This is not
-profit."
-
-### Checkout
-
-Three fields at most. Two are required.
-
-| Order | Field | Default |
-|---|---|---|
-| 1 | Name | Remembered from last time |
-| 2 | Phone | Remembered from last time |
-| 3 | Note | Empty, optional |
-| — | Needed by | Today, one tap to change |
-
-Rules:
-
-- Name and phone are required. The note is optional.
-- **Needed by** is a pill group: Today, Tomorrow, Pick date.
-- No payment step. No QR. No account. No OTP.
-- The submit button says **Send on WhatsApp**.
-- Turnstile runs invisible. Never show a puzzle unless the check fails.
-- After submit, show the WhatsApp button with the order text previewed.
-- If the network fails, keep the cart and offer retry. Never clear the cart.
-
 ## Components
 
-| Component | Behavior | Notes |
-|---|---|---|
-| `AppShell` | Bottom tabs, safe areas, scroll restoration | Five tabs, one from the pack |
-| `BottomTabs` | Five items, icon plus label | Active item uses `accent` at weight 600 |
-| `PageHeader` | Title, optional back, one action | Never two primary actions |
-| `KpiCard` | Label, amount, period | Amount uses tabular numerals |
-| `OrderCard` | Customer, items, status, paid, due, date | Expand for actions |
-| `StatusPill` | Quote, open, ready, settled, cancelled | Word plus color |
-| `PendingOrderCard` | Buyer, item count, total, age | **Review** is the only accent action |
-| `PaymentSheet` | Amount keypad, mode, TDS link, save | Prefill the full due amount |
-| `NumericKeypad` | Large keys, one decimal point | Amount entry, never a plain input |
-| `QuantityStepper` | Minus, value, plus | Long press to type a decimal |
-| `OptionSheet` | Option radio, extra radio or checkbox | Shows the computed price live |
-| `StockToggle` | One tap, optimistic | Shows "In stock" or "Sold out" |
-| `PillGroup` | Single or multi select | Today, Tomorrow, Pick date |
-| `CartBar` | Item count and total, opens checkout | Fixed above safe area |
-| `StoreHeader` | Name, tagline, notice, privacy mode | Logo is optional |
-| `ItemCard` | Name, price, mode label, availability | Sold-out items stay visible, dimmed |
-| `BillPreview` | Rendered text bill with a copy action | Shows the exact WhatsApp text |
-| `ReminderPreview` | Short due message | One line plus the amount |
-| `EmptyState` | One line, one action | No illustrations in v1 |
-| `Toast` | Result of a write | Bottom, above the tab bar, 3 seconds |
-| `SaveBanner` | "Saved on this phone" plus one quiet save action | Never blocks a write |
-| `GuestImportBanner` | Result of copying phone data into a shop | One line, then it fades |
-| `GuestTabs` | Same five tabs over local state | Same labels, icons, and safe area |
-| `ConfirmSheet` | Destructive action | Names the consequence, not "Are you sure?" |
-| `MediaUploader` | Pick, crop to square, preview, remove | Client resize to 1600 px |
-| `LocaleSwitcher` | Searchable list of 24 locales | Beta locales carry a badge |
-| `NetworkBanner` | Offline or slow connection | Explains that writes need a connection |
-| `DataTable` | Admin lists with search and pagination | Keyboard accessible |
-| `PassCard` | Trial or pass status, expiry, activate | Admin only in v1 |
-
-Component rules:
+The component inventory is written with each screen. The shared rules are:
 
 - Use a bottom sheet on mobile, not a centered modal.
 - Use skeletons that match the final layout. Do not use a generic shimmer block.
-- A destructive action requires a confirm sheet that states the result.
+- A destructive action requires a confirm sheet that states the result, not "Are
+  you sure?".
 - A row that opens a sheet shows a chevron. A row that navigates shows a chevron
   plus a distinct press state.
 - Never place two filled accent buttons in one view.
+- Amount entry uses a keypad, never a plain input.
+- A status pill always pairs a word with a color.
+- An empty state is one sentence and one action. No illustration in v1.
+- A toast sits above the tab bar for 3 seconds.
+
+## Bill and message text
 
 ## Bill and message text
 
@@ -443,22 +326,5 @@ Rendering rules:
 
 ## Content and tone
 
-- Use the second person: "Your order", not "The order".
-- Use the shortest correct word. "Pay" not "Make a payment".
-- No accounting jargon. "Pending" not "accounts receivable".
-- Every error states what happened and what to do next.
-- Keep Hindi and Hinglish copy at the same length as English.
-- Beta translations keep the English term in a tooltip for money and status.
-- Words per screen: 12 maximum in a label, 20 in a sentence.
-
-Examples:
-
-| Avoid | Use |
-|---|---|
-| "Transaction failed" | "Payment not saved. Check your connection and try again." |
-| "No data found" | "No orders yet. Add your first sale." |
-| "Are you sure?" | "Delete this item? Past bills keep their records." |
-| "Create an account to continue" | "Saved on this phone. Save my shop to keep it safe." |
-| "Guest mode" | "On this phone" |
-| "Utilize the export functionality" | "Download your data" |
-| "Accounts receivable" | "Pending" |
+Every word on screen is owned by [merchant-language.md](merchant-language.md).
+This document covers only the visual treatment of that copy.

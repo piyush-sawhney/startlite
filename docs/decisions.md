@@ -24,7 +24,7 @@ Status values: `Accepted`, `Superseded`, `Deferred`.
 | [ADR-002](#adr-002-postgres-row-level-security) | Postgres RLS for tenant isolation | Accepted |
 | [ADR-003](#adr-003-no-field-level-encryption-in-v1) | No field-level encryption in v1 | Accepted |
 | [ADR-004](#adr-004-no-offline-write-queue) | No offline write queue | Accepted |
-| [ADR-005](#adr-005-quarterly-pricing-and-90-day-trial) | ₹130.98 per quarter, 90-day trial | Accepted |
+| [ADR-005](#adr-005-quarterly-activation-and-90-day-trial) | 90-day trial, prepaid quarterly activation | Accepted |
 | [ADR-006](#adr-006-manual-pass-activation-in-v1) | Manual pass activation in v1 | Accepted |
 | [ADR-007](#adr-007-local-media-on-the-vps) | Local media on the VPS | Accepted |
 | [ADR-008](#adr-008-traefik-on-the-vps) | Traefik on the VPS | Accepted |
@@ -49,6 +49,7 @@ Status values: `Accepted`, `Superseded`, `Deferred`.
 | [ADR-027](#adr-027-two-tier-options-in-v1) | Two-tier options in v1 | Accepted |
 | [ADR-028](#adr-028-billing-automation-waits-for-500-merchants) | Billing automation waits for 500 merchants | Accepted |
 | [ADR-029](#adr-029-guest-workspace-before-login) | Guest workspace before login | Accepted |
+| [ADR-030](#adr-030-requested-time-not-availability) | Requested time, not availability | Accepted |
 
 ## ADR-001: Next.js App Router
 
@@ -120,20 +121,19 @@ This rule covers server writes. The signed-out workspace is local-only and is
 specified in [ADR-029](#adr-029-guest-workspace-before-login). It does not queue a
 server write.
 
-## ADR-005: Quarterly pricing and 90-day trial
+## ADR-005: Quarterly activation and 90-day trial
 
-**Context:** The archived specification used a 14-day trial and ₹101 per year.
+**Context:** The archived specification used a 14-day trial and a yearly plan.
 
-**Decision:** A 90-day trial. Then ₹111 plus 18% GST, which is ₹130.98 per
-quarter, prepaid for 90 days. StartLite is GST-registered and invoices with GSTIN
-and SAC 998314.
+**Decision:** A 90-day trial with full features. After that, access runs for 90
+days per activation, prepaid. Activation is manual in v1.
 
 **Consequences:**
 
 - The trial is long enough for a merchant to form a habit.
-- Quarterly collection means four touch points per year.
-- Amounts are stored as `130.98` and shown with Indian digit grouping.
+- Quarterly activation means four touch points per year.
 - An expired pass pauses the storefront. Login and export stay available.
+- Price, tax, and collection math are out of scope for these docs.
 
 ## ADR-006: Manual pass activation in v1
 
@@ -447,8 +447,10 @@ A known device keeps a 30-day session.
 **Context:** Every field at checkout loses buyers. A phone number is needed to
 find the customer later. A note is not.
 
-**Decision:** Ask for name and phone. Make the note optional. Default needed-by to
-Today with one tap to change.
+**Decision:** Ask for name and phone. Make the note optional. Default the
+requested date to Today with one tap to change. Time is one optional field that
+opens at the pack's precision. See
+[ADR-030](#adr-030-requested-time-not-availability).
 
 **Consequences:**
 
@@ -533,6 +535,43 @@ to the server and never reconciles later. It is consistent with
 - The public storefront, pending order handoff, PNG receipt, and cross-device
   sync stay behind an account.
 
+## ADR-030: Requested time, not availability
+
+**Context:** The catalog covers a tutor with 5–6 and 6–7 batches, a makeup artist
+with a 3–7 block, a salon with an 11:30 appointment, a tent rented Friday to
+Sunday, and a kirana that has no time at all. A `Morning / Afternoon / Evening`
+enum forced every one of them into three buckets. A real availability grid needs
+hours, durations, capacity, and locking, and it encodes one model (a one-to-one
+appointment). That model breaks a yoga batch of twenty, a delivery route, and a
+regular squeezed in at 6:15.
+
+**Decision:** The order stores a requested interval and a confirmed interval.
+`requested_precision` is one of `none`, `date`, `period`, `window`, or `exact`.
+Packs choose the date label and the default precision; they never own a list of
+times. The merchant accepts as asked, accepts a changed time agreed with the
+client outside the app, or declines. A changed time is a record, not a proposal:
+there is no client-side re-confirmation.
+
+No slot table, no hours table, no capacity, no exclusion constraint, no travel
+buffers. A request shows the last confirmed order before it, any overlap, and the
+first order after it. The strip is read-only and owner-only, and it never blocks
+an accept.
+
+**Consequences:**
+
+- One shape holds every business in the 200-business corpus, including the ones
+  with no time.
+- Double bookings are visible, not prevented. The owner decides, which matches
+  how the shop already works.
+- The client never sees the merchant's book, only their own request.
+- The app records commitments, not coordination. "Running ten minutes late" and
+  travel time stay in a phone call.
+- The calendar is a day sheet rendered from confirmed orders and ghost requests,
+  not an availability editor.
+- Adding business 201 is a catalog row and keywords, not a schema change.
+- `confirmed_source` separates "accepted as asked" from "time agreed with the
+  client", which is the only reporting this needs.
+
 ## Superseded specification sections
 
 The archived document is at
@@ -541,7 +580,7 @@ It is kept for history only.
 
 | Original section | Now lives in | Change |
 |---|---|---|
-| 1. Product philosophy and pricing | [product.md](product.md#business-model) | 14 days becomes 90 days. ₹101 per year becomes ₹130.98 per quarter. Manual activation. |
+| 1. Product philosophy and pricing | [product.md](product.md#access) | 14 days becomes 90 days. Yearly becomes prepaid quarterly activation. Manual activation. Pricing math removed. |
 | 2. Never-build list | [product.md](product.md#guardrails) | Added no offline queue, no native apps, no field encryption, no charts. |
 | 3. Tech stack | [tech-stack.md](tech-stack.md) | Next.js, Drizzle, Better Auth, Traefik, local media, CI builds. FastAPI, Vite, and MinIO removed. |
 | 4. Nine primitives | [product.md](product.md#capability-map) | Behavior kept. Each primitive points to its specification. |

@@ -154,14 +154,16 @@ One sentence and one action.
 
 ## Locale rules
 
-- Six locales are live: `en`, `hi`, `hi-Latn`, `mr`, `gu`, `ta`.
-- Eighteen are beta. They carry a badge and a report link.
+The live and beta locale lists live in
+[architecture.md](architecture.md#internationalization). Copy rules:
+
+- A beta locale carries a badge and a report link.
 - Keep the English term for money and status in a tooltip when the translation is
   uncertain.
 - Do not translate a shop name, a person's name, a UPI ID, or an order code.
 - Write numbers in Latin digits. Group them Indian style.
 - A date is `18 Nov 2026`, never `11/18/2026`.
-- Use the native script for devanagari, Gujarati, and Tamil. Do not romanise
+- Use the native script for Devanagari, Gujarati, and Tamil. Do not romanise
   those locales.
 - `hi-Latn` is Hinglish: Hindi word order in Latin script, English for money and
   status.

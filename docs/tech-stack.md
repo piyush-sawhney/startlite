@@ -116,30 +116,6 @@ startlite/
 └── tests/                            # unit and integration tests
 ```
 
-## Local development
-
-Prerequisites: Node.js 24 or newer, Corepack, and Docker.
-
-```bash
-corepack pnpm install
-cp .env.example .env.local          # fill the empty secrets
-docker start startlite-db           # local Postgres on port 5433
-corepack pnpm db:push
-corepack pnpm db:seed
-corepack pnpm dev
-```
-
-The full walkthrough is in [local-development.md](local-development.md).
-
-| Command | Action |
-|---|---|
-| `corepack pnpm dev` | Start the app on `http://localhost:3000` |
-| `corepack pnpm typecheck` | `tsc --noEmit` |
-| `corepack pnpm test` | Vitest unit tests |
-| `corepack pnpm build` | Production build |
-| `corepack pnpm db:push` | Push the schema to the local database |
-| `corepack pnpm db:seed` | Create the demo merchant and shop |
-
 ## Environment variables
 
 | Name | Purpose |

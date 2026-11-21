@@ -91,19 +91,13 @@ sequenceDiagram
 
 | Rule | Value |
 |---|---|
-| Key | `startlite_guest_v2` |
 | Scope | One phone, one browser profile |
-| Data | Shop settings, items, orders, payments, expenses |
-| Money | Integer paise on the phone. The server recomputes on import. |
 | Auth | None. The import endpoint requires a session and a shop. |
-| Import key | The order code is unique inside a shop. A repeat skips the row. |
 | Clear | After a successful import, or from More → Start fresh |
-| Lost data | Clearing browser data removes unsaved work. The save card says so. |
 | Not included | Storefront hosting, pending orders, PNG receipt, cross-device sync |
 
-The server treats imported lines as untrusted. It recomputes each line, the
-order total, and the payments before writing. An order whose payments exceed its
-total is skipped.
+The storage key, the stored shape, and the import rules live in
+[data-model.md](data-model.md#guest-workspace).
 
 ## Flows
 
@@ -224,50 +218,48 @@ Rules:
 
 ## Store settings
 
-| Setting | Default | Effect |
-|---|---|---|
-| `notice_banner` | Empty | One line at the top of the storefront |
-| `enable_time_slots` | Off | Shows Morning, Afternoon, Evening pills |
-| `advance_policy_text` | Empty | Badge in checkout |
-| `address_placeholder` | Pack default | Input placeholder |
-| `privacy_mode` | Off | Bill header becomes "Consultation Receipt" |
-| `default_locale` | `en` | Initial storefront locale |
-| `show_bank_details` | Off | Renders the bank block |
+Columns, types, and defaults live in
+[data-model.md](data-model.md#businesses). This table records the effect of each
+setting.
+
+| Setting | Effect |
+|---|---|
+| `notice_banner` | One line at the top of the storefront |
+| `time_precision_default` | The level the request form opens at: `none`, `date`, `period`, `window`, or `exact` |
+| `advance_policy_text` | Badge in checkout |
+| `address_placeholder` | Input placeholder |
+| `privacy_mode` | Bill header becomes "Consultation Receipt" |
+| `default_locale` | Initial storefront locale |
+| `show_bank_details` | Renders the bank block |
+
+The date label ("Needed by", "Visit on", "From") comes from the pack. There is no
+per-business list of times. See
+[data-model.md](data-model.md#requested-time).
 
 Buyer auto-memory stores `name`, `phone`, and `note` in `localStorage` under
 `startlite_buyer_v1`. Checkout shows "Remembered from last time · Clear".
 
 ## Order sources
 
-| Source | Created by | Use |
-|---|---|---|
-| `whatsapp_store` | Buyer, then merchant accepts | The normal path |
-| `walk_in` | Merchant | A sale at the counter |
-| `repeated` | Merchant | Repeat of a past bill |
-| `quote` | Merchant | An estimate that may become an order |
-| `manual` | Merchant | A typed order after a phone call |
-| `opening` | Merchant | A previous due moved from paper |
-
-An `opening` order carries one line named "Previous due" and accepts payments
-like any other order. It is the only way paper dues enter the ledger.
+The source values are defined in
+[data-model.md](data-model.md#order-sources). An `opening` order is the only way
+paper dues enter the ledger.
 
 ## Multi-tenancy and RLS
 
+Roles, the policy pattern, and the required tests live in
+[data-model.md](data-model.md#row-level-security). The application rules are:
+
 - Every tenant table carries `business_id`.
-- The app connects as `startlite_app`, a role without `SUPERUSER` or `BYPASSRLS`.
 - Each transaction starts with
   `SELECT set_config('app.current_business_id', $1, true)`.
-- Policies compare `business_id` with
-  `current_setting('app.current_business_id', true)`.
 - The public storefront resolves a handle to a shop id, then runs the same
   pattern. Public reads touch catalog tables only.
 - Pending orders are reachable only with a merchant session for that shop.
 - `/admin` uses `startlite_admin` with `BYPASSRLS`, and every action writes to
   `audit_log`.
-
-The wrapper lives in `lib/tenant.ts`. No route may query a tenant table without
-it. An integration test proves that shop A cannot read, update, or delete shop B
-rows with raw SQL.
+- The wrapper lives in `lib/tenant.ts`. No route may query a tenant table without
+  it.
 
 ## Internationalization
 
