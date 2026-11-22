@@ -138,17 +138,19 @@ Sheets use `e3` and a backdrop of `ink` at 32% opacity.
 
 | Item | Rule |
 |---|---|
-| Design range | 360 px to 430 px wide |
+| Design range | 320 px to 1440 px wide. Mobile first, desktop capable. |
 | Storefront width | `max-width: 460px`, centered |
-| Merchant app width | `max-width: 640px`, centered |
-| Workspace width | `max-width: 640px`, centered. Same shell as the merchant app. |
+| Merchant app width | One column below 768 px. Left rail from 768 px, main plus a 360 px right column from 1200 px. |
+| Workspace width | Same shell as the merchant app. Guest and owner share it. |
 | Admin width | `max-width: 1200px` |
-| Page gutter | 16 px |
+| Page gutter | 16 px below 768 px, 24 px from 768 px |
 | Tap target | 44 px minimum, 48 px preferred, 8 px gap |
-| Bottom tab bar | 64 px plus safe area |
+| Bottom tab bar | 64 px plus safe area, six items |
+| Left rail | 200 px from 768 px, 240 px from 1200 px |
+| Right column | 360 px from 1200 px, sticky, scrolls on its own |
 | Sticky action | Sits above the tab bar, never overlaps it |
 | Safe area | Respect `env(safe-area-inset-*)` on every fixed element |
-| Primary reach | Primary actions sit in the lower third of the screen |
+| Primary reach | Primary actions sit in the lower third of the screen on mobile, in the first column on desktop |
 
 The storefront must never scroll horizontally. Test at 320 px, 360 px, and 430 px.
 
@@ -172,8 +174,9 @@ Rules:
 
 ## Navigation
 
-Five tabs. The pack noun supplies the fourth label. The names and their
-translations live in [merchant-language.md](merchant-language.md#tab-labels).
+Six tabs. The same six for every pack, guest or owner: Home, Orders, Customers,
+Items, Expenses, Settings. The names and their translations live in
+[merchant-language.md](merchant-language.md#tab-labels).
 
 Rules:
 
@@ -181,8 +184,10 @@ Rules:
 - No tab is ever named Galla, Bikri, Khata, or Samaan.
 - The active tab uses `accent` and weight 600.
 - The bar never hides on scroll.
-- The workspace uses the same five tabs over local state. A tab switch keeps the
-  current phone data and never reloads the page.
+- Below 768 px the six items share one bottom bar. From 768 px they become a
+  left rail; the bar is hidden.
+- The workspace and the owner app use the same six tabs. A tab switch keeps the
+  current data and never reloads the page.
 
 ## Visibility tiers
 

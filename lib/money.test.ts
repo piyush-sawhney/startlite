@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { formatAmount, formatPlainAmount, money, multiply, sum } from "./money";
+import {
+  formatAmount,
+  formatCompactAmount,
+  formatPlainAmount,
+  money,
+  multiply,
+  sum,
+} from "./money";
 
 describe("money", () => {
   it("rounds half up to two decimals", () => {
@@ -20,5 +27,7 @@ describe("money", () => {
   it("formats Indian grouping with two decimals", () => {
     expect(formatAmount("100000")).toBe("₹1,00,000.00");
     expect(formatPlainAmount("1150")).toBe("1,150.00");
+    expect(formatCompactAmount("104250")).toBe("₹1.04L");
+    expect(formatCompactAmount("4250")).toBe("₹4,250.00");
   });
 });

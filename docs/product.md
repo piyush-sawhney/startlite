@@ -120,11 +120,11 @@ value and the document that specifies it.
 
 | Surface | Route | Users |
 |---|---|---|
-| Workspace | `/` | Signed-out merchant. The app opens ready. |
+| Workspace | `/` | Shared dashboard. Guest and owner see the same Home, with six tabs. The app opens ready. |
 | Public storefront | `/b/{handle}` | Buyers, no login |
 | Login and signup | `/login` | Merchant, optional |
 | Onboarding | `/onboarding` | Merchant after signup |
-| Merchant app | `/app/*` | Merchant, 5 tabs |
+| Owner routes | `/app/*` | Signed-in merchant. Legacy five-tab shell, migrating to the shared dashboard. |
 | Order link | `/o/{code}` | Merchant, login required |
 | Owner admin | `/admin/*` | Platform owner only |
 

@@ -38,6 +38,7 @@ may use.
 | Tax deducted by a client | TDS | Withholding, TDS amount |
 | Money received minus expenses | Cash left | Profit, net profit, earnings |
 | The full data file | Download | Export, dump, backup |
+| The person or shop that took money | Paid to | Vendor, payee, supplier, beneficiary |
 | A shop on StartLite | Shop | Store, outlet, tenant, business account |
 | The public page | Store link | Microsite, webpage, catalog URL |
 | A customer record | Customer | Client, party, account, contact |
@@ -46,34 +47,20 @@ may use.
 
 ## Tab labels
 
-| Pack | Tab 4 |
-|---|---|
-| Food and tiffin | Menu |
-| Bakery and cakes | Menu |
-| Grocery | Items |
-| Tailoring | Services |
-| Beauty and salon | Services |
-| Tutoring | Services |
-| Repairs | Services |
-| Rentals and events | Items |
-| Freelance | Services |
-| Home services | Services |
-| Health and wellness | Services |
-| Pets and other | Items |
+Six fixed tabs. The same six for every pack, guest or owner.
 
-The other four tabs never change: Home, Sales, Customers, More.
+| Position | English | Hindi | Hinglish |
+|---|---|---|---|
+| 1 | Home | होम | Home |
+| 2 | Orders | ऑर्डर | Orders |
+| 3 | Customers | ग्राहक | Customers |
+| 4 | Items | आइटम | Items |
+| 5 | Expenses | खर्च | Expenses |
+| 6 | Settings | सेटिंग्स | Settings |
 
-Tab labels in the two reference locales:
-
-| English | Hindi | Hinglish |
-|---|---|---|
-| Home | होम | Home |
-| Sales | बिक्री | Sales |
-| Customers | ग्राहक | Customers |
-| Menu | मेन्यू | Menu |
-| Items | आइटम | Items |
-| Services | सेवाएँ | Services |
-| More | और | More |
+The pack noun is retired. Food, grocery, tailoring, and repair shops all say
+`Items`, because one vocabulary is cheaper than twelve. The pack still decides
+starter items and default units; it no longer decides a label.
 
 Marathi, Gujarati, and Tamil ship from the messages file. They are machine
 translated and labelled beta until a native reviewer signs off.
@@ -84,8 +71,9 @@ One verb, one object. Never a sentence.
 
 | Use | Never use |
 |---|---|
-| Add sale | Create new transaction |
+| Add sale | Create new transaction, New order, Add order |
 | Add item | Add a new catalog entry |
+| Go to today | Back to today, Today chip |
 | Send bill | Generate invoice |
 | Send reminder | Notify customer |
 | Log payment | Record payment entry |
@@ -101,7 +89,7 @@ One verb, one object. Never a sentence.
 |---|---|---|
 | `quote` | Quote | Not accepted yet |
 | `open_tab` | Open | Work is running |
-| `ready` | Ready | Work is done, money is not |
+| `ready` | Completed | Work is done, money is not |
 | `settled` | Paid | Money is in |
 | `cancelled` | Cancelled | Closed with no money |
 | Pending order | New | Waiting for the merchant |

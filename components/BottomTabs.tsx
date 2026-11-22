@@ -69,6 +69,28 @@ export function MoreIcon({ active }: IconProps) {
   );
 }
 
+export function ExpensesIcon({ active }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+      <rect x="3" y="6" width="18" height="13" rx="2.5" {...stroke(active)} />
+      <path d="M3 10.5h18" {...stroke(active)} />
+      <path d="M16 15.5h2" {...stroke(active)} />
+    </svg>
+  );
+}
+
+export function SettingsIcon({ active }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+      <circle cx="12" cy="12" r="3.1" {...stroke(active)} />
+      <path
+        d="M12 3.2v2M12 18.8v2M4.1 4.1l1.4 1.4M18.5 18.5l1.4 1.4M3.2 12h2M18.8 12h2M4.1 19.9l1.4-1.4M18.5 5.5l1.4-1.4"
+        {...stroke(active)}
+      />
+    </svg>
+  );
+}
+
 export type NavItem = {
   key: string;
   label: string;

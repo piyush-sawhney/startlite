@@ -42,3 +42,11 @@ export function formatPaise(paise: number): string {
   const grouped = Number(rupees).toLocaleString("en-IN");
   return `₹${grouped}.${fraction}`;
 }
+
+export function formatCompactPaise(paise: number): string {
+  if (Math.abs(paise) >= 10_000_000) {
+    const lakh = (paise / 10_000_000).toFixed(2);
+    return `₹${lakh}L`;
+  }
+  return formatPaise(paise);
+}

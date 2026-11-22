@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getPack } from "@/lib/packs";
 import {
   GUEST_STORE_KEY,
   loadGuestState,
@@ -9,6 +8,7 @@ import {
   writeGuestState,
   type GuestState,
 } from "@/lib/guest-store";
+import { HomeSkeleton } from "@/components/home/HomeSkeleton";
 import { GuestHome } from "./GuestHome";
 import { GuestSalesList, GuestNewSale, GuestSaleDetail } from "./GuestSales";
 import { GuestCustomersList, GuestCustomerDetail } from "./GuestCustomers";
@@ -78,22 +78,10 @@ export function GuestApp() {
   }, []);
 
   if (!ready || !state) {
-    return (
-      <div className="mx-auto min-h-dvh w-full max-w-[640px] px-4 pb-28 pt-6 lg:max-w-6xl lg:px-8">
-        <div className="h-8 w-40 animate-pulse rounded-xl bg-muted" />
-        <div className="mt-4 h-5 w-56 animate-pulse rounded-xl bg-muted" />
-        <div className="mt-6 grid grid-cols-3 gap-2.5">
-          <div className="h-24 animate-pulse rounded-2xl bg-muted" />
-          <div className="h-24 animate-pulse rounded-2xl bg-muted" />
-          <div className="h-24 animate-pulse rounded-2xl bg-muted" />
-        </div>
-        <div className="mt-6 h-40 animate-pulse rounded-2xl bg-muted" />
-      </div>
-    );
+    return <HomeSkeleton />;
   }
 
   const route = stack[stack.length - 1];
-  const pack = getPack(state.shop.pack);
   const signInHref = "/login?mode=signup&next=/onboarding";
 
   const viewProps = {
@@ -164,7 +152,6 @@ export function GuestApp() {
     <div className="min-h-dvh lg:flex">
       <GuestNav
         active={tabForRoute(route)}
-        noun={pack.noun}
         shopName={state.shop.name}
         signInHref={signInHref}
         onSelect={selectTab}

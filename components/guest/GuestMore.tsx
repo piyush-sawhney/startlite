@@ -356,7 +356,7 @@ export function GuestSettings({
   );
 }
 
-export function GuestExpenses({ state, update, back, toast }: GuestViewProps) {
+export function GuestExpenses({ state, update, toast }: GuestViewProps) {
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(guestToday());
@@ -365,7 +365,6 @@ export function GuestExpenses({ state, update, back, toast }: GuestViewProps) {
 
   return (
     <>
-      <BackButton onClick={back} label="More" />
       <PageHeader
         title="Expenses"
         subtitle={`This month · ${formatPaise(summary.monthExpensePaise)}`}
@@ -377,7 +376,7 @@ export function GuestExpenses({ state, update, back, toast }: GuestViewProps) {
           event.preventDefault();
           setError(null);
           if (!title.trim()) {
-            setError("Enter what you spent on.");
+            setError("Enter who was paid.");
             return;
           }
           if (toPaise(amount) <= 0) {
@@ -394,12 +393,12 @@ export function GuestExpenses({ state, update, back, toast }: GuestViewProps) {
       >
         <h2 className="text-[15px] font-semibold">Add expense</h2>
         <div className="mt-3">
-          <Label>What for?</Label>
+          <Label>Paid to</Label>
           <input
             className={inputClass}
             value={title}
             onChange={(event) => setTitle(event.target.value)}
-            placeholder="Flour, gas, rent, delivery"
+            placeholder="Flour mill, gas, rent, delivery auto"
           />
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3">

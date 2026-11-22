@@ -75,7 +75,7 @@ sequenceDiagram
     else Signed out
         W->>L: Read startlite_guest_v2
         L-->>W: Shop, items, orders, expenses
-        W-->>M: App with five tabs
+        W-->>M: Guest dashboard, six tabs
         M->>W: Add sale, log payment, copy bill
         W->>L: Write immediately
         M->>W: Save my shop

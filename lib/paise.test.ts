@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addPaise,
+  formatCompactPaise,
   formatPaise,
   fromPaise,
   multiplyPaise,
@@ -17,6 +18,8 @@ describe("paise", () => {
   it("formats back to rupees", () => {
     expect(fromPaise(115000)).toBe("1150.00");
     expect(formatPaise(115000)).toBe("₹1,150.00");
+    expect(formatCompactPaise(10425000)).toBe("₹1.04L");
+    expect(formatCompactPaise(425000)).toBe("₹4,250.00");
   });
 
   it("adds and multiplies", () => {

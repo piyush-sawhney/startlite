@@ -50,6 +50,8 @@ Status values: `Accepted`, `Superseded`, `Deferred`.
 | [ADR-028](#adr-028-billing-automation-waits-for-500-merchants) | Billing automation waits for 500 merchants | Accepted |
 | [ADR-029](#adr-029-guest-workspace-before-login) | Guest workspace before login | Accepted |
 | [ADR-030](#adr-030-requested-time-not-availability) | Requested time, not availability | Accepted |
+| [ADR-031](#adr-031-one-dashboard-six-fixed-tabs) | One dashboard, six fixed tabs | Accepted |
+| [ADR-032](#adr-032-desktop-rail-and-day-column) | Desktop rail and day column | Accepted |
 
 ## ADR-001: Next.js App Router
 
@@ -571,6 +573,60 @@ an accept.
 - Adding business 201 is a catalog row and keywords, not a schema change.
 - `confirmed_source` separates "accepted as asked" from "time agreed with the
   client", which is the only reporting this needs.
+
+## ADR-031: One dashboard, six fixed tabs
+
+**Context:** The guest workspace and the owner app grew as two products. The
+guest shell had five tabs, the owner shell had five different ones, and neither
+had a real Expenses screen. The pack noun supplied the fourth tab label, so the
+same shop could read `Samaan` in one pack and `Catalog` in another. Two Home
+screens meant two specs, two sets of copy, and two places to fix a bug.
+
+**Decision:** `/` renders one dashboard for both guest and owner. Only the data
+source and a few signals differ: the `Not saved` pill, the launch sheet on a
+fresh device, the post-write toast, and the Settings save row. There are six
+fixed tabs in the same order for every pack and every state: Home, Orders,
+Customers, Items, Expenses, Settings. The pack still chooses starter items and
+default units; it no longer chooses a label. Owner routes under `/app/*` keep
+their five-tab shell until they move onto the shared dashboard.
+
+**Consequences:**
+
+- One Home spec covers both states, so a layout change lands once.
+- Expenses is a real tab, not a dead end behind More.
+- The pack noun is retired from navigation and from all button copy.
+- The owner shell is the remaining duplicate. It is a migration, not a second
+  design.
+- Tests run against both data sources: server data for the owner, local state
+  for the guest.
+
+## ADR-032: Desktop rail and day column
+
+**Context:** The product is phone first, but merchants also open it on a laptop
+at the counter. A single 640 px column centered in a 1440 px window leaves wide
+empty margins. It also pushes the day view below both order groups, so the
+merchant scrolls past the work to reach the schedule. The metrics, meanwhile,
+switch to a five-across strip that reads differently from the phone.
+
+**Decision:** Three widths. Below 768 px, bottom tabs, one column, 16 px gutter.
+From 768 px, a 200 px left rail replaces the tabs. From 1200 px, the rail grows
+to 240 px and the main column gains a 360 px right column. The day view lives in
+that right column, sticky and scrolling on its own, so it sits beside the order
+groups instead of below them. Between 768 and 1199 px the day view stays in the
+main column, after In progress. The KPI grid is two columns at every width, with
+Cash left spanning both, and each cell keeps the short label and the icon on
+desktop. The request bar is compact below 1200 px and becomes a header pill plus
+a panel above it.
+
+**Consequences:**
+
+- Desktop is the same app at a wider width, not a separate build.
+- The day view is visible beside the order groups at 1200 px and above.
+- Metrics read the same on a phone and a laptop, so the numbers do not move
+  around between devices.
+- The right column scrolls independently. It must not trap the page scroll.
+- The rail costs 200 px at tablet width, so the main column must stay above
+  560 px before the 1200 px breakpoint.
 
 ## Superseded specification sections
 

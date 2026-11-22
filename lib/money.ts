@@ -29,6 +29,15 @@ export function formatAmount(value: MoneyInput): string {
   return `₹${amountFormat.format(dec(value).toNumber())}`;
 }
 
+export function formatCompactAmount(value: MoneyInput): string {
+  const n = dec(value).toNumber();
+  if (Math.abs(n) >= 100000) {
+    const lakh = (n / 100000).toFixed(2);
+    return `₹${lakh}L`;
+  }
+  return formatAmount(value);
+}
+
 export function formatPlainAmount(value: MoneyInput): string {
   return amountFormat.format(dec(value).toNumber());
 }

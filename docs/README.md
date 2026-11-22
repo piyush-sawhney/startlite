@@ -25,9 +25,9 @@ orders without an account. StartLite never holds buyer money.
 | [operations.md](operations.md) | Deploy, backups, monitoring, runbook | Running production |
 | [roadmap.md](roadmap.md) | Phases, exit criteria, test gates, risks | Planning the next unit of work |
 | [decisions.md](decisions.md) | Why each choice was made, and what it replaced | Changing a decision |
+| [screens/README.md](screens/README.md) | Screen specifications, shell, breakpoints, and states | Designing or implementing UI screens |
 
-Screen specifications are written per screen as each screen is built. They do not
-live in this folder yet.
+Screen specifications are documented in [screens/](screens/README.md), starting with [screens/home.md](screens/home.md).
 
 ## Reading order
 

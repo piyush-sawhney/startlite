@@ -1,7 +1,8 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
+import { z } from "zod";
 import { db } from "@/db";
 import { customers, orders } from "@/db/schema";
-import { apiData } from "@/lib/api";
+import { apiData, apiError, readJson } from "@/lib/api";
 import { requireApiBusiness } from "@/lib/api-auth";
 import { dec } from "@/lib/money";
 import { orderDue } from "@/lib/queries";
@@ -52,4 +53,69 @@ export async function GET(request: Request) {
   });
 
   return apiData({ customers: result });
+}
+
+const createCustomerSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(80),
+  phone: z.string().trim().max(20).nullable().optional(),
+  subLabel: z.string().trim().max(100).nullable().optional(),
+  notes: z.string().trim().max(500).nullable().optional(),
+});
+
+export async function POST(request: Request) {
+  const auth = await requireApiBusiness(request);
+  if ("error" in auth) return auth.error;
+
+  const parsed = createCustomerSchema.safeParse(await readJson(request));
+  if (!parsed.success) {
+    return apiError(
+      "VALIDATION_FAILED",
+      parsed.error.issues[0]?.message ?? "Check customer details.",
+      parsed.error.issues,
+    );
+  }
+
+  const { name, phone, subLabel, notes } = parsed.data;
+  const cleanPhone = phone ? phone.replace(/\D/g, "").slice(-10) || null : null;
+
+  if (cleanPhone) {
+    const [existing] = await db
+      .select()
+      .from(customers)
+      .where(
+        and(
+          eq(customers.businessId, auth.business.id),
+          eq(customers.phone, cleanPhone),
+        ),
+      )
+      .limit(1);
+
+    if (existing) {
+      // Update name/subLabel if empty on existing
+      const [updated] = await db
+        .update(customers)
+        .set({
+          name: name || existing.name,
+          subLabel: subLabel ?? existing.subLabel,
+          notes: notes ?? existing.notes,
+        })
+        .where(eq(customers.id, existing.id))
+        .returning();
+
+      return apiData({ customerId: updated.id, customer: updated });
+    }
+  }
+
+  const [created] = await db
+    .insert(customers)
+    .values({
+      businessId: auth.business.id,
+      name,
+      phone: cleanPhone,
+      subLabel: subLabel || null,
+      notes: notes || null,
+    })
+    .returning();
+
+  return apiData({ customerId: created.id, customer: created }, 201);
 }

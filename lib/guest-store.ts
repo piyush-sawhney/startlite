@@ -9,8 +9,18 @@
  * paise. The server recomputes all totals again when guest data is imported.
  */
 
+import { formatDayHeading, istDateString, startOfTodayIst, startOfWeekIst } from "./date";
+import type {
+  CustomerDue,
+  DayOrderItem,
+  HomeDashboardData,
+  InProgressOrder,
+  ReadyToCollectOrder,
+} from "./home-types";
 import { getPack } from "./packs";
 import {
+  formatCompactPaise,
+  formatPaise,
   fromPaise,
   multiplyPaise,
   toPaise,
@@ -19,7 +29,12 @@ import {
 export const GUEST_STORE_KEY = "startlite_guest_v2";
 
 export type GuestPaymentMode = "cash" | "upi" | "bank" | "other";
-export type GuestOrderStatus = "open_tab" | "settled" | "cancelled";
+export type GuestOrderStatus =
+  | "quote"
+  | "open_tab"
+  | "ready"
+  | "settled"
+  | "cancelled";
 
 export type GuestShop = {
   name: string;
@@ -34,6 +49,14 @@ export type GuestShop = {
   bankIfsc: string;
 };
 
+export type GuestItemVariant = {
+  name: string;
+  price: string;
+  subVariants: Array<{ name: string; price: string }>;
+};
+
+export type GuestItemAvailability = { from: string; to: string };
+
 export type GuestItem = {
   id: string;
   name: string;
@@ -42,6 +65,11 @@ export type GuestItem = {
   isAvailable: boolean;
   sortOrder: number;
   createdAt: string;
+  category: string;
+  description: string;
+  photo: string | null;
+  variants: GuestItemVariant[];
+  availability: GuestItemAvailability | null;
 };
 
 export type GuestLine = {
@@ -85,10 +113,31 @@ export type GuestExpense = {
   createdAt: string;
 };
 
+export type GuestCustomerAddress = {
+  line1: string;
+  line2: string;
+  line3: string;
+  city: string;
+  state: string;
+  country: string;
+  pincode: string;
+};
+
+export type GuestCustomerRecord = {
+  id: string;
+  name: string;
+  countryCode: string;
+  phone: string;
+  subLabel: string;
+  address: GuestCustomerAddress | null;
+  createdAt: string;
+};
+
 export type GuestState = {
   version: 2;
   shop: GuestShop;
   items: GuestItem[];
+  customers: GuestCustomerRecord[];
   orders: GuestOrder[];
   expenses: GuestExpense[];
   nextBillNo: number;
@@ -153,6 +202,7 @@ export type GuestImportPayload = {
 const MAX_ITEMS = 300;
 const MAX_ORDERS = 500;
 const MAX_EXPENSES = 500;
+const MAX_CUSTOMERS = 1000;
 const MAX_LINES = 50;
 
 export function guestToday(): string {
@@ -224,6 +274,11 @@ export function starterItems(
     isAvailable: true,
     sortOrder: index,
     createdAt,
+    category: "",
+    description: "",
+    photo: null,
+    variants: [],
+    availability: null,
   }));
 }
 
@@ -244,6 +299,7 @@ export function createGuestState(packId = "grocery"): GuestState {
       bankIfsc: "",
     },
     items: starterItems(pack.id),
+    customers: [],
     orders: [],
     expenses: [],
     nextBillNo: 1,
@@ -268,10 +324,45 @@ function normalizeShop(value: unknown): GuestShop {
   };
 }
 
+function cleanPhoto(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  if (value.length > 220_000) return null;
+  if (!/^(data:image\/|https?:\/\/)/.test(value)) return null;
+  return value;
+}
+
 function normalizeItem(value: unknown, index: number, now: string): GuestItem | null {
   const raw = (value ?? {}) as Partial<GuestItem>;
   const name = clampText(raw.name, 80).trim();
   if (!name) return null;
+
+  const variants: GuestItemVariant[] = Array.isArray(raw.variants)
+    ? raw.variants
+        .slice(0, 20)
+        .map((variant) => ({
+          name: clampText(variant?.name, 60).trim(),
+          price: cleanMoney(variant?.price),
+          subVariants: Array.isArray(variant?.subVariants)
+            ? variant.subVariants
+                .slice(0, 20)
+                .map((sub) => ({
+                  name: clampText(sub?.name, 60).trim(),
+                  price: cleanMoney(sub?.price),
+                }))
+                .filter((sub) => sub.name)
+            : [],
+        }))
+        .filter((variant) => variant.name)
+    : [];
+
+  const availability =
+    raw.availability && typeof raw.availability === "object"
+      ? {
+          from: clampText(raw.availability.from, 5) || "00:00",
+          to: clampText(raw.availability.to, 5) || "23:59",
+        }
+      : null;
+
   return {
     id: clampText(raw.id, 80) || newId("item"),
     name,
@@ -283,6 +374,11 @@ function normalizeItem(value: unknown, index: number, now: string): GuestItem | 
         ? raw.sortOrder
         : index,
     createdAt: cleanTimestamp(raw.createdAt, now),
+    category: clampText(raw.category, 60).trim(),
+    description: clampText(raw.description, 200).trim(),
+    photo: cleanPhoto(raw.photo),
+    variants,
+    availability,
   };
 }
 
@@ -381,6 +477,40 @@ function normalizeExpense(value: unknown, now: string): GuestExpense | null {
   };
 }
 
+function normalizeCustomerAddress(value: unknown): GuestCustomerAddress | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Partial<GuestCustomerAddress>;
+  const line1 = clampText(raw.line1, 80).trim();
+  if (!line1) return null;
+  return {
+    line1,
+    line2: clampText(raw.line2, 80).trim(),
+    line3: clampText(raw.line3, 80).trim(),
+    city: clampText(raw.city, 60).trim(),
+    state: clampText(raw.state, 60).trim(),
+    country: clampText(raw.country, 60).trim() || "India",
+    pincode: clampText(raw.pincode, 10).trim(),
+  };
+}
+
+function normalizeCustomerRecord(
+  value: unknown,
+  now: string,
+): GuestCustomerRecord | null {
+  const raw = (value ?? {}) as Partial<GuestCustomerRecord>;
+  const name = clampText(raw.name, 80).trim();
+  if (!name) return null;
+  return {
+    id: clampText(raw.id, 80) || newId("customer"),
+    name,
+    countryCode: clampText(raw.countryCode, 6).trim() || "+91",
+    phone: cleanPhone(raw.phone),
+    subLabel: clampText(raw.subLabel, 60).trim(),
+    address: normalizeCustomerAddress(raw.address),
+    createdAt: cleanTimestamp(raw.createdAt, now),
+  };
+}
+
 export function normalizeGuestState(value: unknown): GuestState | null {
   if (!value || typeof value !== "object") return null;
   const raw = value as Partial<GuestState>;
@@ -408,6 +538,13 @@ export function normalizeGuestState(value: unknown): GuestState | null {
         .filter((expense): expense is GuestExpense => expense !== null)
     : [];
 
+  const customers = Array.isArray(raw.customers)
+    ? raw.customers
+        .slice(0, MAX_CUSTOMERS)
+        .map((customer) => normalizeCustomerRecord(customer, now))
+        .filter((customer): customer is GuestCustomerRecord => customer !== null)
+    : [];
+
   const highestBill = orders.reduce(
     (highest, order) => Math.max(highest, order.billNo),
     0,
@@ -421,6 +558,7 @@ export function normalizeGuestState(value: unknown): GuestState | null {
     version: 2,
     shop,
     items,
+    customers,
     orders,
     expenses,
     nextBillNo,
@@ -480,12 +618,18 @@ export function guestOrderTotals(order: GuestOrder): {
     0,
   );
   const duePaise = Math.max(0, totalPaise - paidPaise);
-  const status: GuestOrderStatus =
-    order.status === "cancelled"
-      ? "cancelled"
-      : paidPaise >= totalPaise && totalPaise > 0
-        ? "settled"
-        : "open_tab";
+  let status: GuestOrderStatus = order.status;
+  if (order.status === "cancelled") {
+    status = "cancelled";
+  } else if (paidPaise >= totalPaise && totalPaise > 0) {
+    status = "settled";
+  } else if (order.status === "ready") {
+    status = "ready";
+  } else if (order.status === "quote") {
+    status = "quote";
+  } else {
+    status = "open_tab";
+  }
   return { totalPaise, paidPaise, duePaise, status };
 }
 
@@ -561,6 +705,8 @@ export type GuestCustomer = {
   totalPaise: number;
   orderCount: number;
   lastPaidAt: string | null;
+  subLabel: string;
+  address: GuestCustomerAddress | null;
 };
 
 export function guestCustomerKey(order: GuestOrder): string | null {
@@ -572,6 +718,21 @@ export function guestCustomerKey(order: GuestOrder): string | null {
 
 export function guestCustomers(state: GuestState): GuestCustomer[] {
   const map = new Map<string, GuestCustomer>();
+
+  for (const record of state.customers) {
+    const key = guestCustomerRecordKey(record);
+    map.set(key, {
+      key,
+      name: record.name,
+      phone: record.phone,
+      pendingPaise: 0,
+      totalPaise: 0,
+      orderCount: 0,
+      lastPaidAt: null,
+      subLabel: record.subLabel,
+      address: record.address,
+    });
+  }
 
   for (const order of state.orders) {
     if (order.status === "cancelled") continue;
@@ -588,6 +749,8 @@ export function guestCustomers(state: GuestState): GuestCustomer[] {
         totalPaise: 0,
         orderCount: 0,
         lastPaidAt: null,
+        subLabel: "",
+        address: null,
       } satisfies GuestCustomer);
 
     entry.name = order.customerName || entry.name;
@@ -742,7 +905,16 @@ export function setGuestOrderStatus(
 
 export function addGuestItem(
   state: GuestState,
-  input: { name: string; price: string; unitLabel: string },
+  input: {
+    name: string;
+    price: string;
+    unitLabel: string;
+    category?: string;
+    description?: string;
+    photo?: string | null;
+    variants?: GuestItemVariant[];
+    availability?: GuestItemAvailability | null;
+  },
 ): GuestState {
   const name = input.name.trim().slice(0, 80);
   if (!name) return state;
@@ -754,8 +926,83 @@ export function addGuestItem(
     isAvailable: true,
     sortOrder: state.items.length,
     createdAt: guestNow(),
+    category: input.category?.trim().slice(0, 60) ?? "",
+    description: input.description?.trim().slice(0, 200) ?? "",
+    photo: cleanPhoto(input.photo),
+    variants: (input.variants ?? [])
+      .map((variant) => ({
+        name: variant.name.trim().slice(0, 60),
+        price: cleanMoney(variant.price),
+        subVariants: (variant.subVariants ?? [])
+          .map((sub) => ({
+            name: sub.name.trim().slice(0, 60),
+            price: cleanMoney(sub.price),
+          }))
+          .filter((sub) => sub.name),
+      }))
+      .filter((variant) => variant.name),
+    availability: input.availability ?? null,
   };
   return { ...state, items: [...state.items, item].slice(0, MAX_ITEMS) };
+}
+
+export function guestCustomerRecordKey(
+  record: Pick<GuestCustomerRecord, "name" | "phone">,
+): string {
+  if (record.phone) return `phone:${record.phone}`;
+  return `name:${record.name.trim().toLowerCase()}`;
+}
+
+export function addGuestCustomer(
+  state: GuestState,
+  input: {
+    name: string;
+    countryCode?: string;
+    phone?: string;
+    subLabel?: string;
+    address?: GuestCustomerAddress | null;
+  },
+): GuestState {
+  const name = input.name.trim().slice(0, 80);
+  if (!name) return state;
+  const phone = cleanPhone(input.phone ?? "");
+  const key = guestCustomerRecordKey({ name, phone });
+
+  const existing = state.customers.find(
+    (record) => guestCustomerRecordKey(record) === key,
+  );
+
+  if (existing) {
+    return {
+      ...state,
+      customers: state.customers.map((record) =>
+        guestCustomerRecordKey(record) === key
+          ? {
+              ...record,
+              name,
+              countryCode: input.countryCode?.trim() || record.countryCode,
+              subLabel: input.subLabel?.trim() || record.subLabel,
+              address: input.address ?? record.address,
+            }
+          : record,
+      ),
+    };
+  }
+
+  const record: GuestCustomerRecord = {
+    id: newId("customer"),
+    name,
+    countryCode: input.countryCode?.trim().slice(0, 6) || "+91",
+    phone,
+    subLabel: input.subLabel?.trim().slice(0, 60) ?? "",
+    address: input.address ?? null,
+    createdAt: guestNow(),
+  };
+
+  return {
+    ...state,
+    customers: [record, ...state.customers].slice(0, MAX_CUSTOMERS),
+  };
 }
 
 export function updateGuestItem(
@@ -946,4 +1193,265 @@ export function guestSalesCsv(state: GuestState): string {
         .join(","),
     )
     .join("\n");
+}
+
+export function guestHomeDashboard(
+  state: GuestState,
+  targetDayStr?: string,
+): HomeDashboardData {
+  const todayStr = istDateString();
+  const selectedDay =
+    targetDayStr && /^\d{4}-\d{2}-\d{2}$/.test(targetDayStr)
+      ? targetDayStr
+      : todayStr;
+  const isToday = selectedDay === todayStr;
+  const selectedDayLabel = formatDayHeading(selectedDay);
+
+  const todayStart = startOfTodayIst().getTime();
+  const weekStart = startOfWeekIst().getTime();
+
+  function getOrderSummary(order: GuestOrder): string {
+    if (order.lines.length === 0) return "1 item";
+    if (order.lines.length === 1) return order.lines[0].itemName;
+    return `${order.lines[0].itemName} · +${order.lines.length - 1}`;
+  }
+
+  // 1. KPIs
+  let todayToCollectDue = 0;
+  let todayToCollectCount = 0;
+
+  let todayPaidTotal = 0;
+  const ordersPaidToday = new Set<string>();
+
+  let weekSalesTotal = 0;
+  let weekSalesCount = 0;
+
+  let weekReceived = 0;
+
+  for (const order of state.orders) {
+    if (order.status === "cancelled") continue;
+    const totals = guestOrderTotals(order);
+    const orderCreatedAt = new Date(order.createdAt).getTime();
+
+    // Today to collect
+    const isTargetToday =
+      order.neededBy === todayStr || orderCreatedAt >= todayStart;
+    if (isTargetToday && totals.status !== "settled" && totals.duePaise > 0) {
+      todayToCollectDue += totals.duePaise;
+      todayToCollectCount += 1;
+    }
+
+    // Week sales
+    if (orderCreatedAt >= weekStart) {
+      weekSalesTotal += totals.totalPaise;
+      weekSalesCount += 1;
+    }
+
+    // Payments
+    for (const payment of order.payments) {
+      const paidAtTime = new Date(payment.paidAt).getTime();
+      const amountPaise = toPaise(payment.amount);
+      if (paidAtTime >= todayStart) {
+        todayPaidTotal += amountPaise;
+        ordersPaidToday.add(order.id);
+      }
+      if (paidAtTime >= weekStart) {
+        weekReceived += amountPaise;
+      }
+    }
+  }
+
+  // Week expenses
+  let weekExpenseTotal = 0;
+  let weekExpenseCount = 0;
+  for (const expense of state.expenses) {
+    const expenseTime = new Date(`${expense.date}T00:00:00`).getTime();
+    if (expenseTime >= weekStart) {
+      const amountPaise = toPaise(expense.amount);
+      weekExpenseTotal += amountPaise;
+      weekExpenseCount += 1;
+    }
+  }
+
+  const weekCashLeftPaise = weekReceived - weekExpenseTotal;
+
+  const kpis: HomeDashboardData["kpis"] = {
+    todayToCollect: {
+      label: "Today · To collect",
+      amount: formatPaise(todayToCollectDue),
+      compactAmount: formatCompactPaise(todayToCollectDue),
+      rawAmount: todayToCollectDue / 100,
+      count: todayToCollectCount,
+      countLabel: `${todayToCollectCount} ${todayToCollectCount === 1 ? "order" : "orders"}`,
+      period: "Today",
+    },
+    todayPaid: {
+      label: "Today · Paid",
+      amount: formatPaise(todayPaidTotal),
+      compactAmount: formatCompactPaise(todayPaidTotal),
+      rawAmount: todayPaidTotal / 100,
+      count: ordersPaidToday.size,
+      countLabel: `${ordersPaidToday.size} ${ordersPaidToday.size === 1 ? "order" : "orders"}`,
+      period: "Today",
+    },
+    thisWeekSales: {
+      label: "This week · Sales",
+      amount: formatPaise(weekSalesTotal),
+      compactAmount: formatCompactPaise(weekSalesTotal),
+      rawAmount: weekSalesTotal / 100,
+      count: weekSalesCount,
+      countLabel: `${weekSalesCount} ${weekSalesCount === 1 ? "order" : "orders"}`,
+      period: "Monday to Sunday",
+    },
+    thisWeekExpenses: {
+      label: "This week · Expenses",
+      amount: formatPaise(weekExpenseTotal),
+      compactAmount: formatCompactPaise(weekExpenseTotal),
+      rawAmount: weekExpenseTotal / 100,
+      count: weekExpenseCount,
+      countLabel: `${weekExpenseCount} ${weekExpenseCount === 1 ? "entry" : "entries"}`,
+      period: "Monday to Sunday",
+    },
+    thisWeekCashLeft: {
+      label: "This week · Cash left",
+      amount: formatPaise(weekCashLeftPaise),
+      compactAmount: formatCompactPaise(weekCashLeftPaise),
+      rawAmount: weekCashLeftPaise / 100,
+      period: "Monday to Sunday",
+      hint: "Received − expenses · not profit",
+    },
+  };
+
+  // 2. Day view
+  const dayOrders = state.orders.filter(
+    (order) => order.neededBy === selectedDay && order.status !== "cancelled",
+  );
+
+  const anyTime: DayOrderItem[] = [];
+  const timeline: DayOrderItem[] = [];
+
+  for (const order of dayOrders) {
+    const totals = guestOrderTotals(order);
+    const item: DayOrderItem = {
+      id: order.id,
+      code: order.code,
+      customerName: order.customerName || "Walk-in sale",
+      itemsSummary: getOrderSummary(order),
+      total: formatPaise(totals.totalPaise),
+      due: totals.duePaise > 0 ? formatPaise(totals.duePaise) : "₹0.00",
+      status: totals.status,
+      neededBy: order.neededBy,
+      isGhost: false,
+    };
+    anyTime.push(item);
+  }
+
+  // 3. Ready to collect (Group 1: Work complete, payment pending)
+  const readyOrders = state.orders.filter((order) => {
+    const totals = guestOrderTotals(order);
+    return totals.status === "ready" && totals.duePaise > 0;
+  });
+
+  readyOrders.sort(
+    (a, b) =>
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+  );
+
+  const readyTotalDuePaise = readyOrders.reduce(
+    (total, order) => total + guestOrderTotals(order).duePaise,
+    0,
+  );
+
+  const readyToCollect: HomeDashboardData["readyToCollect"] = {
+    count: readyOrders.length,
+    totalDue: formatPaise(readyTotalDuePaise),
+    orders: readyOrders.slice(0, 5).map((order) => {
+      const totals = guestOrderTotals(order);
+      return {
+        id: order.id,
+        code: order.code,
+        customerName: order.customerName || "Walk-in sale",
+        itemsSummary: getOrderSummary(order),
+        due: formatPaise(totals.duePaise),
+        duePaise: totals.duePaise,
+        createdAt: order.createdAt,
+      };
+    }),
+  };
+
+  // 4. In progress (Group 2: Work incomplete: quote and open_tab)
+  const inProgressOrders = state.orders.filter((order) => {
+    const totals = guestOrderTotals(order);
+    return totals.status === "quote" || totals.status === "open_tab";
+  });
+
+  inProgressOrders.sort((a, b) => {
+    const aTotals = guestOrderTotals(a);
+    const bTotals = guestOrderTotals(b);
+    if (aTotals.status === "quote" && bTotals.status !== "quote") return -1;
+    if (aTotals.status !== "quote" && bTotals.status === "quote") return 1;
+    if (a.neededBy !== b.neededBy) return a.neededBy.localeCompare(b.neededBy);
+    return (
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+  });
+
+  const inProgressTotalPaise = inProgressOrders.reduce(
+    (total, order) => total + guestOrderTotals(order).totalPaise,
+    0,
+  );
+
+  const inProgress: HomeDashboardData["inProgress"] = {
+    count: inProgressOrders.length,
+    totalAmount: formatPaise(inProgressTotalPaise),
+    orders: inProgressOrders.slice(0, 5).map((order) => {
+      const totals = guestOrderTotals(order);
+      return {
+        id: order.id,
+        code: order.code,
+        customerName: order.customerName || "Walk-in sale",
+        itemsSummary: getOrderSummary(order),
+        total: formatPaise(totals.totalPaise),
+        status: totals.status as "quote" | "open_tab",
+        neededBy: order.neededBy,
+        createdAt: order.createdAt,
+      };
+    }),
+  };
+
+  // 5. To collect from customers
+  const customers = guestCustomers(state)
+    .filter((c) => c.pendingPaise > 0)
+    .sort((a, b) => b.pendingPaise - a.pendingPaise);
+
+  const customerDues: CustomerDue[] = customers.slice(0, 5).map((c) => ({
+    id: c.key,
+    name: c.name || c.phone,
+    pending: formatPaise(c.pendingPaise),
+    lastPaidDate: c.lastPaidAt ? c.lastPaidAt.slice(0, 10) : null,
+  }));
+
+  return {
+    shopName: state.shop.name,
+    handle: state.shop.name.toLowerCase().replace(/[^a-z0-9]/g, "-"),
+    isOwner: false,
+    isPassExpired: false,
+    selectedDay,
+    selectedDayLabel,
+    isToday,
+    kpis,
+    requests: {
+      count: 0,
+      oldestAge: "",
+      requests: [],
+    },
+    dayView: {
+      anyTime,
+      timeline,
+      ghosts: [],
+    },
+    readyToCollect,
+    inProgress,
+    customerDues,
+  };
 }

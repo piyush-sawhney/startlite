@@ -1,6 +1,12 @@
 import type { GuestState } from "@/lib/guest-store";
 
-export type GuestTab = "home" | "sales" | "customers" | "catalog" | "more";
+export type GuestTab =
+  | "home"
+  | "sales"
+  | "customers"
+  | "catalog"
+  | "expenses"
+  | "more";
 
 export type GuestRoute =
   | { kind: "home" }
@@ -39,9 +45,10 @@ export function tabForRoute(route: GuestRoute): GuestTab {
       return "catalog";
     case "more":
     case "settings":
-    case "expenses":
     case "cash":
       return "more";
+    case "expenses":
+      return "expenses";
     default:
       return "home";
   }
