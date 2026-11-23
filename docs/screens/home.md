@@ -719,3 +719,27 @@ The skeleton uses the final heights, so nothing shifts when data arrives.
    opens order details, where the owner confirms the action.
 4. Should an empty incomplete-order queue stay visible? Current answer: yes.
    Keep one queue card with `No incomplete orders.` and `Add sale`.
+
+## TODO
+
+1. Incomplete order text to be changed to Pending Orders. 
+
+2. The Orders in the Order Card List -> Prioritisation of the info shown. This app is being built for microwners, who probably get customers feom insta, referral etc. customer name is not as important as the order, delivery dates etc. So reformat the info within each order. Where message to the merchant is more important than customer name, needed by is more importamt than placed on, so on. So rethink and give me a plan on to make this order card more helpful and meaning full. 
+
+3. Adding actions on the order item in order card list. A merchant might want to talk to the client,  or chat over WhatsApp, so add these interactive icons on the order itself. Also order  action buttons should be comprehensive, like mark complete (plus inform client), collect payment, etc. Give me a plan on this. 
+
+
+4. The idea is home screen is the primary action page of the app. so it should be built like that . the other pages will be primarily report pages for sales, customers or item and secondary for actions. So from home screen or through the modals that open in home scree a merchant should ideally be able to take all action. 
+
+
+5. improve the modals. Like add sale should have by default searchable items to add, if item not present ability to add item (similar to add item modal), chose from customer or add customer (similar to add customer). This should be the most comprehensive modal. 
+
+6. There should be a way to edit orders by the merchant, for example he should be able to change needed by, quantity, add items to the order, apply discounts etc ,.The idea is that all the coveraation that has happened outside the app, there should be a way for merchant to edit. we should not take order changes again and again from storefront user. give me a plan on that. 
+
+7. Statuses -> Under Review, Waiting for Client Confirm, Accepted, Declined, Pending Payment, Completed (For which order is also done and payment is also received), give me more suggestions, for each business type and how can we make these generic. 
+
+8. Day view should show all orders of the day irrespective of the status. Srollable list with a item view of 5 in mobile and height in desktop. 
+
+9. Way to update logo for the merchant in signed in state, round or reactangle logo, need discussion. 
+
+10. A permanent way that remains on the screen always, either in menu or simile to review notification , a way to quickly share the storefront. 
