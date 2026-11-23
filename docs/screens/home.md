@@ -23,7 +23,7 @@ An order stays in the queue until work is ready and payment is complete:
 | Work is ready, payment incomplete | Work is done. Money is still due. | **Ready to collect** |
 
 **To finish** always comes first. Within each group, scheduled orders sort by
-required date and slot, earliest first. Orders without a slot sort by oldest
+required date and slot (if available), earliest first. Orders without a slot sort by oldest
 placed time.
 
 ## Arrival
