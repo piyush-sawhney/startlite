@@ -136,7 +136,7 @@ when data arrives.
 | Week | Monday to Sunday, IST |
 | Count | A muted second line under the amount, for example `7 orders` |
 | Profit | Never shown. The label is Cash left, with the line "This is not profit." |
-| Dates | `21 Nov 2026`. Times are 12-hour with `am` and `pm` |
+| Dates | `21-Nov-2026`. Times are 12-hour with `am` and `pm` |
 | Tabular numerals | Every amount and count |
 
 ## Status to surface

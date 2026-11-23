@@ -28,7 +28,7 @@ import {
 
 export const GUEST_STORE_KEY = "startlite_guest_v2";
 
-export type GuestPaymentMode = "cash" | "upi" | "bank" | "other";
+export type GuestPaymentMode = "cash" | "upi" | "card" | "bank" | "other";
 export type GuestOrderStatus =
   | "quote"
   | "open_tab"
@@ -95,10 +95,13 @@ export type GuestOrder = {
   id: string;
   code: string;
   status: GuestOrderStatus;
+  customerId: string;
   customerName: string;
   customerPhone: string;
+  customerCountryCode: string;
   note: string;
   neededBy: string;
+  timeSlot: string;
   createdAt: string;
   billNo: number;
   lines: GuestLine[];
@@ -108,6 +111,7 @@ export type GuestOrder = {
 export type GuestExpense = {
   id: string;
   title: string;
+  paidFor: string;
   amount: string;
   date: string;
   createdAt: string;
@@ -144,10 +148,16 @@ export type GuestState = {
 };
 
 export type GuestOrderInput = {
+  customerId?: string;
   customerName?: string;
   customerPhone?: string;
+  customerCountryCode?: string;
+  customerSubLabel?: string;
   note?: string;
   neededBy?: string;
+  when?: "now" | "later";
+  status?: GuestOrderStatus;
+  timeSlot?: string | null;
   lines: Array<{
     itemId?: string | null;
     itemName: string;
@@ -442,7 +452,10 @@ function normalizeOrder(value: unknown, now: string): GuestOrder | null {
     : [];
 
   const status =
-    raw.status === "cancelled" || raw.status === "settled"
+    raw.status === "cancelled" ||
+    raw.status === "settled" ||
+    raw.status === "ready" ||
+    raw.status === "quote"
       ? raw.status
       : "open_tab";
 
@@ -450,10 +463,13 @@ function normalizeOrder(value: unknown, now: string): GuestOrder | null {
     id: clampText(raw.id, 80) || newId("order"),
     code: clampText(raw.code, 20).trim() || guestOrderCode(),
     status,
+    customerId: clampText(raw.customerId, 80).trim(),
     customerName: clampText(raw.customerName, 80).trim(),
     customerPhone: cleanPhone(raw.customerPhone),
+    customerCountryCode: clampText(raw.customerCountryCode, 6).trim() || "+91",
     note: clampText(raw.note, 500).trim(),
     neededBy: cleanDate(raw.neededBy, guestToday()),
+    timeSlot: clampText(raw.timeSlot, 20).trim(),
     createdAt: cleanTimestamp(raw.createdAt, now),
     billNo:
       typeof raw.billNo === "number" && Number.isFinite(raw.billNo)
@@ -471,6 +487,7 @@ function normalizeExpense(value: unknown, now: string): GuestExpense | null {
   return {
     id: clampText(raw.id, 80) || newId("expense"),
     title,
+    paidFor: clampText(raw.paidFor, 80).trim(),
     amount: cleanMoney(raw.amount),
     date: cleanDate(raw.date, guestToday()),
     createdAt: cleanTimestamp(raw.createdAt, now),
@@ -699,6 +716,8 @@ export function guestSummary(state: GuestState) {
 
 export type GuestCustomer = {
   key: string;
+  id: string;
+  countryCode: string;
   name: string;
   phone: string;
   pendingPaise: number;
@@ -710,9 +729,12 @@ export type GuestCustomer = {
 };
 
 export function guestCustomerKey(order: GuestOrder): string | null {
-  if (order.customerPhone) return `phone:${order.customerPhone}`;
+  if (order.customerPhone) {
+    return `phone:${order.customerCountryCode || "+91"}${order.customerPhone}`;
+  }
+  if (order.customerId) return `id:${order.customerId}`;
   const name = order.customerName.trim().toLowerCase();
-  if (name) return `name:${name}`;
+  if (name) return `legacy-name:${name}`;
   return null;
 }
 
@@ -723,6 +745,8 @@ export function guestCustomers(state: GuestState): GuestCustomer[] {
     const key = guestCustomerRecordKey(record);
     map.set(key, {
       key,
+      id: record.id,
+      countryCode: record.countryCode,
       name: record.name,
       phone: record.phone,
       pendingPaise: 0,
@@ -743,6 +767,8 @@ export function guestCustomers(state: GuestState): GuestCustomer[] {
       map.get(key) ??
       ({
         key,
+        id: "",
+        countryCode: "+91",
         name: order.customerName || "Buyer",
         phone: order.customerPhone,
         pendingPaise: 0,
@@ -807,6 +833,26 @@ export function addGuestOrder(
 
   if (lines.length === 0) return { state, orderId: "" };
 
+  // Make sure a selected or typed customer has a record with a stable id.
+  // A phone is the only automatic match; a name alone never merges.
+  const customerName = input.customerName?.trim().slice(0, 80) ?? "";
+  const customerPhone = cleanPhone(input.customerPhone ?? "");
+  let baseState = state;
+  let customerId = input.customerId?.trim().slice(0, 80) ?? "";
+  if (!customerId && (customerName || customerPhone)) {
+    baseState = addGuestCustomer(state, {
+      name: customerName || `Buyer ${customerPhone.slice(-4)}`,
+      countryCode: input.customerCountryCode,
+      phone: customerPhone,
+      subLabel: input.customerSubLabel,
+    });
+    customerId = guestCustomerIdFor(baseState, {
+      name: customerName,
+      phone: customerPhone,
+      countryCode: input.customerCountryCode,
+    });
+  }
+
   const totalPaise = lines.reduce(
     (total, line) => total + multiplyPaise(line.quantity, line.unitPrice),
     0,
@@ -818,19 +864,28 @@ export function addGuestOrder(
   );
 
   let code = guestOrderCode();
-  const codes = new Set(state.orders.map((order) => order.code));
+  const codes = new Set(baseState.orders.map((order) => order.code));
   while (codes.has(code)) code = guestOrderCode();
 
   const order: GuestOrder = {
     id: newId("order"),
     code,
-    status: paidInput >= totalPaise ? "settled" : "open_tab",
-    customerName: input.customerName?.trim().slice(0, 80) ?? "",
-    customerPhone: cleanPhone(input.customerPhone),
+    status:
+      input.status ??
+      (paidInput >= totalPaise
+        ? "settled"
+        : input.when === "now"
+          ? "ready"
+          : "open_tab"),
+    customerId,
+    customerName,
+    customerPhone,
+    customerCountryCode: input.customerCountryCode?.trim().slice(0, 6) || "+91",
     note: input.note?.trim().slice(0, 500) ?? "",
     neededBy: cleanDate(input.neededBy, guestToday()),
+    timeSlot: input.timeSlot?.trim().slice(0, 20) ?? "",
     createdAt: guestNow(),
-    billNo: state.nextBillNo,
+    billNo: baseState.nextBillNo,
     lines,
     payments:
       paidInput > 0
@@ -848,9 +903,9 @@ export function addGuestOrder(
   return {
     orderId: order.id,
     state: {
-      ...state,
-      orders: [order, ...state.orders].slice(0, MAX_ORDERS),
-      nextBillNo: state.nextBillNo + 1,
+      ...baseState,
+      orders: [order, ...baseState.orders].slice(0, MAX_ORDERS),
+      nextBillNo: baseState.nextBillNo + 1,
     },
   };
 }
@@ -947,10 +1002,54 @@ export function addGuestItem(
 }
 
 export function guestCustomerRecordKey(
-  record: Pick<GuestCustomerRecord, "name" | "phone">,
+  record: Pick<GuestCustomerRecord, "id" | "name" | "phone" | "countryCode">,
 ): string {
-  if (record.phone) return `phone:${record.phone}`;
-  return `name:${record.name.trim().toLowerCase()}`;
+  if (record.phone) return `phone:${record.countryCode || "+91"}${record.phone}`;
+  return `id:${record.id}`;
+}
+
+export function findGuestCustomerByPhone(
+  state: GuestState,
+  phone: string,
+  countryCode = "+91",
+): GuestCustomerRecord | null {
+  const clean = cleanPhone(phone);
+  if (!clean) return null;
+  const code = countryCode.trim() || "+91";
+  return (
+    state.customers.find(
+      (record) =>
+        record.phone === clean &&
+        (record.countryCode || "+91") === code,
+    ) ?? null
+  );
+}
+
+export function findGuestCustomersByName(
+  state: GuestState,
+  name: string,
+): GuestCustomerRecord[] {
+  const clean = name.trim().toLowerCase();
+  if (!clean) return [];
+  return state.customers.filter(
+    (record) => record.name.trim().toLowerCase() === clean,
+  );
+}
+
+export function guestCustomerIdFor(
+  state: GuestState,
+  input: { name?: string; phone?: string; countryCode?: string },
+): string {
+  const phone = cleanPhone(input.phone ?? "");
+  if (phone) {
+    return (
+      findGuestCustomerByPhone(state, phone, input.countryCode)?.id ?? ""
+    );
+  }
+  const name = input.name?.trim() ?? "";
+  if (!name) return "";
+  const matches = findGuestCustomersByName(state, name);
+  return matches[matches.length - 1]?.id ?? "";
 }
 
 export function addGuestCustomer(
@@ -966,17 +1065,24 @@ export function addGuestCustomer(
   const name = input.name.trim().slice(0, 80);
   if (!name) return state;
   const phone = cleanPhone(input.phone ?? "");
-  const key = guestCustomerRecordKey({ name, phone });
+  const countryCode = input.countryCode?.trim().slice(0, 6) || "+91";
 
-  const existing = state.customers.find(
-    (record) => guestCustomerRecordKey(record) === key,
-  );
+  // A phone plus its country code is the only automatic match. A name is never
+  // a key: two Rameshes are two people, and the merchant confirms a match in
+  // the UI instead.
+  const existing = phone
+    ? state.customers.find(
+        (record) =>
+          record.phone === phone &&
+          (record.countryCode || "+91") === countryCode,
+      )
+    : undefined;
 
   if (existing) {
     return {
       ...state,
       customers: state.customers.map((record) =>
-        guestCustomerRecordKey(record) === key
+        record.id === existing.id
           ? {
               ...record,
               name,
@@ -992,7 +1098,7 @@ export function addGuestCustomer(
   const record: GuestCustomerRecord = {
     id: newId("customer"),
     name,
-    countryCode: input.countryCode?.trim().slice(0, 6) || "+91",
+    countryCode,
     phone,
     subLabel: input.subLabel?.trim().slice(0, 60) ?? "",
     address: input.address ?? null,
@@ -1039,7 +1145,7 @@ export function deleteGuestItem(state: GuestState, id: string): GuestState {
 
 export function addGuestExpense(
   state: GuestState,
-  input: { title: string; amount: string; date: string },
+  input: { title: string; paidFor?: string; amount: string; date: string },
 ): GuestState {
   const title = input.title.trim().slice(0, 80);
   const amount = cleanMoney(input.amount);
@@ -1047,6 +1153,7 @@ export function addGuestExpense(
   const expense: GuestExpense = {
     id: newId("expense"),
     title,
+    paidFor: input.paidFor?.trim().slice(0, 80) ?? "",
     amount,
     date: cleanDate(input.date, guestToday()),
     createdAt: guestNow(),
@@ -1340,11 +1447,17 @@ export function guestHomeDashboard(
       total: formatPaise(totals.totalPaise),
       due: totals.duePaise > 0 ? formatPaise(totals.duePaise) : "₹0.00",
       status: totals.status,
+      timeSlot: order.timeSlot || null,
       neededBy: order.neededBy,
       isGhost: false,
     };
-    anyTime.push(item);
+    if (order.timeSlot) timeline.push(item);
+    else anyTime.push(item);
   }
+
+  timeline.sort((a, b) =>
+    (a.timeSlot ?? "").localeCompare(b.timeSlot ?? ""),
+  );
 
   // 3. Ready to collect (Group 1: Work complete, payment pending)
   const readyOrders = state.orders.filter((order) => {

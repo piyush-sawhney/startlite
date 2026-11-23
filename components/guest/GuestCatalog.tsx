@@ -10,7 +10,6 @@ import {
   quietButton,
 } from "@/components/ui";
 import { cn } from "@/lib/cn";
-import { getPack } from "@/lib/packs";
 import { formatPaise, toPaise } from "@/lib/paise";
 import {
   addGuestItem,
@@ -18,17 +17,17 @@ import {
   updateGuestItem,
 } from "@/lib/guest-store";
 import { BackButton } from "./GuestBits";
+import { AddItemModal } from "@/components/home/AddItemModal";
 import type { GuestViewProps } from "./types";
 
 export function GuestCatalog({ state, update, go, toast }: GuestViewProps) {
-  const pack = getPack(state.shop.pack);
   const [open, setOpen] = useState(false);
 
   return (
     <>
       <PageHeader
-        title={pack.noun}
-        subtitle={`${state.items.length} items · ${pack.label}`}
+        title="Items"
+        subtitle={`${state.items.length} items`}
         action={
           <button
             type="button"
@@ -40,21 +39,31 @@ export function GuestCatalog({ state, update, go, toast }: GuestViewProps) {
         }
       />
 
-      {open ? (
-        <AddItem
-          packUnit={pack.unit}
-          onSave={(name, price, unitLabel) => {
-            update((current) => addGuestItem(current, { name, price, unitLabel }));
-            setOpen(false);
-            toast("Item added");
-          }}
-        />
-      ) : null}
+      <AddItemModal
+        isOpen={open}
+        onClose={() => setOpen(false)}
+        onSubmit={async (item) => {
+          update((current) =>
+            addGuestItem(current, {
+              name: item.name,
+              price: item.basePrice,
+              unitLabel: item.unitLabel,
+              category: item.category,
+              description: item.description,
+              photo: item.photo,
+              variants: item.variants,
+              availability: item.availability,
+            }),
+          );
+          setOpen(false);
+          toast("Item added");
+        }}
+      />
 
       <div className={open ? "mt-4" : ""}>
         {state.items.length === 0 ? (
           <EmptyState
-            title={`No ${pack.noun.toLowerCase()} yet`}
+            title="No items yet"
             body="Add your first item. Name, price, and availability are enough."
             action={
               <button
@@ -124,79 +133,6 @@ export function GuestCatalog({ state, update, go, toast }: GuestViewProps) {
         Sold-out items stay visible. Buyers cannot add them.
       </p>
     </>
-  );
-}
-
-function AddItem({
-  packUnit,
-  onSave,
-}: {
-  packUnit: string;
-  onSave: (name: string, price: string, unitLabel: string) => void;
-}) {
-  const [name, setName] = useState("");
-  const [price, setPrice] = useState("");
-  const [unitLabel, setUnitLabel] = useState(packUnit);
-  const [error, setError] = useState<string | null>(null);
-
-  return (
-    <form
-      className="rounded-2xl border border-line bg-surface p-4"
-      onSubmit={(event) => {
-        event.preventDefault();
-        setError(null);
-        if (!name.trim()) {
-          setError("Enter an item name.");
-          return;
-        }
-        if (toPaise(price) <= 0) {
-          setError("Enter a price above zero.");
-          return;
-        }
-        onSave(name, price, unitLabel);
-        setName("");
-        setPrice("");
-      }}
-    >
-      <h2 className="text-[15px] font-semibold">New item</h2>
-      <div className="mt-3">
-        <Label>Name</Label>
-        <input
-          className={inputClass}
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          placeholder="Chocolate cake"
-          autoFocus
-        />
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-3">
-        <div>
-          <Label>Price</Label>
-          <input
-            className={inputClass}
-            inputMode="decimal"
-            value={price}
-            onChange={(event) => setPrice(event.target.value)}
-            placeholder="0.00"
-          />
-        </div>
-        <div>
-          <Label>Unit</Label>
-          <input
-            className={inputClass}
-            value={unitLabel}
-            onChange={(event) => setUnitLabel(event.target.value)}
-            placeholder="piece"
-          />
-        </div>
-      </div>
-      {error ? (
-        <p className="mt-3 text-sm text-danger" aria-live="polite">
-          {error}
-        </p>
-      ) : null}
-      <button className={primaryButton("mt-4 w-full")}>Save item</button>
-    </form>
   );
 }
 

@@ -21,11 +21,13 @@ import { formatPaise, fromPaise, multiplyPaise, toPaise } from "@/lib/paise";
 import {
   addGuestOrder,
   addGuestPayment,
-  guestDay,
+  guestCustomers,
   guestOrderTotals,
   guestOrdersNewestFirst,
   guestToday,
   setGuestOrderStatus,
+  type GuestCustomer,
+  type GuestItem,
   type GuestOrder,
   type GuestPaymentMode,
 } from "@/lib/guest-store";
@@ -173,10 +175,85 @@ type CartLine = {
   key: string;
   itemId: string;
   name: string;
+  variantName: string;
+  subVariantName: string;
   price: string;
   unitLabel: string;
   quantity: string;
+  note: string;
 };
+
+type SellableOption = {
+  key: string;
+  itemId: string;
+  name: string;
+  variantName: string;
+  subVariantName: string;
+  price: string;
+  unitLabel: string;
+};
+
+const PAYMENT_MODES: Array<{ id: GuestPaymentMode; label: string }> = [
+  { id: "cash", label: "Cash" },
+  { id: "upi", label: "UPI" },
+  { id: "card", label: "Card" },
+  { id: "bank", label: "Bank" },
+  { id: "other", label: "Other" },
+];
+
+const COUNTRY_CODES = ["+91", "+971", "+1", "+44", "+65"];
+
+function sellableOptions(items: GuestItem[]): SellableOption[] {
+  const out: SellableOption[] = [];
+  for (const item of items) {
+    const variants = item.variants ?? [];
+    if (variants.length === 0) {
+      out.push({
+        key: item.id,
+        itemId: item.id,
+        name: item.name,
+        variantName: "",
+        subVariantName: "",
+        price: item.price,
+        unitLabel: item.unitLabel,
+      });
+      continue;
+    }
+    for (const variant of variants) {
+      const subs = variant.subVariants ?? [];
+      if (subs.length === 0) {
+        out.push({
+          key: `${item.id}:${variant.name}`,
+          itemId: item.id,
+          name: item.name,
+          variantName: variant.name,
+          subVariantName: "",
+          price: variant.price || item.price,
+          unitLabel: item.unitLabel,
+        });
+        continue;
+      }
+      for (const sub of subs) {
+        out.push({
+          key: `${item.id}:${variant.name}:${sub.name}`,
+          itemId: item.id,
+          name: item.name,
+          variantName: variant.name,
+          subVariantName: sub.name,
+          price: sub.price || variant.price || item.price,
+          unitLabel: item.unitLabel,
+        });
+      }
+    }
+  }
+  return out;
+}
+
+function optionLabel(option: SellableOption) {
+  return [option.name, option.variantName, option.subVariantName]
+    .filter(Boolean)
+    .join(" · ");
+}
 
 export function GuestNewSale({
   state,
@@ -186,88 +263,185 @@ export function GuestNewSale({
   toast,
   customer,
 }: GuestViewProps & { customer?: { name: string; phone: string } }) {
+  const [tab, setTab] = useState<"sale" | "payment">("sale");
   const [mode, setMode] = useState<"items" | "quick">(
     state.items.length > 0 ? "items" : "quick",
   );
   const [cart, setCart] = useState<CartLine[]>([]);
   const [quickAmount, setQuickAmount] = useState("");
-  const [name, setName] = useState(customer?.name ?? "");
-  const [phone, setPhone] = useState(customer?.phone ?? "");
-  const [note, setNote] = useState("");
-  const [neededBy, setNeededBy] = useState<"today" | "tomorrow">("today");
-  const [fullPaid, setFullPaid] = useState(true);
+  const [itemQuery, setItemQuery] = useState("");
+
+  const [query, setQuery] = useState("");
+  const initialCustomer = customer
+    ? (guestCustomers(state).find(
+        (entry) =>
+          (customer.phone &&
+            entry.phone === customer.phone.replace(/\D/g, "")) ||
+          entry.name.trim().toLowerCase() ===
+            customer.name.trim().toLowerCase(),
+      ) ?? null)
+    : null;
+  const [selectedKey, setSelectedKey] = useState<string | null>(
+    initialCustomer?.key ?? null,
+  );
+  const [showNewCustomer, setShowNewCustomer] = useState(!initialCustomer);
+  const [newName, setNewName] = useState(customer?.name ?? "");
+  const [newPhone, setNewPhone] = useState(customer?.phone ?? "");
+  const [newCountryCode, setNewCountryCode] = useState("+91");
+  const [newSubLabel, setNewSubLabel] = useState("");
+  const [nameMatchDismissed, setNameMatchDismissed] = useState(false);
+
+  const [when, setWhen] = useState<"now" | "later">("now");
+  const [laterDate, setLaterDate] = useState(guestToday());
+  const [laterTime, setLaterTime] = useState("10:00");
+  const [estimate, setEstimate] = useState(false);
+
+  const [paymentChoice, setPaymentChoice] = useState<"full" | "partial" | "due">(
+    "full",
+  );
   const [paid, setPaid] = useState("");
+  const [paymentMode, setPaymentMode] = useState<GuestPaymentMode>("cash");
+  const [note, setNote] = useState("");
+
+  const [payOrderId, setPayOrderId] = useState("");
+  const [payAmount, setPayAmount] = useState("");
+  const [payMode, setPayMode] = useState<GuestPaymentMode>("cash");
+
   const [error, setError] = useState<string | null>(null);
 
-  const items = [...state.items].sort((a, b) => a.sortOrder - b.sortOrder);
+  const customers = guestCustomers(state);
+  const selected = customers.find((entry) => entry.key === selectedKey) ?? null;  const search = query.trim().toLowerCase();
+  const suggestions = search
+    ? customers
+        .filter(
+          (entry) =>
+            entry.name.toLowerCase().includes(search) ||
+            entry.phone.includes(search.replace(/\D/g, "")),
+        )
+        .slice(0, 5)
+    : [];
+
+  const newPhoneDigits = newPhone.replace(/\D/g, "");
+  const phoneMatch = newPhoneDigits
+    ? (customers.find(
+        (entry) =>
+          entry.phone === newPhoneDigits &&
+          (entry.countryCode || "+91") === newCountryCode,
+      ) ?? null)
+    : null;
+  const nameMatches =
+    !newPhoneDigits && newName.trim()
+      ? customers.filter(
+          (entry) =>
+            !entry.phone &&
+            entry.name.trim().toLowerCase() === newName.trim().toLowerCase(),
+        )
+      : [];
+
+  const sortedItems = [...state.items].sort((a, b) => a.sortOrder - b.sortOrder);
+  const options = sellableOptions(sortedItems);
+  const itemSearch = itemQuery.trim().toLowerCase();
+  const visibleOptions = itemSearch
+    ? options.filter((option) =>
+        optionLabel(option).toLowerCase().includes(itemSearch),
+      )
+    : options;
+
+  const dueOrders = state.orders
+    .filter((order) => {
+      const totals = guestOrderTotals(order);
+      return order.status !== "cancelled" && totals.duePaise > 0;
+    })
+    .sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+  const payOrder = dueOrders.find((order) => order.id === payOrderId) ?? null;
+  const payDuePaise = payOrder ? guestOrderTotals(payOrder).duePaise : 0;
+
   const cartTotalPaise = cart.reduce(
     (total, line) => total + multiplyPaise(line.quantity, line.price),
     0,
   );
   const totalPaise =
-    mode === "quick"
-      ? Math.max(0, toPaise(quickAmount))
-      : cartTotalPaise;
+    mode === "quick" ? Math.max(0, toPaise(quickAmount)) : cartTotalPaise;
+  const paidPaise =
+    paymentChoice === "full"
+      ? totalPaise
+      : paymentChoice === "due"
+        ? 0
+        : Math.min(Math.max(0, toPaise(paid)), totalPaise);
+  const duePaise = Math.max(0, totalPaise - paidPaise);
+  const previewStatus: GuestOrder["status"] =
+    when === "later"
+      ? estimate
+        ? "quote"
+        : "open_tab"
+      : duePaise === 0 && totalPaise > 0
+        ? "settled"
+        : "ready";
 
-  function addItem(item: (typeof items)[number]) {
+  function addOption(option: SellableOption) {
     setCart((current) => {
-      const existing = current.find((line) => line.itemId === item.id);
+      const existing = current.find((line) => line.key === option.key);
       if (existing) {
         return current.map((line) =>
-          line.itemId === item.id
-            ? {
-                ...line,
-                quantity: String(
-                  Math.max(0, Number(line.quantity) + 1).toFixed(2),
-                ).replace(/\.00$/, ""),
-              }
+          line.key === option.key
+            ? { ...line, quantity: String(Number(line.quantity) + 1) }
             : line,
         );
       }
       return [
         ...current,
         {
-          key: `${item.id}_${Date.now()}`,
-          itemId: item.id,
-          name: item.name,
-          price: item.price,
-          unitLabel: item.unitLabel,
+          key: option.key,
+          itemId: option.itemId,
+          name: option.name,
+          variantName: option.variantName,
+          subVariantName: option.subVariantName,
+          price: option.price,
+          unitLabel: option.unitLabel,
           quantity: "1",
+          note: "",
         },
       ];
     });
   }
 
-  function updateLine(key: string, quantity: string) {
+  function updateLine(key: string, patch: Partial<CartLine>) {
     setCart((current) =>
-      current.map((line) => (line.key === key ? { ...line, quantity } : line)),
+      current.map((line) => (line.key === key ? { ...line, ...patch } : line)),
     );
   }
 
-  function submit(event: React.FormEvent) {
+  function useCustomer(entry: GuestCustomer) {
+    setSelectedKey(entry.key);
+    setQuery("");
+    setShowNewCustomer(false);
+    setError(null);
+  }
+
+  function submitSale(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
 
     if (totalPaise <= 0) {
       setError(
-        mode === "quick"
-          ? "Enter an amount above zero."
-          : "Add at least one item.",
+        mode === "quick" ? "Enter an amount above zero." : "Add at least one item.",
       );
       return;
     }
-
-    const digits = phone.replace(/\D/g, "");
-    if (phone.trim() && digits.length < 10) {
-      setError("Enter a 10-digit phone number, or leave it empty.");
-      return;
-    }
-
-    const paidPaise = fullPaid ? totalPaise : toPaise(paid);
-    if (paidPaise > totalPaise) {
+    if (paymentChoice === "partial" && toPaise(paid) > totalPaise) {
       setError("Paid is more than the total.");
       return;
     }
+    if (when === "later" && !laterDate) {
+      setError("Pick a date for the later sale.");
+      return;
+    }
+
+    const name = selected?.name ?? newName.trim();
+    const phone = selected?.phone ?? newPhoneDigits;
+    const countryCode = selected?.countryCode ?? newCountryCode;
 
     const lines =
       mode === "quick"
@@ -283,19 +457,29 @@ export function GuestNewSale({
         : cart.map((line) => ({
             itemId: line.itemId,
             itemName: line.name,
+            optionName:
+              [line.variantName, line.subVariantName].filter(Boolean).join(" · ") ||
+              null,
             quantity: line.quantity,
             unitPrice: line.price,
             unitLabel: line.unitLabel,
+            note: line.note || null,
           }));
 
     const result = addGuestOrder(state, {
+      customerId: selected?.id || undefined,
       customerName: name,
-      customerPhone: digits,
+      customerPhone: phone,
+      customerCountryCode: countryCode,
+      customerSubLabel: selected ? undefined : newSubLabel.trim(),
       note,
-      neededBy: neededBy === "today" ? guestToday() : guestDay(1),
+      neededBy: when === "now" ? guestToday() : laterDate,
+      timeSlot: when === "later" ? laterTime : null,
+      when,
+      status: previewStatus,
       lines,
       paidAmount: fromPaise(paidPaise),
-      paymentMode: "cash",
+      paymentMode,
     });
 
     if (!result.orderId) {
@@ -308,246 +492,631 @@ export function GuestNewSale({
     go({ kind: "sale", id: result.orderId });
   }
 
+  function submitPayment(event: React.FormEvent) {
+    event.preventDefault();
+    setError(null);
+    if (!payOrder) {
+      setError("Pick an order with a due.");
+      return;
+    }
+    if (toPaise(payAmount) <= 0) {
+      setError("Enter an amount above zero.");
+      return;
+    }
+    if (toPaise(payAmount) > payDuePaise) {
+      setError("The payment is more than the due.");
+      return;
+    }
+    update((current) =>
+      addGuestPayment(current, payOrder.id, payAmount, payMode),
+    );
+    toast("Payment recorded");
+    go({ kind: "sale", id: payOrder.id });
+  }
+
   return (
     <>
       <BackButton onClick={back} label="Sales" />
-      <PageHeader title="Add sale" subtitle="Three taps for a counter sale" />
+      <PageHeader
+        title="Add sale"
+        subtitle="One screen for a sale or a payment"
+      />
 
-      <form onSubmit={submit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-2 rounded-md bg-muted p-1">
-          <button
-            type="button"
-            onClick={() => setMode("items")}
-            className={cn(
-              "min-h-10 rounded-[9px] text-sm font-medium",
-              mode === "items" ? "bg-surface shadow-sm" : "text-ink-muted",
-            )}
-          >
-            Items
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("quick")}
-            className={cn(
-              "min-h-10 rounded-[9px] text-sm font-medium",
-              mode === "quick" ? "bg-surface shadow-sm" : "text-ink-muted",
-            )}
-          >
-            Quick amount
-          </button>
-        </div>
+      <div className="mb-4 grid grid-cols-2 gap-2 rounded-md bg-muted p-1">
+        <button
+          type="button"
+          onClick={() => {
+            setTab("sale");
+            setError(null);
+          }}
+          className={cn(
+            "min-h-10 rounded-[9px] text-sm font-medium",
+            tab === "sale" ? "bg-surface shadow-sm" : "text-ink-muted",
+          )}
+        >
+          New sale
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setTab("payment");
+            setError(null);
+          }}
+          className={cn(
+            "min-h-10 rounded-[9px] text-sm font-medium",
+            tab === "payment" ? "bg-surface shadow-sm" : "text-ink-muted",
+          )}
+        >
+          Record payment
+        </button>
+      </div>
 
-        {mode === "quick" ? (
+      {tab === "payment" ? (
+        <form onSubmit={submitPayment} className="space-y-4">
           <div>
-            <Label>Amount</Label>
-            <input
+            <Label>Order with a due</Label>
+            <select
               className={inputClass}
-              inputMode="decimal"
-              value={quickAmount}
-              onChange={(event) => setQuickAmount(event.target.value)}
-              placeholder="0.00"
-              autoFocus
-            />
-            <p className="mt-1 text-xs text-ink-subtle">
-              For a sale with no item list. The bill says “Sale”.
-            </p>
+              value={payOrderId}
+              onChange={(event) => {
+                const id = event.target.value;
+                setPayOrderId(id);
+                const order = dueOrders.find((entry) => entry.id === id);
+                setPayAmount(
+                  order ? fromPaise(guestOrderTotals(order).duePaise) : "",
+                );
+              }}
+            >
+              <option value="">Pick an order</option>
+              {dueOrders.map((order) => {
+                const totals = guestOrderTotals(order);
+                return (
+                  <option key={order.id} value={order.id}>
+                    {order.customerName || "Walk-in"} · {formatPaise(totals.duePaise)}{" "}
+                    due · {order.code}
+                  </option>
+                );
+              })}
+            </select>
           </div>
-        ) : (
-          <div className="space-y-3">
+
+          {payOrder ? (
+            <div className="rounded-md bg-muted px-3 py-2 text-sm">
+              Due {formatPaise(payDuePaise)}
+            </div>
+          ) : null}
+
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Add items</Label>
-              <div className="space-y-2">
-                {items.length === 0 ? (
-                  <p className="rounded-md border border-dashed border-line px-3 py-4 text-sm text-ink-muted">
-                    No items yet. Use quick amount, or add items in your menu.
+              <Label>Amount</Label>
+              <input
+                className={inputClass}
+                inputMode="decimal"
+                value={payAmount}
+                onChange={(event) => setPayAmount(event.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <div>
+              <Label>Mode</Label>
+              <select
+                className={inputClass}
+                value={payMode}
+                onChange={(event) =>
+                  setPayMode(event.target.value as GuestPaymentMode)
+                }
+              >
+                {PAYMENT_MODES.map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {error ? (
+            <p className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger" aria-live="polite">
+              {error}
+            </p>
+          ) : null}
+
+          <button className={primaryButton("w-full min-h-12")}>
+            Record payment
+          </button>
+        </form>
+      ) : (
+        <form onSubmit={submitSale} className="space-y-4">
+          {/* Who */}
+          <section className="space-y-3 rounded-2xl border border-line bg-surface p-4">
+            <h2 className="text-sm font-semibold text-ink">Who</h2>
+
+            {selected ? (
+              <div className="flex items-center justify-between gap-3 rounded-md bg-accent-soft px-3 py-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{selected.name}</p>
+                  <p className="text-xs text-ink-muted">
+                    {selected.phone || "No phone"}
+                    {selected.pendingPaise > 0
+                      ? ` · ${formatPaise(selected.pendingPaise)} due`
+                      : ""}
                   </p>
-                ) : (
-                  items.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      disabled={!item.isAvailable}
-                      onClick={() => addItem(item)}
-                      className="flex w-full items-center justify-between gap-3 rounded-md border border-line bg-surface px-3 py-2.5 text-left disabled:opacity-50"
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium">
-                          {item.name}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedKey(null)}
+                  className="shrink-0 text-xs font-semibold text-accent"
+                >
+                  Change
+                </button>
+              </div>
+            ) : (
+              <>
+                <input
+                  className={inputClass}
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search name or phone"
+                />
+
+                {suggestions.length > 0 ? (
+                  <div className="divide-y divide-line overflow-hidden rounded-md border border-line">
+                    {suggestions.map((entry) => (
+                      <button
+                        key={entry.key}
+                        type="button"
+                        onClick={() => useCustomer(entry)}
+                        className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm"
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate">{entry.name}</span>
+                          <span className="block text-xs text-ink-muted">
+                            {entry.phone || "No phone"}
+                          </span>
                         </span>
-                        <span className="block text-xs text-ink-muted">
-                          {formatPaise(toPaise(item.price))} / {item.unitLabel}
-                          {item.isAvailable ? "" : " · Sold out"}
-                        </span>
-                      </span>
-                      <span className="text-sm font-semibold text-accent">
-                        Add
-                      </span>
-                    </button>
-                  ))
+                        {entry.pendingPaise > 0 ? (
+                          <span className="shrink-0 text-xs text-warning">
+                            {formatPaise(entry.pendingPaise)} due
+                          </span>
+                        ) : null}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={() => setShowNewCustomer((current) => !current)}
+                  className="text-sm font-semibold text-accent"
+                >
+                  {showNewCustomer ? "Use an existing customer" : "+ New customer"}
+                </button>
+
+                {showNewCustomer ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label>Name</Label>
+                        <input
+                          className={inputClass}
+                          value={newName}
+                          onChange={(event) => {
+                            setNewName(event.target.value);
+                            setNameMatchDismissed(false);
+                          }}
+                          placeholder="Customer name"
+                        />
+                      </div>
+                      <div>
+                        <Label>Country code</Label>
+                        <select
+                          className={inputClass}
+                          value={newCountryCode}
+                          onChange={(event) =>
+                            setNewCountryCode(event.target.value)
+                          }
+                        >
+                          {COUNTRY_CODES.map((code) => (
+                            <option key={code} value={code}>
+                              {code}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label>WhatsApp number</Label>
+                      <input
+                        className={inputClass}
+                        inputMode="tel"
+                        value={newPhone}
+                        onChange={(event) => setNewPhone(event.target.value)}
+                        placeholder="10-digit number"
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Identification label</Label>
+                      <input
+                        className={inputClass}
+                        value={newSubLabel}
+                        onChange={(event) => setNewSubLabel(event.target.value)}
+                        placeholder="regular, Sector 4"
+                      />
+                    </div>
+
+                    {phoneMatch ? (
+                      <p className="rounded-md bg-warning/10 px-3 py-2 text-xs text-warning">
+                        This number is saved as {phoneMatch.name}.{" "}
+                        <button
+                          type="button"
+                          onClick={() => useCustomer(phoneMatch)}
+                          className="font-semibold underline"
+                        >
+                          Use {phoneMatch.name}
+                        </button>
+                      </p>
+                    ) : null}
+
+                    {nameMatches.length > 0 && !nameMatchDismissed ? (
+                      <p className="rounded-md bg-warning/10 px-3 py-2 text-xs text-warning">
+                        You already have {nameMatches[0].name}. Same person?{" "}
+                        <button
+                          type="button"
+                          onClick={() => useCustomer(nameMatches[0])}
+                          className="font-semibold underline"
+                        >
+                          Use {nameMatches[0].name}
+                        </button>{" "}
+                        <button
+                          type="button"
+                          onClick={() => setNameMatchDismissed(true)}
+                          className="font-semibold underline"
+                        >
+                          No, new
+                        </button>
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </>
+            )}
+          </section>
+
+          {/* What */}
+          <section className="space-y-3 rounded-2xl border border-line bg-surface p-4">
+            <h2 className="text-sm font-semibold text-ink">What</h2>
+
+            <div className="grid grid-cols-2 gap-2 rounded-md bg-muted p-1">
+              <button
+                type="button"
+                onClick={() => setMode("items")}
+                className={cn(
+                  "min-h-10 rounded-[9px] text-sm font-medium",
+                  mode === "items" ? "bg-surface shadow-sm" : "text-ink-muted",
                 )}
+              >
+                Items
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("quick")}
+                className={cn(
+                  "min-h-10 rounded-[9px] text-sm font-medium",
+                  mode === "quick" ? "bg-surface shadow-sm" : "text-ink-muted",
+                )}
+              >
+                Quick amount
+              </button>
+            </div>
+
+            {mode === "quick" ? (
+              <div>
+                <Label>Amount</Label>
+                <input
+                  className={inputClass}
+                  inputMode="decimal"
+                  value={quickAmount}
+                  onChange={(event) => setQuickAmount(event.target.value)}
+                  placeholder="0.00"
+                />
+                <p className="mt-1 text-xs text-ink-subtle">
+                  For a sale with no item list. The bill says “Sale”.
+                </p>
+              </div>
+            ) : (
+              <>
+                <input
+                  className={inputClass}
+                  value={itemQuery}
+                  onChange={(event) => setItemQuery(event.target.value)}
+                  placeholder="Search items"
+                />
+
+                <div className="max-h-56 space-y-1.5 overflow-y-auto">
+                  {visibleOptions.length === 0 ? (
+                    <p className="rounded-md border border-dashed border-line px-3 py-4 text-sm text-ink-muted">
+                      No items yet. Use quick amount, or add items first.
+                    </p>
+                  ) : (
+                    visibleOptions.map((option) => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        onClick={() => addOption(option)}
+                        className="flex w-full items-center justify-between gap-3 rounded-md border border-line bg-surface px-3 py-2 text-left"
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-medium">
+                            {optionLabel(option)}
+                          </span>
+                          <span className="block text-xs text-ink-muted">
+                            {formatPaise(toPaise(option.price))} / {option.unitLabel}
+                          </span>
+                        </span>
+                        <span className="text-sm font-semibold text-accent">
+                          Add
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+
+                {cart.length > 0 ? (
+                  <div className="space-y-2">
+                    {cart.map((line) => (
+                      <div
+                        key={line.key}
+                        className="rounded-md border border-line bg-surface p-3"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-medium">
+                            {[line.name, line.variantName, line.subVariantName]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </p>
+                          <button
+                            type="button"
+                            className="text-xs text-danger"
+                            onClick={() =>
+                              setCart((current) =>
+                                current.filter((entry) => entry.key !== line.key),
+                              )
+                            }
+                          >
+                            Remove
+                          </button>
+                        </div>
+
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          <div>
+                            <Label>Price</Label>
+                            <input
+                              className={inputClass}
+                              inputMode="decimal"
+                              value={line.price}
+                              onChange={(event) =>
+                                updateLine(line.key, { price: event.target.value })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <Label>Line note</Label>
+                            <input
+                              className={inputClass}
+                              value={line.note}
+                              onChange={(event) =>
+                                updateLine(line.key, { note: event.target.value })
+                              }
+                              placeholder="Optional"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mt-2 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              className={quietButton("h-9 min-h-9 w-9 px-0")}
+                              onClick={() =>
+                                updateLine(line.key, {
+                                  quantity: String(
+                                    Math.max(1, Number(line.quantity) - 1),
+                                  ),
+                                })
+                              }
+                            >
+                              −
+                            </button>
+                            <input
+                              className="h-9 w-14 rounded-md border border-line text-center text-sm"
+                              inputMode="decimal"
+                              value={line.quantity}
+                              onChange={(event) =>
+                                updateLine(line.key, {
+                                  quantity: event.target.value,
+                                })
+                              }
+                              aria-label={`Quantity for ${line.name}`}
+                            />
+                            <button
+                              type="button"
+                              className={quietButton("h-9 min-h-9 w-9 px-0")}
+                              onClick={() =>
+                                updateLine(line.key, {
+                                  quantity: String(Number(line.quantity) + 1),
+                                })
+                              }
+                            >
+                              +
+                            </button>
+                          </div>
+                          <p className="tnum text-sm font-semibold">
+                            {formatPaise(
+                              multiplyPaise(line.quantity, line.price),
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </>
+            )}
+          </section>
+
+          {/* When */}
+          <section className="space-y-3 rounded-2xl border border-line bg-surface p-4">
+            <h2 className="text-sm font-semibold text-ink">When</h2>
+            <div className="grid grid-cols-2 gap-2">
+              {(["now", "later"] as const).map((entry) => (
+                <button
+                  key={entry}
+                  type="button"
+                  onClick={() => setWhen(entry)}
+                  className={cn(
+                    "min-h-11 rounded-md border px-3 text-sm font-medium capitalize",
+                    when === entry
+                      ? "border-accent bg-accent-soft text-accent-strong"
+                      : "border-line bg-surface text-ink-muted",
+                  )}
+                >
+                  {entry}
+                </button>
+              ))}
+            </div>
+
+            {when === "later" ? (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Date</Label>
+                  <input
+                    className={inputClass}
+                    type="date"
+                    value={laterDate}
+                    onChange={(event) => setLaterDate(event.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>Time</Label>
+                  <input
+                    className={inputClass}
+                    type="time"
+                    value={laterTime}
+                    onChange={(event) => setLaterTime(event.target.value)}
+                  />
+                </div>
+                <label className="col-span-2 flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={estimate}
+                    onChange={(event) => setEstimate(event.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  This is an estimate
+                </label>
+              </div>
+            ) : null}
+          </section>
+
+          {/* Payment */}
+          <section className="space-y-3 rounded-2xl border border-line bg-surface p-4">
+            <h2 className="text-sm font-semibold text-ink">Payment</h2>
+            <div className="grid grid-cols-3 gap-2">
+              {(
+                [
+                  { id: "full", label: "Full" },
+                  { id: "partial", label: "Partial" },
+                  { id: "due", label: "Due later" },
+                ] as const
+              ).map((entry) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  onClick={() => setPaymentChoice(entry.id)}
+                  className={cn(
+                    "min-h-10 rounded-md border px-2 text-xs font-medium",
+                    paymentChoice === entry.id
+                      ? "border-accent bg-accent-soft text-accent-strong"
+                      : "border-line bg-surface text-ink-muted",
+                  )}
+                >
+                  {entry.label}
+                </button>
+              ))}
+            </div>
+
+            {paymentChoice === "partial" ? (
+              <div>
+                <Label>Paid now</Label>
+                <input
+                  className={inputClass}
+                  inputMode="decimal"
+                  value={paid}
+                  onChange={(event) => setPaid(event.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+            ) : null}
+
+            <div>
+              <Label>Mode</Label>
+              <select
+                className={inputClass}
+                value={paymentMode}
+                onChange={(event) =>
+                  setPaymentMode(event.target.value as GuestPaymentMode)
+                }
+              >
+                {PAYMENT_MODES.map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="rounded-md bg-muted px-3 py-2.5">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-ink-muted">Total</span>
+                <span className="tnum font-semibold">{formatPaise(totalPaise)}</span>
+              </div>
+              <div className="mt-1 flex items-center justify-between text-sm">
+                <span className="text-ink-muted">Paid now</span>
+                <span className="tnum font-medium">{formatPaise(paidPaise)}</span>
+              </div>
+              <div className="mt-1 flex items-center justify-between text-sm">
+                <span className="text-ink-muted">Due</span>
+                <span className="tnum font-medium">{formatPaise(duePaise)}</span>
               </div>
             </div>
 
-            {cart.map((line) => (
-              <div
-                key={line.key}
-                className="rounded-md border border-line bg-surface p-3"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium">{line.name}</p>
-                  <button
-                    type="button"
-                    className="text-xs text-danger"
-                    onClick={() =>
-                      setCart((current) =>
-                        current.filter((entry) => entry.key !== line.key),
-                      )
-                    }
-                  >
-                    Remove
-                  </button>
-                </div>
-                <div className="mt-2 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      className={quietButton("h-9 min-h-9 w-9 px-0")}
-                      onClick={() =>
-                        updateLine(
-                          line.key,
-                          String(Math.max(1, Number(line.quantity) - 1)),
-                        )
-                      }
-                    >
-                      −
-                    </button>
-                    <input
-                      className="h-9 w-14 rounded-md border border-line text-center text-sm"
-                      inputMode="decimal"
-                      value={line.quantity}
-                      onChange={(event) =>
-                        updateLine(line.key, event.target.value)
-                      }
-                      aria-label={`Quantity for ${line.name}`}
-                    />
-                    <button
-                      type="button"
-                      className={quietButton("h-9 min-h-9 w-9 px-0")}
-                      onClick={() =>
-                        updateLine(
-                          line.key,
-                          String(Math.max(1, Number(line.quantity) + 1)),
-                        )
-                      }
-                    >
-                      +
-                    </button>
-                  </div>
-                  <p className="tnum text-sm font-semibold">
-                    {formatPaise(multiplyPaise(line.quantity, line.price))}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-ink-muted">Will save as</span>
+              <StatusPill status={previewStatus} />
+            </div>
+          </section>
 
-        <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label>Name (optional)</Label>
+            <Label>Note</Label>
             <input
               className={inputClass}
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Customer name"
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              placeholder="Delivery note or item detail"
             />
           </div>
-          <div>
-            <Label>Phone (optional)</Label>
-            <input
-              className={inputClass}
-              inputMode="tel"
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
-              placeholder="10-digit number"
-            />
-          </div>
-        </div>
 
-        <div>
-          <Label>Note (optional)</Label>
-          <input
-            className={inputClass}
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-            placeholder="Delivery note or item detail"
-          />
-        </div>
+          {error ? (
+            <p className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger" aria-live="polite">
+              {error}
+            </p>
+          ) : null}
 
-        <div>
-          <Label>Needed by</Label>
-          <div className="flex gap-2">
-            {(["today", "tomorrow"] as const).map((entry) => (
-              <button
-                key={entry}
-                type="button"
-                onClick={() => setNeededBy(entry)}
-                className={cn(
-                  "min-h-11 flex-1 rounded-md border px-3 text-sm font-medium capitalize",
-                  neededBy === entry
-                    ? "border-accent bg-accent-soft text-accent-strong"
-                    : "border-line bg-surface text-ink-muted",
-                )}
-              >
-                {entry}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={fullPaid}
-            onChange={(event) => setFullPaid(event.target.checked)}
-            className="h-4 w-4"
-          />
-          Full payment received
-        </label>
-
-        {!fullPaid ? (
-          <div>
-            <Label>Paid now</Label>
-            <input
-              className={inputClass}
-              inputMode="decimal"
-              value={paid}
-              onChange={(event) => setPaid(event.target.value)}
-              placeholder="0.00"
-            />
-          </div>
-        ) : null}
-
-        <div className="flex items-center justify-between rounded-md bg-muted px-3 py-2.5">
-          <span className="text-sm text-ink-muted">Total</span>
-          <span className="tnum text-lg font-semibold">
-            {formatPaise(totalPaise)}
-          </span>
-        </div>
-
-        {error ? (
-          <p
-            className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger"
-            aria-live="polite"
-          >
-            {error}
-          </p>
-        ) : null}
-
-        <button className={primaryButton("w-full min-h-12")}>
-          Save sale
-        </button>
-      </form>
+          <button className={primaryButton("w-full min-h-12")}>Save sale</button>
+        </form>
+      )}
     </>
   );
 }

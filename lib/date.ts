@@ -28,25 +28,36 @@ export function startOfWeekIst(): Date {
   );
 }
 
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+/**
+ * The one display format for a calendar date: `01-Apr-2026`.
+ * Storage and API keep ISO `YYYY-MM-DD`; only the label uses this.
+ */
+export function formatDateDMY(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  if (!y || !m || !d) return dateStr;
+  return `${String(d).padStart(2, "0")}-${MONTHS[m - 1]}-${y}`;
+}
+
 export function formatDayHeading(dateStr: string): string {
   const [y, m, d] = dateStr.split("-").map(Number);
   const date = new Date(Date.UTC(y, m - 1, d));
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-  return `${days[date.getUTCDay()]}, ${d} ${months[date.getUTCMonth()]}`;
+  return `${days[date.getUTCDay()]}, ${formatDateDMY(dateStr)}`;
 }
 
 /**

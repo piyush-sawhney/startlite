@@ -253,7 +253,8 @@ Rules:
 - Show the UPI block only when the amount due is above zero.
 - Show the QR only in the PNG, never in the text.
 - The referral line is always last and always two lines.
-- Date format: `18 Nov 2026`. Never `11/18/2026`.
+- Date format: `18-Nov-2026`. Never `11/18/2026` or `18 Nov 2026`. Storage and
+  API keep ISO `2026-11-18`; only the label changes.
 - Amount format: `₹1,00,000.00`. Indian grouping, two decimals.
 
 Reminder text:

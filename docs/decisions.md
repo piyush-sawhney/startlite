@@ -52,6 +52,8 @@ Status values: `Accepted`, `Superseded`, `Deferred`.
 | [ADR-030](#adr-030-requested-time-not-availability) | Requested time, not availability | Accepted |
 | [ADR-031](#adr-031-one-dashboard-six-fixed-tabs) | One dashboard, six fixed tabs | Accepted |
 | [ADR-032](#adr-032-desktop-rail-and-day-column) | Desktop rail and day column | Accepted |
+| [ADR-033](#adr-033-customer-identity-is-an-id-phone-is-the-lookup) | Customer identity is an id, phone is the lookup | Accepted |
+| [ADR-034](#adr-034-display-dates-as-dd-mmm-yyyy) | Display dates as DD-MMM-YYYY | Accepted |
 
 ## ADR-001: Next.js App Router
 
@@ -627,6 +629,51 @@ a panel above it.
 - The right column scrolls independently. It must not trap the page scroll.
 - The rail costs 200 px at tablet width, so the main column must stay above
   560 px before the 1200 px breakpoint.
+
+## ADR-033: Customer identity is an id, phone is the lookup
+
+**Context:** The guest store keyed a customer by phone, and when no phone was
+present, by the lowercased name. Two different `Ramesh` entries silently became
+one person. A family sharing one phone became one person. The phone was also cut
+to the last ten digits, so the country code was lost and numbers from different
+countries could collide.
+
+**Decision:** A generated customer id is the only identity. A phone plus its
+country code is the only automatic match. A name is never a key. If a phone is
+present and already saved, the UI asks "Use this customer?"; if a name matches
+but no phone is present, the UI asks "Same as …?" and the merchant decides. A
+customer with no phone is always a new row. Add sale passes `customerId` when an
+existing customer is selected, so the order links exactly instead of re-matching
+by name. The guest store keys a record as `phone:<country_code><digits>` when a
+phone exists, otherwise `id:<customer_id>`.
+
+**Consequences:**
+
+- No silent merges, in either direction.
+- The daily flow stays simple: type a phone, see one suggestion, tap it.
+- One phone maps to one customer for now. Allowing a second person on a shared
+  number is an open question; the UI prompt is the place to decide it later.
+- The server needs `country_code` on `customers` and `customer_id` on order
+  creation to match the guest model. That is the owner-parity follow-up.
+- A manual `Merge customers` action stays a rare Settings tool, not a daily step.
+
+## ADR-034: Display dates as DD-MMM-YYYY
+
+**Context:** Dates appeared as `18 Nov 2026`, `18/11/2026`, and raw ISO in
+different places. A merchant reading a bill and a list saw two formats for the
+same day.
+
+**Decision:** Every displayed date uses `DD-MMM-YYYY`, for example
+`18-Nov-2026`. Storage, API payloads, and CSV filenames keep ISO `YYYY-MM-DD`.
+Date inputs keep the native picker while editing; the chosen value is shown as
+`18-Nov-2026` beside the field. One helper, `formatDateDMY`, owns the label.
+
+**Consequences:**
+
+- One format across Home, orders, bills, expenses, and customer history.
+- Sorting and storage do not change.
+- The native picker still follows the browser locale while open. Only the
+  committed label is guaranteed.
 
 ## Superseded specification sections
 

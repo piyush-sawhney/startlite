@@ -41,7 +41,8 @@ const MONTHS = [
 ];
 
 export function formatBillDate(date: Date): string {
-  return `${date.getDate()} ${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${day}-${MONTHS[date.getMonth()]}-${date.getFullYear()}`;
 }
 
 function trimQuantity(quantity: string): string {

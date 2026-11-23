@@ -5,6 +5,7 @@ import { Label, inputClass, primaryButton, quietButton } from "@/components/ui";
 
 export type ExpenseInput = {
   paidTo: string;
+  paidFor: string;
   amount: string;
   date: string;
 };
@@ -22,6 +23,7 @@ export function AddExpenseModal({
 }) {
   const defaultDate = today ?? new Date().toISOString().slice(0, 10);
   const [paidTo, setPaidTo] = useState("");
+  const [paidFor, setPaidFor] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(defaultDate);
   const [busy, setBusy] = useState(false);
@@ -42,6 +44,10 @@ export function AddExpenseModal({
       setError("Enter who was paid.");
       return;
     }
+    if (!paidFor.trim()) {
+      setError("Enter what the payment was for.");
+      return;
+    }
     if (!amount || Number(amount) <= 0) {
       setError("Enter an amount above zero.");
       return;
@@ -51,10 +57,12 @@ export function AddExpenseModal({
     try {
       await onSubmit({
         paidTo: paidTo.trim(),
+        paidFor: paidFor.trim(),
         amount: amount.trim(),
         date,
       });
       setPaidTo("");
+      setPaidFor("");
       setAmount("");
       onClose();
     } catch (err) {
@@ -93,6 +101,19 @@ export function AddExpenseModal({
               maxLength={80}
               required
               autoFocus
+            />
+          </div>
+
+          <div>
+            <Label>Paid for</Label>
+            <input
+              type="text"
+              value={paidFor}
+              onChange={(event) => setPaidFor(event.target.value)}
+              className={inputClass}
+              placeholder="e.g. Flour, rent, packaging"
+              maxLength={80}
+              required
             />
           </div>
 

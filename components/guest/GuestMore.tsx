@@ -358,6 +358,7 @@ export function GuestSettings({
 
 export function GuestExpenses({ state, update, toast }: GuestViewProps) {
   const [title, setTitle] = useState("");
+  const [paidFor, setPaidFor] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(guestToday());
   const [error, setError] = useState<string | null>(null);
@@ -379,14 +380,19 @@ export function GuestExpenses({ state, update, toast }: GuestViewProps) {
             setError("Enter who was paid.");
             return;
           }
+          if (!paidFor.trim()) {
+            setError("Enter what the payment was for.");
+            return;
+          }
           if (toPaise(amount) <= 0) {
             setError("Enter an amount above zero.");
             return;
           }
           update((current) =>
-            addGuestExpense(current, { title, amount, date }),
+            addGuestExpense(current, { title, paidFor, amount, date }),
           );
           setTitle("");
+          setPaidFor("");
           setAmount("");
           toast("Expense saved");
         }}
@@ -399,6 +405,15 @@ export function GuestExpenses({ state, update, toast }: GuestViewProps) {
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             placeholder="Flour mill, gas, rent, delivery auto"
+          />
+        </div>
+        <div className="mt-3">
+          <Label>Paid for</Label>
+          <input
+            className={inputClass}
+            value={paidFor}
+            onChange={(event) => setPaidFor(event.target.value)}
+            placeholder="Flour, rent, packaging"
           />
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3">
@@ -446,6 +461,7 @@ export function GuestExpenses({ state, update, toast }: GuestViewProps) {
                 <div>
                   <p className="text-sm font-medium">{expense.title}</p>
                   <p className="text-xs text-ink-muted">
+                    {expense.paidFor ? `${expense.paidFor} · ` : ""}
                     {shortDate(`${expense.date}T00:00:00`)}
                   </p>
                 </div>

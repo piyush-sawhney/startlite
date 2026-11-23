@@ -94,6 +94,7 @@ export function GuestHome({ state, update, go, toast }: GuestViewProps) {
         update((current) =>
           addGuestExpense(current, {
             title: expense.paidTo,
+            paidFor: expense.paidFor,
             amount: expense.amount,
             date: expense.date || istDateString(),
           }),

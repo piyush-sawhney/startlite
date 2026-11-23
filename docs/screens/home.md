@@ -72,7 +72,7 @@ bar. There is no back button on Home.
 │  Imran · Quote · ₹1,800 [Open]     │
 │  View all 3                        │
 ├────────────────────────────────────┤
-│ ‹  Sat, 21 Nov  ›  Go to today  ▤  │  day view
+│ ‹  Sat, 21-Nov-2026  ›  Go to today  ▤  │  day view
 │                                    │
 │ ANY TIME                           │
 │  · Ramesh · 2 items · ₹900 · Open  │
@@ -108,7 +108,7 @@ bar. There is no back button on Home.
 ┌──────────┬──────────────────────────────────┬─────────────────┐
 │ StartLite│ ▢ Anita's Bakes      ● Not saved │ ⚡ 3 requests   │
 │          ├──────────────────────────────────┤─────────────────│
-│ Home   ● │ [Add sale][Customer][Item][Exp]  │ Sat, 21 Nov  ▤  │
+│ Home   ● │ [Add sale][Customer][Item][Exp]  │ Sat, 21-Nov-2026  ▤  │
 │ Orders   │                                  │                 │
 │ Customers│ READY TO COLLECT     5 · ₹6,200  │ ANY TIME        │
 │ Items    │  Ramesh  2 items  ₹900  Collect  │  · Ramesh ₹900  │
@@ -263,10 +263,10 @@ share a word.
 | Today | `Today` | calendar only |
 | Yesterday | `Yesterday` | `Go to today` |
 | Tomorrow | `Tomorrow` | `Go to today` |
-| Any other day | `Sat, 21 Nov` | `Go to today` |
+| Any other day | `Sat, 21-Nov-2026` | `Go to today` |
 
 ```
-‹  Sat, 21 Nov  ›   Go to today   ▤
+‹  Sat, 21-Nov-2026  ›   Go to today   ▤
 ```
 
 - `Go to today` is direction-neutral, so it reads correctly for a past day and a
@@ -383,23 +383,29 @@ free text, not a fixed list.
 On a 360 px phone the sheet is full screen with three collapsed sections:
 **Basics**, **Pricing**, **Availability**. Only Name and a price are visible on
 open. A merchant with no variants sees no variant rows until they tap `Add
-variant`.
+variant`. Every variant and every sub-variant row has its own remove control, so
+one wrong row never forces a restart.
 
 ### Add expense
 
 | Field | Required | Default |
 |---|---|---|
 | Paid to | yes | — |
+| Paid for | yes | — |
 | Amount | yes | — |
-| Date | no | Today |
+| Date | no | Today, shown as `23-Nov-2026` |
 
-Two fields, one screen, no scroll. `Paid to` is the person or shop that took the
-money, for example `Flour mill`, `Auto`, `Packaging`.
+Four fields, one screen, no scroll. `Paid to` is the person or shop that took the
+money, for example `Flour mill`, `Auto`, `Packaging`. `Paid for` is what the
+money bought, for example `Flour`, `Rent`, `Packaging`. The two are separate so
+the merchant can later see "paid ₹4,000 to the flour mill for flour" without
+guessing.
 
 ### Add sale
 
 One sheet for a counter sale and for a booked order. Both write the same order
-row, so there is one form and one code path. The UI never says `Add order`.
+row, so there is one form and one code path. The UI never says `Add order`. The
+screen has two tabs: **New sale** and **Record payment**.
 
 | Step | Content |
 |---|---|
@@ -646,7 +652,7 @@ The skeleton uses the final heights, so nothing shifts when data arrives.
 | Day label, today | `Today` |
 | Day label, yesterday | `Yesterday` |
 | Day label, tomorrow | `Tomorrow` |
-| Day label, other | `Sat, 21 Nov` |
+| Day label, other | `Sat, 21-Nov-2026` |
 | Day action | `Go to today` |
 | Day empty | `Nothing for this day.` |
 | Any time | `Any time` |

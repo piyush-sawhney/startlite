@@ -346,39 +346,55 @@ export function AddItemModal({
                 </div>
 
                 {variant.subVariants.map((sub, subIndex) => (
-                  <div key={sub.key} className="mt-2 grid grid-cols-2 gap-2">
-                    <input
-                      type="text"
-                      value={sub.name}
-                      onChange={(event) =>
+                  <div key={sub.key} className="mt-2 flex items-start gap-1.5">
+                    <div className="grid min-w-0 flex-1 grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={sub.name}
+                        onChange={(event) =>
+                          patchVariant(variant.key, {
+                            subVariants: variant.subVariants.map((entry) =>
+                              entry.key === sub.key
+                                ? { ...entry, name: event.target.value }
+                                : entry,
+                            ),
+                          })
+                        }
+                        className={inputClass}
+                        placeholder={`Sub-variant ${subIndex + 1}`}
+                        maxLength={60}
+                      />
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={sub.price}
+                        onChange={(event) =>
+                          patchVariant(variant.key, {
+                            subVariants: variant.subVariants.map((entry) =>
+                              entry.key === sub.key
+                                ? { ...entry, price: event.target.value }
+                                : entry,
+                            ),
+                          })
+                        }
+                        className={inputClass}
+                        placeholder="Price"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
                         patchVariant(variant.key, {
-                          subVariants: variant.subVariants.map((entry) =>
-                            entry.key === sub.key
-                              ? { ...entry, name: event.target.value }
-                              : entry,
+                          subVariants: variant.subVariants.filter(
+                            (entry) => entry.key !== sub.key,
                           ),
                         })
                       }
-                      className={inputClass}
-                      placeholder={`Sub-variant ${subIndex + 1}`}
-                      maxLength={60}
-                    />
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={sub.price}
-                      onChange={(event) =>
-                        patchVariant(variant.key, {
-                          subVariants: variant.subVariants.map((entry) =>
-                            entry.key === sub.key
-                              ? { ...entry, price: event.target.value }
-                              : entry,
-                          ),
-                        })
-                      }
-                      className={inputClass}
-                      placeholder="Price"
-                    />
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-ink-subtle hover:bg-danger/10 hover:text-danger"
+                      aria-label={`Remove sub-variant ${subIndex + 1}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 ))}
 

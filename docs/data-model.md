@@ -162,6 +162,12 @@ A buyer who gives no phone gets a customer row with `phone = NULL`. Never store 
 placeholder number. Two such customers are two rows, because the phone cannot
 identify them.
 
+The customer id is the identity. The phone plus its country code is only the
+automatic match; a name is never a key. The guest store already keys records this
+way. Owner parity adds `country_code` to this table and `customer_id` to order
+creation, so a selected customer links exactly instead of re-matching by name.
+See [ADR-033](decisions.md#adr-033-customer-identity-is-an-id-phone-is-the-lookup).
+
 ### Catalog
 
 #### `catalog_items`

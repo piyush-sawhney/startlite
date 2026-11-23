@@ -37,7 +37,7 @@ describe("bill text", () => {
   it("renders the WhatsApp layout", () => {
     const text = compileBill(bill);
     expect(text).toContain("*Anita's Bakes*");
-    expect(text).toContain("Bill 42 · 18 Nov 2026");
+    expect(text).toContain("Bill 42 · 18-Nov-2026");
     expect(text).toContain("2 × Chocolate cake (500 g)   ₹900.00");
     expect(text).toContain("Eggless extra   +₹100.00");
     expect(text).toContain("Total    ₹1,000.00");
@@ -88,7 +88,7 @@ describe("bill text", () => {
       upiId: "anita@okhdfcbank",
     });
     expect(text).toBe(
-      "*Anita's Bakes*\nBill 42 · 18 Nov 2026\nDue ₹600.00\n\nPay by UPI: anita@okhdfcbank",
+      "*Anita's Bakes*\nBill 42 · 18-Nov-2026\nDue ₹600.00\n\nPay by UPI: anita@okhdfcbank",
     );
   });
 
@@ -97,7 +97,7 @@ describe("bill text", () => {
       .toISOString()
       .slice(0, 10);
     expect(formatNeededBy(today)).toBe("Today");
-    expect(formatNeededBy("2027-03-09")).toBe("9 Mar 2027");
+    expect(formatNeededBy("2027-03-09")).toBe("09-Mar-2027");
     expect(formatNeededBy(null)).toBeNull();
   });
 
