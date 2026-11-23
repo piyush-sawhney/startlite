@@ -10,12 +10,12 @@
  */
 
 import { formatDayHeading, istDateString, startOfTodayIst, startOfWeekIst } from "./date";
+import { summarizeIncompleteOrders } from "./home-orders";
 import type {
   CustomerDue,
   DayOrderItem,
   HomeDashboardData,
-  InProgressOrder,
-  ReadyToCollectOrder,
+  IncompleteOrder,
 } from "./home-types";
 import { getPack } from "./packs";
 import {
@@ -638,8 +638,14 @@ export function guestOrderTotals(order: GuestOrder): {
   let status: GuestOrderStatus = order.status;
   if (order.status === "cancelled") {
     status = "cancelled";
-  } else if (paidPaise >= totalPaise && totalPaise > 0) {
+  } else if (
+    (order.status === "ready" || order.status === "settled") &&
+    paidPaise >= totalPaise &&
+    totalPaise > 0
+  ) {
     status = "settled";
+  } else if (order.status === "settled" && duePaise > 0) {
+    status = "ready";
   } else if (order.status === "ready") {
     status = "ready";
   } else if (order.status === "quote") {
@@ -929,7 +935,10 @@ export function addGuestPayment(
       entry.id === orderId
         ? {
             ...entry,
-            status: paidPaise >= totals.totalPaise ? "settled" : "open_tab",
+            status:
+              paidPaise >= totals.totalPaise && entry.status === "ready"
+                ? "settled"
+                : entry.status,
             payments: [
               ...entry.payments,
               {
@@ -953,7 +962,15 @@ export function setGuestOrderStatus(
   return {
     ...state,
     orders: state.orders.map((order) =>
-      order.id === orderId ? { ...order, status } : order,
+      order.id === orderId
+        ? {
+            ...order,
+            status:
+              status === "ready" && guestOrderTotals(order).duePaise === 0
+                ? "settled"
+                : status,
+          }
+        : order,
     ),
   };
 }
@@ -1459,77 +1476,38 @@ export function guestHomeDashboard(
     (a.timeSlot ?? "").localeCompare(b.timeSlot ?? ""),
   );
 
-  // 3. Ready to collect (Group 1: Work complete, payment pending)
-  const readyOrders = state.orders.filter((order) => {
+  // 4. Cross-day queue; fully paid work remains until its ready status is set.
+  const incompleteOrderRows: IncompleteOrder[] = state.orders.flatMap((order) => {
     const totals = guestOrderTotals(order);
-    return totals.status === "ready" && totals.duePaise > 0;
+    if (
+      totals.status === "cancelled" ||
+      totals.status === "settled" ||
+      (totals.status === "ready" && totals.duePaise === 0)
+    ) {
+      return [];
+    }
+
+    return [{
+      id: order.id,
+      code: order.code,
+      customerName: order.customerName || "Walk-in sale",
+      itemsSummary: getOrderSummary(order),
+      total: formatPaise(totals.totalPaise),
+      due: formatPaise(totals.duePaise),
+      duePaise: totals.duePaise,
+      status: totals.status,
+      neededBy: order.neededBy,
+      timeSlot: order.timeSlot || null,
+      createdAt: order.createdAt,
+    }];
   });
-
-  readyOrders.sort(
-    (a, b) =>
-      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-  );
-
-  const readyTotalDuePaise = readyOrders.reduce(
-    (total, order) => total + guestOrderTotals(order).duePaise,
-    0,
-  );
-
-  const readyToCollect: HomeDashboardData["readyToCollect"] = {
-    count: readyOrders.length,
-    totalDue: formatPaise(readyTotalDuePaise),
-    orders: readyOrders.slice(0, 5).map((order) => {
-      const totals = guestOrderTotals(order);
-      return {
-        id: order.id,
-        code: order.code,
-        customerName: order.customerName || "Walk-in sale",
-        itemsSummary: getOrderSummary(order),
-        due: formatPaise(totals.duePaise),
-        duePaise: totals.duePaise,
-        createdAt: order.createdAt,
-      };
-    }),
-  };
-
-  // 4. In progress (Group 2: Work incomplete: quote and open_tab)
-  const inProgressOrders = state.orders.filter((order) => {
-    const totals = guestOrderTotals(order);
-    return totals.status === "quote" || totals.status === "open_tab";
-  });
-
-  inProgressOrders.sort((a, b) => {
-    const aTotals = guestOrderTotals(a);
-    const bTotals = guestOrderTotals(b);
-    if (aTotals.status === "quote" && bTotals.status !== "quote") return -1;
-    if (aTotals.status !== "quote" && bTotals.status === "quote") return 1;
-    if (a.neededBy !== b.neededBy) return a.neededBy.localeCompare(b.neededBy);
-    return (
-      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    );
-  });
-
-  const inProgressTotalPaise = inProgressOrders.reduce(
-    (total, order) => total + guestOrderTotals(order).totalPaise,
-    0,
-  );
-
-  const inProgress: HomeDashboardData["inProgress"] = {
-    count: inProgressOrders.length,
-    totalAmount: formatPaise(inProgressTotalPaise),
-    orders: inProgressOrders.slice(0, 5).map((order) => {
-      const totals = guestOrderTotals(order);
-      return {
-        id: order.id,
-        code: order.code,
-        customerName: order.customerName || "Walk-in sale",
-        itemsSummary: getOrderSummary(order),
-        total: formatPaise(totals.totalPaise),
-        status: totals.status as "quote" | "open_tab",
-        neededBy: order.neededBy,
-        createdAt: order.createdAt,
-      };
-    }),
+  const incompleteSummary = summarizeIncompleteOrders(incompleteOrderRows);
+  const incompleteOrders: HomeDashboardData["incompleteOrders"] = {
+    toFinishCount: incompleteSummary.toFinishCount,
+    readyCount: incompleteSummary.readyCount,
+    totalCount: incompleteSummary.totalCount,
+    totalDue: formatPaise(incompleteSummary.totalDuePaise),
+    orders: incompleteSummary.orders,
   };
 
   // 5. To collect from customers
@@ -1563,8 +1541,7 @@ export function guestHomeDashboard(
       timeline,
       ghosts: [],
     },
-    readyToCollect,
-    inProgress,
+    incompleteOrders,
     customerDues,
   };
 }

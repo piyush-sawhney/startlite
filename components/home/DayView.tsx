@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Card, StatusPill } from "@/components/ui";
 import { addDaysIst, istDateString, relativeDayLabel } from "@/lib/date";
 import type { DayOrderItem } from "@/lib/home-types";
@@ -12,7 +11,6 @@ export function DayView({
   anyTime,
   timeline,
   ghosts,
-  isOwner,
   onSelectDay,
   onSelectOrder,
   onSelectGhost,
@@ -24,7 +22,6 @@ export function DayView({
   anyTime: DayOrderItem[];
   timeline: DayOrderItem[];
   ghosts: DayOrderItem[];
-  isOwner: boolean;
   onSelectDay: (day: string) => void;
   onSelectOrder?: (id: string) => void;
   onSelectGhost?: (id: string) => void;
@@ -133,22 +130,13 @@ export function DayView({
         {!hasOrders ? (
           <div className="py-8 text-center">
             <p className="text-sm text-ink-muted">Nothing for this day.</p>
-            {isOwner ? (
-              <Link
-                href="/app/sales/new"
-                className="mt-2 inline-block text-sm font-semibold text-accent hover:underline"
-              >
-                Add sale
-              </Link>
-            ) : (
-              <button
-                type="button"
-                onClick={onNewOrder}
-                className="mt-2 text-sm font-semibold text-accent hover:underline"
-              >
-                Add sale
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={onNewOrder}
+              className="mt-2 text-sm font-semibold text-accent hover:underline"
+            >
+              Add sale
+            </button>
           </div>
         ) : (
           <div className="mt-3 space-y-3">

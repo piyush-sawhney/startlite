@@ -10,6 +10,9 @@
     "typecheck": "tsc --noEmit",
     "db:push": "drizzle-kit push",
     "db:seed": "node --env-file=.env.local --import tsx db/seed.ts",
+    "db:seed:dev": "node --env-file=.env.local --import tsx db/seed-dev.ts",
+    "db:wipe:dev": "node --env-file=.env.local --import tsx db/wipe-dev.ts --yes",
+    "db:reset:dev": "node --env-file=.env.local --import tsx db/reset-dev.ts",
     "test": "vitest run"
   },
   "dependencies": {

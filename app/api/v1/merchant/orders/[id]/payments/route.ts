@@ -69,16 +69,18 @@ export async function POST(
 
     const paidTotal = dec(order.paidTotal).plus(amount).toFixed(2);
     const tdsTotal = dec(order.tdsTotal).plus(tds).toFixed(2);
-    const settled = dec(paidTotal).plus(tdsTotal).greaterThanOrEqualTo(
-      order.grandTotal,
-    );
+    const fullyPaid = dec(paidTotal)
+      .plus(tdsTotal)
+      .greaterThanOrEqualTo(order.grandTotal);
+    const status =
+      fullyPaid && order.status === "ready" ? "settled" : order.status;
 
     await tx
       .update(orders)
       .set({
         paidTotal,
         tdsTotal,
-        status: settled ? "settled" : order.status,
+        status,
         updatedAt: new Date(),
       })
       .where(eq(orders.id, order.id));
@@ -90,7 +92,7 @@ export async function POST(
         .where(eq(customers.id, order.customerId));
     }
 
-    return { orderId: order.id, status: settled ? "settled" : order.status };
+    return { orderId: order.id, status };
   });
 
   if ("error" in result) {

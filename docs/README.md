@@ -22,6 +22,7 @@ orders without an account. StartLite never holds buyer money.
 | [data-model.md](data-model.md) | Tables, money rules, isolation, order states | Writing a migration or a query |
 | [design-system.md](design-system.md) | Tokens, type, motion, shared component rules, bill and canvas output | Building a screen |
 | [local-development.md](local-development.md) | Run the app, seed data, test the workspace | Starting work on the code |
+| [dev-accounts.md](dev-accounts.md) | 24 local accounts, seeded shops, wipe and reset commands | Testing empty and full local data |
 | [operations.md](operations.md) | Deploy, backups, monitoring, runbook | Running production |
 | [roadmap.md](roadmap.md) | Phases, exit criteria, test gates, risks | Planning the next unit of work |
 | [decisions.md](decisions.md) | Why each choice was made, and what it replaced | Changing a decision |
@@ -37,6 +38,7 @@ Screen specifications are documented in [screens/](screens/README.md), starting 
 4. About to deploy: [operations](operations.md).
 5. Setting up a laptop: [local-development](local-development.md).
 6. About to change a decision: [decisions](decisions.md) first.
+7. Testing empty and full local data: [dev-accounts](dev-accounts.md).
 
 ## Glossary
 

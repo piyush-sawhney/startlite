@@ -1,10 +1,12 @@
 export async function uploadImageFile(
   file: File,
-): Promise<{ key: string } | { error: string }> {
+  kind: "item" | "logo" = "item",
+): Promise<{ key: string; url: string } | { error: string }> {
   try {
     const blob = await resizeImage(file);
     const body = new FormData();
-    body.append("file", blob, "item.webp");
+    body.append("file", blob, `${kind}.webp`);
+    body.append("kind", kind);
     const response = await fetch("/api/v1/merchant/media", {
       method: "POST",
       body,
@@ -15,7 +17,7 @@ export async function uploadImageFile(
         error: payload?.error?.message ?? "Image not uploaded. Try again.",
       };
     }
-    return { key: payload.data.key };
+    return { key: payload.data.key, url: payload.data.url };
   } catch {
     return { error: "Image not uploaded. Try a smaller photo." };
   }

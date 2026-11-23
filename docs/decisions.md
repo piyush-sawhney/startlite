@@ -54,6 +54,8 @@ Status values: `Accepted`, `Superseded`, `Deferred`.
 | [ADR-032](#adr-032-desktop-rail-and-day-column) | Desktop rail and day column | Accepted |
 | [ADR-033](#adr-033-customer-identity-is-an-id-phone-is-the-lookup) | Customer identity is an id, phone is the lookup | Accepted |
 | [ADR-034](#adr-034-display-dates-as-dd-mmm-yyyy) | Display dates as DD-MMM-YYYY | Accepted |
+| [ADR-035](#adr-035-development-seed-is-separate-and-guarded) | Development seed is separate and guarded | Accepted |
+| [ADR-036](#adr-036-home-work-queue-and-overlay-actions) | Home work queue and overlay actions | Accepted |
 
 ## ADR-001: Next.js App Router
 
@@ -674,6 +676,52 @@ Date inputs keep the native picker while editing; the chosen value is shown as
 - Sorting and storage do not change.
 - The native picker still follows the browser locale while open. Only the
   committed label is guaranteed.
+
+## ADR-035: Development seed is separate and guarded
+
+**Context:** One `db:seed` created a single bakery. Checking a grocery, salon, or
+rental flow meant editing the seed by hand. Testing an empty database meant
+removing the Docker volume.
+
+**Decision:** `db:seed:dev` owns 24 development accounts, two per pack, with
+known credentials. `db:wipe:dev` truncates every application table.
+`db:reset:dev` does both. The tools refuse `NODE_ENV=production` and refuse a
+non-local database unless `ALLOW_REMOTE_DEV_DB=1`. The seed deletes and recreates
+only its own `@startlite.dev` accounts, so it is safe to rerun.
+
+**Consequences:**
+
+- Every pack can be checked with a real login.
+- An empty database is one command away.
+- The shared password is public on purpose. It never reaches production.
+- The seed is not part of the app runtime and adds no route or API.
+- `db:seed` keeps the single demo shop for the onboarding walkthrough.
+
+## ADR-036: Home work queue and overlay actions
+
+**Context:** Home showed unfinished work and ready-to-collect orders in separate
+cards, prioritized collection, and opened several actions on separate routes.
+Merchants need one view of all incomplete work and should keep their place on
+Home while acting on it.
+
+**Decision:** Home shows a scrollable queue of up to 10 incomplete orders across
+all dates. Not-ready orders come first; ready orders with a balance follow. In
+each group, scheduled orders sort by required date and slot, then unscheduled
+orders by oldest placement. Rows show placed and needed dates and offer relevant
+actions. The order remains incomplete until work is ready and payment is
+complete; `settled` means both are true. Home actions open one responsive
+overlay at a time. Mobile uses a sheet; desktop uses a dialog or side panel.
+The Home logo and Settings allow signed-in owners to manage the logo. Guests
+keep the initials fallback.
+
+**Consequences:**
+
+- The Home queue is independent of the selected calendar day.
+- Paying before work is ready does not hide an order from the queue.
+- Adding sale, customer, item, or expense; reviewing a request; and opening an
+  order keep the merchant in Home.
+- The Orders tab remains the place for full order management.
+- The existing media pipeline stores shop logos; guests cannot upload one.
 
 ## Superseded specification sections
 

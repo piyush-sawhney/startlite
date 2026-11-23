@@ -93,65 +93,84 @@ export function GuestApp() {
     signInHref,
   };
 
-  let content: React.ReactNode;
-  switch (route.kind) {
-    case "sales":
-      content = <GuestSalesList {...viewProps} />;
-      break;
-    case "new-sale":
-      content = (
-        <GuestNewSale
-          key={`new-sale-${route.customer?.phone ?? ""}`}
-          {...viewProps}
-          customer={route.customer}
-        />
-      );
-      break;
-    case "sale":
-      content = (
-        <GuestSaleDetail key={route.id} {...viewProps} orderId={route.id} />
-      );
-      break;
-    case "customers":
-      content = <GuestCustomersList {...viewProps} />;
-      break;
-    case "customer":
-      content = (
-        <GuestCustomerDetail
-          key={route.key}
-          {...viewProps}
-          customerKey={route.key}
-        />
-      );
-      break;
-    case "catalog":
-      content = <GuestCatalog {...viewProps} />;
-      break;
-    case "item":
-      content = (
-        <GuestItemDetail key={route.id} {...viewProps} itemId={route.id} />
-      );
-      break;
-    case "settings":
-      content = <GuestSettings {...viewProps} />;
-      break;
-    case "expenses":
-      content = <GuestExpenses {...viewProps} />;
-      break;
-    case "cash":
-      content = <GuestCash {...viewProps} />;
-      break;
-    case "more":
-      content = <GuestMore {...viewProps} />;
-      break;
-    default:
-      content = <GuestHome {...viewProps} />;
+  function renderRoute(target: GuestRoute): React.ReactNode {
+    switch (target.kind) {
+      case "sales":
+        return <GuestSalesList {...viewProps} />;
+      case "new-sale":
+        return (
+          <GuestNewSale
+            key={`new-sale-${target.customer?.phone ?? ""}`}
+            {...viewProps}
+            customer={target.customer}
+          />
+        );
+      case "sale":
+        return (
+          <GuestSaleDetail
+            key={target.id}
+            {...viewProps}
+            orderId={target.id}
+          />
+        );
+      case "customers":
+        return <GuestCustomersList {...viewProps} />;
+      case "customer":
+        return (
+          <GuestCustomerDetail
+            key={target.key}
+            {...viewProps}
+            customerKey={target.key}
+          />
+        );
+      case "catalog":
+        return <GuestCatalog {...viewProps} />;
+      case "item":
+        return <GuestItemDetail key={target.id} {...viewProps} itemId={target.id} />;
+      case "settings":
+        return <GuestSettings {...viewProps} />;
+      case "expenses":
+        return <GuestExpenses {...viewProps} />;
+      case "cash":
+        return <GuestCash {...viewProps} />;
+      case "more":
+        return <GuestMore {...viewProps} />;
+      default:
+        return <GuestHome {...viewProps} />;
+    }
   }
+
+  const isHomeOverlay = stack.length > 1 && stack[0].kind === "home";
+  const content = (
+    <>
+      {stack[0].kind === "home" ? <GuestHome {...viewProps} /> : null}
+      {!isHomeOverlay && stack[0].kind !== "home" ? renderRoute(route) : null}
+      {isHomeOverlay ? (
+        <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Home action"
+        className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      >
+        <section className="max-h-[94dvh] w-full max-w-[720px] overflow-y-auto rounded-t-2xl bg-surface p-4 shadow-2xl sm:rounded-2xl sm:p-6">
+          <button
+            type="button"
+            onClick={back}
+            className="mb-3 min-h-11 rounded-lg px-3 text-sm text-ink-muted hover:bg-muted"
+          >
+            Close
+          </button>
+          {renderRoute(route)}
+        </section>
+        </div>
+      ) : null}
+    </>
+  );
 
   return (
     <div className="min-h-dvh lg:flex">
       <GuestNav
-        active={tabForRoute(route)}
+        active={isHomeOverlay ? "home" : tabForRoute(route)}
         shopName={state.shop.name}
         signInHref={signInHref}
         onSelect={selectTab}

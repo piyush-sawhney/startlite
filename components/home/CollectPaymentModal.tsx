@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { Label, inputClass, primaryButton, quietButton } from "@/components/ui";
-import type { ReadyToCollectOrder } from "@/lib/home-types";
+
+type CollectableOrder = {
+  id: string;
+  customerName: string;
+  due: string;
+};
 
 export function CollectPaymentModal({
   order,
@@ -10,7 +15,7 @@ export function CollectPaymentModal({
   onClose,
   onSubmit,
 }: {
-  order: ReadyToCollectOrder | null;
+  order: CollectableOrder | null;
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: {

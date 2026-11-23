@@ -5,26 +5,26 @@
 
 - Route: `/`. Tab: Home.
 - The same screen for a guest and a signed-in owner. Only the data source and a
-  handful of signals differ.
+  handful of signals differ. Logo upload is owner-only.
 - The screen answers three questions: what money is waiting, what work is
   unfinished, and what is happening today.
 
 ## Purpose
 
 Home is the first screen and the only screen most merchants open on a normal
-day. It must show the two kinds of unfinished order, the day, and the money
-without a scroll on a 360 px phone.
+day. It shows an all-date work queue, today's commitments, and the money.
+The order queue is independent of the selected day in the calendar.
 
-There are two kinds of unfinished order. They are different problems and they
-never mix:
+An order stays in the queue until work is ready and payment is complete:
 
 | Kind | Meaning | Group |
 |---|---|---|
-| Order complete, payment incomplete | Work is done. Money is not in. | **Ready to collect** |
-| Order incomplete | Work is not done yet. | **In progress** |
+| Work is not ready | Includes quotes and open work, even if fully paid | **To finish** |
+| Work is ready, payment incomplete | Work is done. Money is still due. | **Ready to collect** |
 
-Money waiting is the more urgent of the two, so **Ready to collect is always
-first**.
+**To finish** always comes first. Within each group, scheduled orders sort by
+required date and slot, earliest first. Orders without a slot sort by oldest
+placed time.
 
 ## Arrival
 
@@ -33,7 +33,7 @@ first**.
 | App icon, bookmark, or `/` | Opens Home |
 | Any tab | Tapping Home returns here and keeps the selected day |
 | Sign-in, onboarding, import | Lands here after success |
-| Notification or WhatsApp link | Lands on the order sheet, then Back returns here |
+| Notification or WhatsApp link | Lands on the order-details overlay, then Back returns here |
 
 Leaving Home is always a tab tap, an order card, a quick action, or the request
 bar. There is no back button on Home.
@@ -62,15 +62,18 @@ bar. There is no back button on Home.
 │ [ Add sale ]       [ Add customer ]│  quick actions
 │ [ Add item ]       [ Add expense ] │
 ├────────────────────────────────────┤
-│ READY TO COLLECT      5 · ₹6,200   │  money waiting
-│  Ramesh · 2 items · ₹900 [Collect] │
-│  Meena · Facial · ₹650   [Collect] │
-│  View all 5                        │
-├────────────────────────────────────┤
-│ IN PROGRESS           3 · ₹2,100   │  work unfinished
-│  Sana · Bridal · ₹8,000 [Complete] │
-│  Imran · Quote · ₹1,800 [Open]     │
-│  View all 3                        │
+│ INCOMPLETE ORDERS                  │
+│ 3 to finish · 5 to collect        │
+│ ₹6,200 pending                    │
+│ TO FINISH                          │
+│ Sana · Bridal · ₹8,000             │
+│ Placed 21-Nov · Needed 22-Nov 10am │
+│ [Order details]       [Mark ready] │
+│ READY TO COLLECT                   │
+│ Meena · Facial · ₹650 due          │
+│ Placed 20-Nov-2026 · Needed 21-Nov │
+│ [Order details]          [Collect] │
+│ View all incomplete orders ›       │
 ├────────────────────────────────────┤
 │ ‹  Sat, 21-Nov-2026  ›  Go to today  ▤  │  day view
 │                                    │
@@ -110,15 +113,17 @@ bar. There is no back button on Home.
 │          ├──────────────────────────────────┤─────────────────│
 │ Home   ● │ [Add sale][Customer][Item][Exp]  │ Sat, 21-Nov-2026  ▤  │
 │ Orders   │                                  │                 │
-│ Customers│ READY TO COLLECT     5 · ₹6,200  │ ANY TIME        │
-│ Items    │  Ramesh  2 items  ₹900  Collect  │  · Ramesh ₹900  │
-│ Expenses │  Meena   Facial   ₹650  Collect  │                 │
-│ Settings │  View all 5                      │ 10:00 Meena     │
-│          │                                  │ 11:30 Sana      │
-│          │ IN PROGRESS          3 · ₹2,100  │ 12:00 ┈ Asha    │
-│          │  Sana    Bridal   ₹8,000 Complete│ 15:00 ┈ Vikram  │
-│          │  Imran   Quote    ₹1,800 Open    │                 │
-│          │  View all 3                      │                 │
+│ Customers│ INCOMPLETE ORDERS                │ ANY TIME        │
+│ Items    │ 3 to finish · 5 to collect       │  · Ramesh ₹900  │
+│ Expenses │ ₹6,200 pending                   │                 │
+│ Settings │ TO FINISH                        │ 10:00 Meena     │
+│          │ Sana · Bridal · ₹8,000           │ 11:30 Sana      │
+│          │ Placed 21-Nov-2026 · Needed 22-Nov│ 12:00 ┈ Asha    │
+│          │ [Order details] [Mark ready]     │ 15:00 ┈ Vikram  │
+│          │ READY TO COLLECT                 │                 │
+│          │ Meena · Facial · ₹650 due        │                 │
+│          │ [Order details] [Collect]        │                 │
+│          │ View all incomplete orders ›    │                 │
 │          │                                  │                 │
 │          │ ↙ CASH IN             ◷ TO COLLECT│                 │
 │          │ ₹8,400                      ₹4,250│                 │
@@ -139,9 +144,8 @@ bar. There is no back button on Home.
 ```
 
 The right column scrolls on its own and stays in place while the main column
-scrolls. The day view lives there, so it is beside the order groups rather than
-below them. From 768 to 1199 px the day view moves into the main column, after
-In progress.
+scrolls. The day view lives there, beside the order queue. From 768 to 1199 px
+the day view moves into the main column, after the queue.
 
 ### Breakpoint behaviour
 
@@ -150,8 +154,7 @@ In progress.
 | Navigation | Bottom tabs | Left rail 200 px | Left rail 240 px |
 | Request bar | Bar under header | Bar under header | Header pill plus panel |
 | Quick actions | 2 × 2 grid | One row of 4 | One row of 4 |
-| Ready to collect | In flow | In flow | In flow |
-| In progress | In flow | In flow | In flow |
+| Incomplete orders | In flow; list scrolls in the card | In flow | In flow |
 | Day view | In flow | In flow | Right column, sticky |
 | Metrics | 2 columns, Cash left spans both | 2 columns, Cash left spans both | 2 columns, Cash left spans both |
 | Customers | In flow | In flow | In flow |
@@ -164,6 +167,9 @@ Zones appear in this order on every width.
 
 - Shop logo 40 px, rounded 12 px. Falls back to the first letter of the shop
   name on `accent-soft`.
+- A signed-in owner can tap the logo to open **Shop logo**, then upload, replace,
+  or remove it. Settings offers the same controls. Guests see the initial and
+  cannot upload a logo.
 - Shop name, 16 px, weight 600, one line, truncates with an ellipsis.
 - A pen button, 32 × 32, immediately after the shop name. It opens **Edit shop
   name**. It is the only way to rename the shop from Home. The accessible name
@@ -191,7 +197,7 @@ fill, no border. Their tap target is 44 px even though the icon is 16 px.
 - Visible only when `pending_orders` has at least one row for this shop.
 - Copy: `⚡ {n} requests · oldest {age}` with `Review ›` on the right.
 - Age is the oldest row, in `2h` or `3d` form.
-- Tap opens the Requests sheet. Accepting does not navigate away.
+- Tap opens the Requests overlay. Accepting does not navigate away.
 - A guest never sees this bar. A guest has no public storefront.
 - Hidden entirely when the count is zero. No placeholder.
 
@@ -204,54 +210,49 @@ Four equal buttons. Two columns on mobile, one row on desktop.
 
 | Button | Opens | Style |
 |---|---|---|
-| **Add sale** | Add sale screen | Primary, filled accent |
-| **Add customer** | Add customer sheet | Outlined, quiet |
-| **Add item** | Add item sheet | Outlined, quiet |
-| **Add expense** | Add expense sheet | Outlined, quiet |
+| **Add sale** | Full-screen sheet on mobile; dialog or side panel on desktop | Primary, filled accent |
+| **Add customer** | Responsive modal sheet | Outlined, quiet |
+| **Add item** | Responsive modal sheet | Outlined, quiet |
+| **Add expense** | Responsive modal sheet | Outlined, quiet |
 
 **Add sale** is the only filled accent button on the screen. The other three are
 outlined with contextual icons (`UserPlus`, `PackagePlus`, `ArrowUpRight`).
 
-**Add sale** opens a full screen, not a modal. It needs the height on a 360 px
-phone, and a sale must survive a refresh. Back returns to Home with the
-dashboard unchanged.
+**Add sale** opens a full-screen overlay on mobile and a roomy dialog or side
+panel on desktop. Back or Escape closes it and returns to the unchanged Home.
 
-### 4. Ready to collect
+### 4. Incomplete orders
 
-The first group. Work is done, money is not in. This is the more urgent of the
-two unfinished kinds.
+This is a cross-day work queue. It does not change when the selected calendar
+day changes.
 
-- Source: `status = 'ready'`.
-- Order: `ready_at` ascending, oldest first. A missing `ready_at` falls back to
-  the confirmed date.
-- Header: `READY TO COLLECT`, then `{count} · ₹{total due}`.
-- Row: customer, first item plus `+N`, due, and a **Collect** button.
-- **Collect** opens the payment sheet with the full due prefilled.
-- Tapping the row opens the order sheet.
-- Cap: 5 rows. `View all {n}` opens `/orders?group=ready`.
-- Empty: `Nothing to collect.` The group stays visible with its header, so the
-  screen does not change shape between a busy and a quiet day.
+- Include every `quote` and `open_tab`, plus every `ready` order with a positive
+  balance. Exclude `settled` and `cancelled`.
+- `settled` means both work is ready and the balance is paid. A fully paid
+  `quote` or `open_tab` remains here until work is marked ready.
+- Show up to 10 orders. The list scrolls inside the card when needed. The Orders
+  tab remains the place for the full order list.
+- Group `quote` and `open_tab` under **To finish**, before **Ready to collect**.
+- In each group, scheduled orders sort by effective needed date and slot,
+  earliest first. Use the confirmed date and slot for accepted orders, and the
+  requested date and time for quotes. Orders without a slot follow, oldest
+  placed first.
+- The header shows the count to finish, count ready to collect, and sum of
+  unpaid balances.
+- Each row shows customer, first item plus `+N`, order total or amount due,
+  placed date, needed date and time (or `Any time`), and status.
+- **Review** opens a quote in the order-details overlay. **Mark ready** opens
+  order details with the ready action. **Collect** opens the payment overlay
+  with the full balance prefilled. Tapping the row also opens order details.
+- Marking work ready moves an unpaid order to **Ready to collect**. A fully paid
+  order stays under **To finish** until marked ready, then leaves the queue.
+- When both groups are empty, show `No incomplete orders.` and `Add sale`.
 
-### 5. In progress
+All Home actions use one overlay at a time. Opening another action replaces the
+current overlay rather than stacking dialogs. Mobile uses bottom or full-screen
+sheets; desktop uses a dialog or side panel. Tab navigation remains navigation.
 
-The second group. The work is not finished yet.
-
-- Source: `status IN ('quote', 'open_tab')`.
-- Order: quotes first, then `open_tab` by confirmed date and time ascending.
-  Untimed orders last.
-- Header: `IN PROGRESS`, then `{count} · ₹{total}`.
-- Row: customer, first item plus `+N`, total, and one action.
-  - `open_tab`: **Complete**. One tap sets `status = 'ready'` and
-    `ready_at = now()`. A toast says `Marked complete · Undo` for 5 seconds.
-  - `quote`: **Open**. Acceptance happens in the order sheet.
-- Tapping the row opens the order sheet.
-- Cap: 5 rows. `View all {n}` opens `/orders?group=open`.
-- Empty: `Nothing in progress.`
-
-The two groups never mix. A completed order with money due is never shown under
-In progress, and an open order is never shown under Ready to collect.
-
-### 6. Day view
+### 5. Day view
 
 The day view is a sheet of commitments, not an availability grid.
 
@@ -289,15 +290,15 @@ card shows the time, customer, first item plus `+N`, total, due, and a status
 pill.
 
 **Requests.** Storefront requests as dashed ghost cards at their requested time.
-A ghost card is not an order. Tapping it opens the Requests sheet, not the order
-sheet.
+A ghost card is not an order. Tapping it opens the Requests overlay, not the
+order-details overlay.
 
 **Empty day.** `Nothing for this day.` plus a text button `Add sale`.
 
 **Caps.** No cap. The day is short by nature. The section scrolls with the page
 on mobile and inside the right column on desktop.
 
-### 7. Metrics
+### 6. Metrics
 
 Five cells. Each cell is an icon, a short label, an amount, and a muted count.
 The same five cells, in the same order, at every width.
@@ -327,16 +328,16 @@ Rules:
 - Amounts above ₹1,00,000 use the compact form `₹1.04L` on mobile and the full
   form on desktop. The full amount is always available on tap.
 
-### 8. To collect from customers
+### 7. To collect from customers
 
 - Top 5 customers by pending amount, highest first.
 - Row: name, pending amount, `last {date}`, chevron.
-- Tap opens the customer sheet. `View all` is not needed; the Customers tab is one
-  tap away.
+- Tap opens the customer-details overlay. The Customers tab remains available
+  for full customer management.
 - Empty: `No dues.`
 - Hidden for a shop with no customers.
 
-### 9. Footer
+### 8. Footer
 
 `StartLite · v1` at 11 px, muted, centred on mobile, last row of the rail on
 desktop. It never competes with the shop name.
@@ -536,16 +537,15 @@ Never fall back to an empty guest workspace. Replace the content:
 |---|---|---|
 | Metrics | `orders`, `order_payments`, `expenses` | One aggregate per period, scoped by `business_id` |
 | Day view | `orders`, `pending_orders` | `confirmed_date = $day`, plus `requested_date = $day` for ghosts |
-| Ready to collect | `orders` | `status = 'ready'`, `ready_at ASC`, limit 5 plus count and sum |
-| In progress | `orders` | `status IN ('quote','open_tab')`, quotes first, limit 5 plus count and sum |
+| Incomplete orders | `orders` | `quote`, `open_tab`, or `ready` with positive balance; all dates; count and sum before limiting visible rows to 10 |
 | Customers | `customers` | Pending above zero, `pending DESC`, limit 5 |
 | Request bar | `pending_orders` | Count and `MIN(created_at)` |
 
 Indexes used:
 
 - `(business_id, confirmed_date, confirmed_from)` for the day view.
-- `(business_id, status, ready_at)` for Ready to collect.
-- `(business_id, status, created_at DESC)` for In progress and the Orders tab.
+- `(business_id, status, confirmed_date, confirmed_from)` for queue sorting and the day view.
+- `(business_id, status, created_at)` for unscheduled queue order and the Orders tab.
 - `(business_id, created_at DESC)` for pending requests.
 - `(business_id, expense_date DESC)` for weekly expenses.
 
@@ -560,17 +560,20 @@ same labels and the same order. No shape changes between adapters.
 | Tap `‹` or `›` | Previous or next day |
 | Tap `Go to today` | Return to today |
 | Tap the calendar button | Month sheet, then a day |
-| Tap an order card | Order sheet |
-| Tap a ghost card | Requests sheet |
-| Tap **Collect** | Payment sheet, due prefilled |
-| Tap **Complete** | Order becomes `ready`, toast with Undo |
-| Tap **Add sale** | Add sale screen |
-| Tap **Add customer** | Add customer sheet |
-| Tap **Add item** | Add item sheet |
-| Tap **Add expense** | Add expense sheet |
-| Tap the state pill, guest | Save sheet |
-| Tap the pen beside the shop name | Edit shop name sheet |
-| Tap the power button, guest | Save sheet |
+| Tap an order row | Order-details overlay |
+| Tap **Review** | Quote opens in order-details overlay |
+| Tap **Mark ready** | Order-details overlay opens with the ready action |
+| Tap a ghost card or Review in the request bar | Requests overlay |
+| Tap **Collect** | Payment overlay, due prefilled |
+| Tap **Add sale** | Full-screen overlay on mobile; dialog or side panel on desktop |
+| Tap **Add customer** | Customer overlay |
+| Tap **Add item** | Item overlay |
+| Tap **Add expense** | Expense overlay |
+| Tap the logo, signed-in owner | Shop logo upload/change/remove overlay |
+| Tap a customer row | Customer-details overlay |
+| Tap the state pill, guest | Save overlay |
+| Tap the pen beside the shop name | Edit shop name overlay |
+| Tap the power button, guest | Save overlay |
 | Pull to refresh, signed in | Refetch the screen |
 | Pull to refresh, guest | No-op, no spinner |
 
@@ -584,9 +587,8 @@ Keyboard, desktop:
 Back:
 
 - Home has no back button.
-- Back from a sheet closes the sheet.
-- Back from Add sale returns to Home.
-- Back from another tab returns to Home.
+- Back or Escape closes the active overlay and restores the Home scroll position.
+- Only tab changes leave Home.
 
 ## States
 
@@ -597,12 +599,13 @@ Back:
 | Empty day | `Nothing for this day.` plus `Add sale` |
 | No requests | Request bar hidden |
 | No dues | `No dues.` |
-| No orders at all | Both groups show their empty line, so the shape stays stable |
+| No incomplete orders | `No incomplete orders.` plus `Add sale` |
 | Offline, signed in | Pill `Offline`, last data stays, writes show `You are offline. Saving needs a connection.` |
 | Offline, guest | Everything works. Pill stays `Not saved` |
 | Session expired | Sign-in state |
 | Pass expired | Home works, banner `Your store is paused. Renew to make it live again.` |
 | Error | `Could not load Home.` plus `Try again` |
+| Logo upload error | State what failed and offer retry; keep the existing logo |
 
 ### Loading skeleton
 
@@ -656,14 +659,13 @@ The skeleton uses the final heights, so nothing shifts when data arrives.
 | Day action | `Go to today` |
 | Day empty | `Nothing for this day.` |
 | Any time | `Any time` |
-| Ready header | `Ready to collect` |
-| In progress header | `In progress` |
-| Group empty, ready | `Nothing to collect.` |
-| Group empty, progress | `Nothing in progress.` |
-| Row action, ready | `Collect` |
-| Row action, open | `Complete` |
-| Row action, quote | `Open` |
-| Complete toast | `Marked complete · Undo` |
+| Queue header | `Incomplete orders` |
+| Queue groups | `To finish`, `Ready to collect` |
+| Queue empty | `No incomplete orders.` |
+| Queue row dates | `Placed {date}` and `Needed {date · time}` or `Any time` |
+| Queue actions | `Review`, `Mark ready`, `Collect`, `Order details` |
+| Logo action | `Shop logo` |
+| Logo upload actions | `Upload logo`, `Change logo`, `Remove logo` |
 | Customers empty | `No dues.` |
 | Guest toast | `Saved on this phone. Sign in to keep it safe.` |
 | Launch title | `Is this your shop?` |
@@ -684,9 +686,13 @@ The skeleton uses the final heights, so nothing shifts when data arrives.
 
 - Every swipe has a button alternative.
 - Metrics are a description list, read as label, amount, count.
-- Group headers are headings, so screen readers can jump between them.
-- Each order row is one link with an accessible name:
-  `Ramesh, 2 items, ₹900 due, completed`.
+- Queue group headers are headings, so screen readers can jump between them.
+- Each order row opens a labelled order-details overlay. Row actions are separate
+  buttons with 44 px targets.
+- The queue has a visible scroll region and an accessible name. It does not
+  capture page scrolling when the user reaches either end.
+- Every overlay traps focus, supports Escape, restores focus to its opener, and
+  announces errors.
 - The state pill is announced on focus, not on every screen change.
 - The date row controls are 44 × 44. The label is not a control.
 - Tap targets are 44 px minimum, 8 px apart.
@@ -698,8 +704,8 @@ The skeleton uses the final heights, so nothing shifts when data arrives.
 ## Out of scope
 
 - Charts, trends, and sparklines.
-- Drag to reschedule. A time change goes through the order sheet.
-- Editing an order inline. Rows open the order sheet.
+- Drag to reschedule. A time change goes through the order-details overlay.
+- Editing an order inline. Rows open the order-details overlay.
 - A multi-day or month grid on mobile.
 - A separate logged-out landing page.
 - Profit. The screen says Cash left.
@@ -709,8 +715,7 @@ The skeleton uses the final heights, so nothing shifts when data arrives.
 1. Does the week start on Monday in every locale? Current answer: yes, IST.
 2. Should the day view default to the next order when today is empty? Current
    answer: no, today stays today.
-3. Should **Complete** require a confirm when the order has a future confirmed
-   date? Current answer: no, Undo covers it.
-4. When a shop has no orders at all, should both groups collapse into one
-   first-run card? Current answer: no, keep both headers so the screen does not
-   change shape later.
+3. Should **Mark ready** require a second confirmation? Current answer: no. It
+   opens order details, where the owner confirms the action.
+4. Should an empty incomplete-order queue stay visible? Current answer: yes.
+   Keep one queue card with `No incomplete orders.` and `Add sale`.

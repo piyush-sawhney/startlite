@@ -3,9 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { inputClass, Label, primaryButton } from "@/components/ui";
+import { ShopLogoModal } from "@/components/home/ShopLogoModal";
 
 type Settings = {
   businessName: string;
+  shopLogoUrl?: string | null;
   handle: string;
   tagline: string;
   locality: string;
@@ -29,6 +31,7 @@ export function SettingsForm({ initial }: { initial: Settings }) {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [showLogoModal, setShowLogoModal] = useState(false);
 
   function set<K extends keyof Settings>(key: K, value: Settings[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -39,12 +42,14 @@ export function SettingsForm({ initial }: { initial: Settings }) {
     event.preventDefault();
     setBusy(true);
     setError(null);
+    const settings = { ...form };
+    delete settings.shopLogoUrl;
 
     const response = await fetch("/api/v1/merchant/business", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        ...form,
+        ...settings,
         tagline: form.tagline || null,
         locality: form.locality || null,
         upiId: form.upiId || null,
@@ -70,6 +75,29 @@ export function SettingsForm({ initial }: { initial: Settings }) {
     <form onSubmit={submit} className="space-y-5">
       <section className="space-y-3">
         <h2 className="text-[15px] font-semibold">Shop</h2>
+        <div className="flex items-center gap-3">
+          {form.shopLogoUrl ? (
+            <img
+              src={form.shopLogoUrl}
+              alt="Shop logo"
+              className="h-12 w-12 rounded-xl border border-line object-cover"
+            />
+          ) : (
+            <div className="grid h-12 w-12 place-items-center rounded-xl bg-accent-soft text-lg font-bold text-accent-strong">
+              {form.businessName.trim().charAt(0).toUpperCase() || "S"}
+            </div>
+          )}
+          <div>
+            <p className="text-sm font-medium">Shop logo</p>
+            <button
+              type="button"
+              onClick={() => setShowLogoModal(true)}
+              className="mt-1 text-sm font-semibold text-accent-strong"
+            >
+              {form.shopLogoUrl ? "Change or remove" : "Upload logo"}
+            </button>
+          </div>
+        </div>
         <div>
           <Label>Shop name</Label>
           <input
@@ -245,6 +273,14 @@ export function SettingsForm({ initial }: { initial: Settings }) {
       <button className={primaryButton("w-full min-h-12")} disabled={busy}>
         {busy ? "Saving…" : "Save"}
       </button>
+      <ShopLogoModal
+        isOpen={showLogoModal}
+        initialUrl={form.shopLogoUrl ?? null}
+        onClose={() => setShowLogoModal(false)}
+        onUpdated={(shopLogoUrl) =>
+          setForm((current) => ({ ...current, shopLogoUrl }))
+        }
+      />
     </form>
   );
 }

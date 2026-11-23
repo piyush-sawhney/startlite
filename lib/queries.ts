@@ -7,20 +7,21 @@ import {
   expenses,
   itemExtras,
   itemOptions,
+  media,
   orderItems,
   orderPayments,
   orders,
   pendingOrders,
 } from "@/db/schema";
 import { dec, formatAmount, formatCompactAmount } from "./money";
+import { summarizeIncompleteOrders } from "./home-orders";
 import type {
   CustomerDue,
   DayOrderItem,
   HomeDashboardData,
+  IncompleteOrder,
   HomeKpi,
-  InProgressOrder,
   PendingRequestItem,
-  ReadyToCollectOrder,
 } from "./home-types";
 
 export type PublicItem = {
@@ -59,6 +60,17 @@ export async function getShop(handle: string) {
     .where(eq(businesses.handle, handle))
     .limit(1);
   return business ?? null;
+}
+
+export async function getShopLogoUrl(businessId: string): Promise<string | null> {
+  const [logo] = await db
+    .select({ objectKey: media.objectKey })
+    .from(media)
+    .where(and(eq(media.businessId, businessId), eq(media.kind, "logo")))
+    .orderBy(desc(media.createdAt))
+    .limit(1);
+
+  return logo ? `/media/${logo.objectKey}` : null;
 }
 
 export async function getPublicItems(
@@ -466,11 +478,13 @@ export async function getHomeDashboard(
 
   const [
     orderRows,
+    incompleteRows,
     paymentRows,
     expenseRows,
     pendingRows,
     customerRows,
     itemsList,
+    logoRows,
   ] = await Promise.all([
     db
       .select()
@@ -478,6 +492,15 @@ export async function getHomeDashboard(
       .where(eq(orders.businessId, businessId))
       .orderBy(desc(orders.createdAt))
       .limit(200),
+    db
+      .select()
+      .from(orders)
+      .where(
+        and(
+          eq(orders.businessId, businessId),
+          inArray(orders.status, ["quote", "open_tab", "ready"]),
+        ),
+      ),
     db
       .select()
       .from(orderPayments)
@@ -512,6 +535,12 @@ export async function getHomeDashboard(
       })
       .from(orderItems)
       .where(eq(orderItems.businessId, businessId)),
+    db
+      .select({ objectKey: media.objectKey })
+      .from(media)
+      .where(and(eq(media.businessId, businessId), eq(media.kind, "logo")))
+      .orderBy(desc(media.createdAt))
+      .limit(1),
   ]);
 
   // Map order item names
@@ -640,7 +669,17 @@ export async function getHomeDashboard(
       id: p.id,
       code: p.code,
       buyerName: p.buyerName,
-      itemCount: Array.isArray(p.lines) ? p.lines.length : 1,
+      buyerPhone: p.buyerPhone,
+      note: p.note,
+      lines: p.lines.map((line) => ({
+        itemName: line.itemName,
+        optionName: line.optionName,
+        extraNames: line.extraNames,
+        quantity: line.quantity,
+        unitLabel: line.unitLabel,
+        lineTotal: formatAmount(line.lineTotal),
+      })),
+      itemCount: p.lines.length,
       grandTotal: formatAmount(p.grandTotal),
       createdAt: p.createdAt.toISOString(),
       timeSlot: p.timeSlot,
@@ -703,77 +742,45 @@ export async function getHomeDashboard(
       isGhost: true,
     }));
 
-  // 4. Ready to collect (Group 1: Work complete, payment pending)
-  const readyOrders = orderRows.filter((order) => {
-    if (order.status !== "ready") return false;
+  // 4. All-date incomplete order queue. The API status only becomes settled
+  // after work is ready and the full balance has been paid.
+  const incompleteOrderRows: IncompleteOrder[] = incompleteRows.flatMap((order) => {
+    if (
+      order.status !== "quote" &&
+      order.status !== "open_tab" &&
+      order.status !== "ready"
+    ) {
+      return [];
+    }
     const due = dec(order.grandTotal)
       .minus(order.paidTotal)
-      .minus(order.tdsTotal);
-    return due.greaterThan(0);
-  });
+      .minus(order.tdsTotal)
+      .greaterThan(0)
+      ? dec(order.grandTotal).minus(order.paidTotal).minus(order.tdsTotal)
+      : dec(0);
+    if (order.status === "ready" && !due.greaterThan(0)) return [];
 
-  // Sort oldest first (createdAt or updatedAt)
-  readyOrders.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-
-  const readyTotalDue = readyOrders.reduce((total, order) => {
-    const due = dec(order.grandTotal)
-      .minus(order.paidTotal)
-      .minus(order.tdsTotal);
-    return total.plus(due);
-  }, dec(0));
-
-  const readyToCollect: HomeDashboardData["readyToCollect"] = {
-    count: readyOrders.length,
-    totalDue: formatAmount(readyTotalDue),
-    orders: readyOrders.slice(0, 5).map((order) => {
-      const due = dec(order.grandTotal)
-        .minus(order.paidTotal)
-        .minus(order.tdsTotal);
-      return {
-        id: order.id,
-        code: order.orderCode,
-        customerName: order.customerName || "Walk-in sale",
-        itemsSummary: getOrderSummary(order.id),
-        due: formatAmount(due),
-        duePaise: Math.round(due.toNumber() * 100),
-        createdAt: order.createdAt.toISOString(),
-        readyAt: order.updatedAt.toISOString(),
-      };
-    }),
-  };
-
-  // 5. In progress (Group 2: Work incomplete: quote and open_tab)
-  const inProgressOrders = orderRows.filter(
-    (order) => order.status === "quote" || order.status === "open_tab",
-  );
-
-  // Sort: quotes first, then open_tab by neededBy, timeSlot, createdAt
-  inProgressOrders.sort((a, b) => {
-    if (a.status === "quote" && b.status !== "quote") return -1;
-    if (a.status !== "quote" && b.status === "quote") return 1;
-    if (a.neededBy !== b.neededBy) return a.neededBy.localeCompare(b.neededBy);
-    return a.createdAt.getTime() - b.createdAt.getTime();
-  });
-
-  const inProgressTotalAmount = inProgressOrders.reduce(
-    (total, order) => total.plus(order.grandTotal),
-    dec(0),
-  );
-
-  const inProgress: HomeDashboardData["inProgress"] = {
-    count: inProgressOrders.length,
-    totalAmount: formatAmount(inProgressTotalAmount),
-    orders: inProgressOrders.slice(0, 5).map((order) => ({
+    return [{
       id: order.id,
       code: order.orderCode,
       customerName: order.customerName || "Walk-in sale",
       itemsSummary: getOrderSummary(order.id),
       total: formatAmount(order.grandTotal),
-      status: order.status as "quote" | "open_tab",
-      timeSlot: order.timeSlot,
+      due: formatAmount(due),
+      duePaise: due.times(100).toNumber(),
+      status: order.status,
       neededBy: order.neededBy,
+      timeSlot: order.timeSlot,
       createdAt: order.createdAt.toISOString(),
-    })),
+    }];
+  });
+  const incompleteSummary = summarizeIncompleteOrders(incompleteOrderRows);
+  const incompleteOrders: HomeDashboardData["incompleteOrders"] = {
+    toFinishCount: incompleteSummary.toFinishCount,
+    readyCount: incompleteSummary.readyCount,
+    totalCount: incompleteSummary.totalCount,
+    totalDue: formatAmount(dec(incompleteSummary.totalDuePaise).div(100)),
+    orders: incompleteSummary.orders,
   };
 
   // 6. To collect from customers (Top 5 customers with pending balances)
@@ -820,6 +827,7 @@ export async function getHomeDashboard(
 
   return {
     shopName: business.businessName,
+    shopLogoUrl: logoRows[0] ? `/media/${logoRows[0].objectKey}` : null,
     handle: business.handle,
     isOwner: true,
     isPassExpired,
@@ -833,8 +841,7 @@ export async function getHomeDashboard(
       timeline,
       ghosts,
     },
-    readyToCollect,
-    inProgress,
+    incompleteOrders,
     customerDues: customerDues.slice(0, 5),
   };
 }

@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type {
   HomeDashboardData,
-  InProgressOrder,
-  ReadyToCollectOrder,
+  IncompleteOrder,
+  CustomerDue,
 } from "@/lib/home-types";
+import type { PublicItem } from "@/lib/queries";
+import { NewSaleForm } from "@/components/NewSaleForm";
 import { HomeHeader } from "./Header";
 import {
   RequestBar,
@@ -17,14 +19,15 @@ import { RequestsPanel } from "./RequestsPanel";
 import { KpiStrip } from "./KpiStrip";
 import { QuickActions } from "./QuickActions";
 import { DayView } from "./DayView";
-import { InProgress } from "./InProgress";
-import { ReadyToCollect } from "./ReadyToCollect";
+import { IncompleteOrders } from "./IncompleteOrders";
+import { OrderDetailsModal, type HomeOrderPreview } from "./OrderDetailsModal";
 import { CollectCustomers } from "./CollectCustomers";
 import { AddCustomerModal, type CustomerInput } from "./AddCustomerModal";
 import { AddItemModal, type ItemInput } from "./AddItemModal";
 import { AddExpenseModal, type ExpenseInput } from "./AddExpenseModal";
 import { CollectPaymentModal } from "./CollectPaymentModal";
 import { EditShopNameModal } from "./EditShopNameModal";
+import { ShopLogoModal } from "./ShopLogoModal";
 import { SaveShopModal } from "./SaveShopModal";
 import { LaunchSheet } from "./LaunchSheet";
 import { SessionExpired } from "./SessionExpired";
@@ -32,6 +35,7 @@ import { SessionExpired } from "./SessionExpired";
 export function HomeDashboard({
   initialData,
   isOwner,
+  saleItems = [],
   onGuestAction,
   onGuestPayment,
   onGuestStatusChange,
@@ -43,6 +47,7 @@ export function HomeDashboard({
 }: {
   initialData: HomeDashboardData;
   isOwner: boolean;
+  saleItems?: PublicItem[];
   onGuestAction?: (
     action: "add-sale" | "customer" | "item" | "expense" | "sale" | "sales",
     id?: string,
@@ -67,14 +72,20 @@ export function HomeDashboard({
   const [showRequestsPanel, setShowRequestsPanel] = useState(false);
   const [showSaveSheet, setShowSaveSheet] = useState(false);
   const [showEditName, setShowEditName] = useState(false);
+  const [showEditLogo, setShowEditLogo] = useState(false);
+  const [showAddSale, setShowAddSale] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<HomeOrderPreview | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerDue | null>(null);
 
   // Quick action sheets
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
   const [showAddItemModal, setShowAddItemModal] = useState(false);
   const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
-  const [collectOrder, setCollectOrder] = useState<ReadyToCollectOrder | null>(
-    null,
-  );
+  const [collectOrder, setCollectOrder] = useState<{
+    id: string;
+    customerName: string;
+    due: string;
+  } | null>(null);
 
   // Toast state
   const [toast, setToast] = useState<{
@@ -139,7 +150,7 @@ export function HomeDashboard({
   }
 
   // Complete action (open_tab -> ready) with 5-second Undo toast
-  async function handleCompleteOrder(order: InProgressOrder) {
+  async function handleCompleteOrder(order: Pick<IncompleteOrder, "id">) {
     if (isOwner) {
       try {
         const res = await fetch(`/api/v1/merchant/orders/${order.id}`, {
@@ -148,27 +159,48 @@ export function HomeDashboard({
           body: JSON.stringify({ status: "ready" }),
         });
 
-        if (res.ok) {
-          router.refresh();
-          await refreshDashboard();
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          throw new Error(body?.error?.message ?? "Could not mark the order ready.");
+        }
 
-          setToast({
-            message: "Marked complete",
-            actionLabel: "Undo",
-            onAction: async () => {
-              await fetch(`/api/v1/merchant/orders/${order.id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ status: "open_tab" }),
-              });
+        router.refresh();
+        await refreshDashboard();
+        setToast({
+          message: "Marked ready",
+          actionLabel: "Undo",
+          onAction: async () => {
+            try {
+              const undoResponse = await fetch(
+                `/api/v1/merchant/orders/${order.id}`,
+                {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ status: "open_tab" }),
+                },
+              );
+              if (!undoResponse.ok) {
+                const body = await undoResponse.json().catch(() => null);
+                throw new Error(body?.error?.message ?? "Could not undo.");
+              }
               router.refresh();
               await refreshDashboard();
               setToast(null);
-            },
-          });
-        }
-      } catch (err) {
-        console.error("Failed to mark order complete", err);
+            } catch (error) {
+              setToast({
+                message:
+                  error instanceof Error ? error.message : "Could not undo.",
+              });
+            }
+          },
+        });
+      } catch (error) {
+        setToast({
+          message:
+            error instanceof Error
+              ? error.message
+              : "Could not mark the order ready.",
+        });
       }
     } else {
       onGuestStatusChange?.(order.id, "ready");
@@ -181,6 +213,47 @@ export function HomeDashboard({
         },
       });
     }
+  }
+
+  async function handleAcceptQuote(orderId: string) {
+    if (isOwner) {
+      try {
+        const response = await fetch(`/api/v1/merchant/orders/${orderId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "open_tab" }),
+        });
+        if (!response.ok) {
+          const body = await response.json().catch(() => null);
+          throw new Error(body?.error?.message ?? "Could not accept the order.");
+        }
+        await refreshDashboard();
+      } catch (error) {
+        setToast({
+          message:
+            error instanceof Error ? error.message : "Could not accept the order.",
+        });
+        return;
+      }
+    } else {
+      onGuestStatusChange?.(orderId, "open_tab");
+    }
+    setSelectedOrder(null);
+    setToast({ message: "Order accepted" });
+  }
+
+  async function handleAcceptRequest(code: string) {
+    const response = await fetch(
+      `/api/v1/merchant/pending-orders/${code}/accept`,
+      { method: "POST" },
+    );
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      throw new Error(body?.error?.message ?? "Could not accept the request.");
+    }
+    setShowRequestsPanel(false);
+    await refreshDashboard();
+    setToast({ message: "Order accepted" });
   }
 
   // Collect payment against a ready order
@@ -317,23 +390,26 @@ export function HomeDashboard({
 
   // Route navigations
   function handleOpenOrder(id: string) {
-    if (isOwner) {
-      router.push(`/app/sales/${id}`);
-    } else {
-      onGuestAction?.("sale", id);
+    const queued = data.incompleteOrders.orders.find((order) => order.id === id);
+    if (queued) {
+      setSelectedOrder(queued);
+      return;
     }
+
+    const dayOrder = [
+      ...data.dayView.anyTime,
+      ...data.dayView.timeline,
+    ].find((order) => order.id === id);
+    if (dayOrder) setSelectedOrder(dayOrder);
   }
 
   function handleSelectCustomer(id: string) {
-    if (isOwner) {
-      router.push(`/app/customers/${id}`);
-    } else {
-      onGuestAction?.("customer", id);
-    }
+    const customer = data.customerDues.find((entry) => entry.id === id);
+    if (customer) setSelectedCustomer(customer);
   }
 
   function handleAddSale() {
-    if (isOwner) router.push("/app/sales/new");
+    if (isOwner) setShowAddSale(true);
     else onGuestAction?.("add-sale");
   }
 
@@ -367,10 +443,12 @@ export function HomeDashboard({
       {/* Header */}
       <HomeHeader
         shopName={data.shopName}
+        logoUrl={data.shopLogoUrl}
         handle={data.handle}
         pillState={pillState}
         onGuestSave={() => setShowSaveSheet(true)}
         onEditName={() => setShowEditName(true)}
+        onEditLogo={isOwner ? () => setShowEditLogo(true) : undefined}
         onSignIn={() => setShowSaveSheet(true)}
       />
 
@@ -398,39 +476,17 @@ export function HomeDashboard({
         <div className="space-y-6">
           {/* 1. Quick actions */}
           <QuickActions
-            isOwner={isOwner}
             onAddSale={handleAddSale}
             onAddCustomer={() => setShowAddCustomerModal(true)}
             onAddItem={() => setShowAddItemModal(true)}
             onAddExpense={() => setShowAddExpenseModal(true)}
           />
 
-          {/* 2. Ready to collect: order complete, payment incomplete */}
-          <ReadyToCollect
-            count={data.readyToCollect.count}
-            totalDue={data.readyToCollect.totalDue}
-            orders={data.readyToCollect.orders}
-            isOwner={isOwner}
-            onCollect={(order) => setCollectOrder(order)}
-            onOpenOrder={handleOpenOrder}
-            onViewAll={() => {
-              if (isOwner) router.push("/app/sales?filter=ready");
-              else onGuestAction?.("sales");
-            }}
-          />
-
-          {/* 3. In progress: order incomplete */}
-          <InProgress
-            count={data.inProgress.count}
-            totalAmount={data.inProgress.totalAmount}
-            orders={data.inProgress.orders}
-            isOwner={isOwner}
-            onComplete={handleCompleteOrder}
-            onOpenOrder={handleOpenOrder}
-            onViewAll={() => {
-              if (isOwner) router.push("/app/sales?filter=pending");
-              else onGuestAction?.("sales");
-            }}
+          {/* 2. Cross-day queue; independent of the selected calendar day */}
+          <IncompleteOrders
+            {...data.incompleteOrders}
+            onOpenOrder={setSelectedOrder}
+            onCollect={setCollectOrder}
           />
 
           {/* 4. Day view, in flow below 1200 */}
@@ -441,7 +497,6 @@ export function HomeDashboard({
               anyTime={data.dayView.anyTime}
               timeline={data.dayView.timeline}
               ghosts={data.dayView.ghosts}
-              isOwner={isOwner}
               onSelectDay={handleSelectDay}
               onSelectOrder={handleOpenOrder}
               onSelectGhost={() => setShowRequestsPanel(true)}
@@ -481,7 +536,6 @@ export function HomeDashboard({
             anyTime={data.dayView.anyTime}
             timeline={data.dayView.timeline}
             ghosts={data.dayView.ghosts}
-            isOwner={isOwner}
             onSelectDay={handleSelectDay}
             onSelectOrder={handleOpenOrder}
             onSelectGhost={() => setShowRequestsPanel(true)}
@@ -527,6 +581,15 @@ export function HomeDashboard({
         onSubmit={handleRenameShop}
       />
 
+      <ShopLogoModal
+        isOpen={showEditLogo}
+        initialUrl={data.shopLogoUrl ?? null}
+        onClose={() => setShowEditLogo(false)}
+        onUpdated={(shopLogoUrl) =>
+          setData((prev) => ({ ...prev, shopLogoUrl }))
+        }
+      />
+
       {/* Save or sign in */}
       <SaveShopModal
         isOpen={showSaveSheet}
@@ -538,7 +601,91 @@ export function HomeDashboard({
         requests={data.requests.requests}
         isOpen={showRequestsPanel}
         onClose={() => setShowRequestsPanel(false)}
+        onAccept={handleAcceptRequest}
       />
+
+      {showAddSale && isOwner ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="home-add-sale-title"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+        >
+          <section className="max-h-[94dvh] w-full max-w-[640px] overflow-y-auto rounded-t-2xl border border-line bg-surface p-5 shadow-2xl sm:rounded-2xl">
+            <div className="mb-4 flex items-center justify-between border-b border-line pb-3">
+              <h2 id="home-add-sale-title" className="text-lg font-semibold">
+                Add sale
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowAddSale(false)}
+                className="min-h-11 min-w-11 rounded-lg text-ink-muted hover:bg-muted"
+                aria-label="Close Add sale"
+              >
+                ×
+              </button>
+            </div>
+            <NewSaleForm
+              items={saleItems}
+              onComplete={() => {
+                setShowAddSale(false);
+                setToast({ message: "Sale saved" });
+                void refreshDashboard();
+              }}
+            />
+          </section>
+        </div>
+      ) : null}
+
+      <OrderDetailsModal
+        order={selectedOrder}
+        onClose={() => setSelectedOrder(null)}
+        onAccept={handleAcceptQuote}
+        onMarkReady={(id) => {
+          setSelectedOrder(null);
+          void handleCompleteOrder({ id });
+        }}
+        onCollect={() => {
+          if (!selectedOrder) return;
+          const order = selectedOrder;
+          setSelectedOrder(null);
+          setCollectOrder({
+            id: order.id,
+            customerName: order.customerName,
+            due: order.due,
+          });
+        }}
+      />
+
+      {selectedCustomer ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="home-customer-title"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+        >
+          <section className="w-full max-w-[420px] rounded-t-2xl border border-line bg-surface p-5 shadow-2xl sm:rounded-2xl">
+            <h2 id="home-customer-title" className="text-lg font-semibold">
+              {selectedCustomer.name}
+            </h2>
+            <p className="mt-2 text-sm text-ink-muted">
+              Pending {selectedCustomer.pending}
+            </p>
+            {selectedCustomer.lastPaidDate ? (
+              <p className="mt-1 text-xs text-ink-subtle">
+                Last paid {selectedCustomer.lastPaidDate}
+              </p>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setSelectedCustomer(null)}
+              className="mt-5 min-h-11 w-full rounded-lg border border-line"
+            >
+              Close
+            </button>
+          </section>
+        </div>
+      ) : null}
 
       {/* Toast */}
       {toast ? (

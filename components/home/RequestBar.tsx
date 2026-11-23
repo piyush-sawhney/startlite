@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { cn } from "@/lib/cn";
 import type { PendingRequestItem } from "@/lib/home-types";
 
@@ -97,9 +96,10 @@ export function RequestDesktopBanner({
       {requests.length > 0 ? (
         <div className="mt-3.5 grid grid-cols-3 gap-2.5 border-t border-accent/20 pt-3">
           {requests.slice(0, 3).map((req) => (
-            <Link
+            <button
               key={req.id}
-              href={`/o/${req.code}`}
+              type="button"
+              onClick={onReview}
               className="group flex flex-col justify-between rounded-xl border border-line bg-surface p-3 transition hover:border-accent hover:shadow-sm"
             >
               <div className="min-w-0">
@@ -125,7 +125,7 @@ export function RequestDesktopBanner({
                   Review ›
                 </span>
               </div>
-            </Link>
+            </button>
           ))}
         </div>
       ) : null}

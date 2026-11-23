@@ -36,7 +36,7 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["lib/**/*.test.ts"],
+    include: ["lib/**/*.test.ts", "db/**/*.test.ts"],
     exclude: ["node_modules/**", ".next/**", ".agents/**"],
   },
 });

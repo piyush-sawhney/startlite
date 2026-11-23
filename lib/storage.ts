@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
 
@@ -76,4 +76,27 @@ export async function storeImage(
     variants,
     mime: "image/webp",
   };
+}
+
+export async function removeStoredImage(
+  key: string,
+  variants: Record<string, string>,
+): Promise<void> {
+  const keys = new Set([key, ...Object.values(variants)]);
+  await Promise.all(
+    [...keys].map(async (storedKey) => {
+      try {
+        await unlink(mediaPath(storedKey));
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          "code" in error &&
+          error.code === "ENOENT"
+        ) {
+          return;
+        }
+        throw error;
+      }
+    }),
+  );
 }

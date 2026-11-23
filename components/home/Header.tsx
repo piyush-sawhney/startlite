@@ -5,17 +5,21 @@ import { StatePill, type PillState } from "./StatePill";
 
 export function HomeHeader({
   shopName,
+  logoUrl,
   handle,
   pillState,
   onGuestSave,
   onEditName,
+  onEditLogo,
   onSignIn,
 }: {
   shopName: string;
+  logoUrl?: string | null;
   handle?: string;
   pillState: PillState;
   onGuestSave?: () => void;
   onEditName?: () => void;
+  onEditLogo?: () => void;
   onSignIn?: () => void;
 }) {
   const initial = shopName.trim().charAt(0).toUpperCase() || "S";
@@ -24,12 +28,32 @@ export function HomeHeader({
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b border-line bg-canvas/90 px-1 py-2 backdrop-blur-md">
       <div className="flex min-w-0 items-center gap-2">
-        <div
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-accent-soft text-base font-bold text-accent-strong shadow-[0_1px_2px_rgb(20_18_15/0.06)]"
-          aria-hidden="true"
-        >
-          {initial}
-        </div>
+        {onEditLogo ? (
+          <button
+            type="button"
+            onClick={onEditLogo}
+            aria-label="Edit shop logo"
+            title="Edit shop logo"
+            className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-accent-soft text-base font-bold text-accent-strong shadow-[0_1px_2px_rgb(20_18_15/0.06)]"
+          >
+            {logoUrl ? (
+              <img src={logoUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              initial
+            )}
+          </button>
+        ) : (
+          <div
+            className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-accent-soft text-base font-bold text-accent-strong shadow-[0_1px_2px_rgb(20_18_15/0.06)]"
+            aria-hidden="true"
+          >
+            {logoUrl ? (
+              <img src={logoUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              initial
+            )}
+          </div>
+        )}
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-0.5">
             <h1

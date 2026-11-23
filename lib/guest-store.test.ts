@@ -10,6 +10,7 @@ import {
   guestOrderTotals,
   guestSummary,
   normalizeGuestState,
+  setGuestOrderStatus,
   updateGuestItem,
 } from "./guest-store";
 
@@ -52,7 +53,7 @@ describe("guest store", () => {
     expect(totals.status).toBe("open_tab");
   });
 
-  it("settles a sale when the due is paid", () => {
+  it("settles a ready sale when the due is paid", () => {
     const state = createGuestState("food");
     const created = addGuestOrder(state, {
       customerName: "Meena",
@@ -65,7 +66,8 @@ describe("guest store", () => {
         },
       ],
     });
-    const paid = addGuestPayment(created.state, created.orderId, "120.00", "upi");
+    const ready = setGuestOrderStatus(created.state, created.orderId, "ready");
+    const paid = addGuestPayment(ready, created.orderId, "120.00", "upi");
     const order = paid.orders[0];
     expect(guestOrderTotals(order).status).toBe("settled");
     expect(guestSummary(paid).pendingPaise).toBe(0);

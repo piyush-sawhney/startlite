@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { SettingsForm } from "@/components/SettingsForm";
 import { PageHeader } from "@/components/ui";
+import { getShopLogoUrl } from "@/lib/queries";
 import { requireBusiness } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const { business } = await requireBusiness();
+  const shopLogoUrl = await getShopLogoUrl(business.id);
 
   return (
     <>
@@ -19,6 +21,7 @@ export default async function SettingsPage() {
       <SettingsForm
         initial={{
           businessName: business.businessName,
+          shopLogoUrl,
           handle: business.handle,
           tagline: business.tagline ?? "",
           locality: business.locality ?? "",

@@ -1,17 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import { ArrowUpRight, PackagePlus, PlusCircle, UserPlus } from "lucide-react";
 import { primaryButton, quietButton } from "@/components/ui";
 
 export function QuickActions({
-  isOwner,
   onAddSale,
   onAddCustomer,
   onAddItem,
   onAddExpense,
 }: {
-  isOwner: boolean;
   onAddSale?: () => void;
   onAddCustomer: () => void;
   onAddItem: () => void;
@@ -24,17 +21,10 @@ export function QuickActions({
   return (
     <section aria-label="Quick actions" className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2.5">
       {/* 1. Add sale (primary accent button) */}
-      {isOwner ? (
-        <Link href="/app/sales/new" className={saleClass}>
-          <PlusCircle className="h-4 w-4 shrink-0 text-white" aria-hidden="true" />
-          <span>Add sale</span>
-        </Link>
-      ) : (
-        <button type="button" onClick={onAddSale} className={saleClass}>
-          <PlusCircle className="h-4 w-4 shrink-0 text-white" aria-hidden="true" />
-          <span>Add sale</span>
-        </button>
-      )}
+      <button type="button" onClick={onAddSale} className={saleClass}>
+        <PlusCircle className="h-4 w-4 shrink-0 text-white" aria-hidden="true" />
+        <span>Add sale</span>
+      </button>
 
       {/* 2. Add customer */}
       <button

@@ -30,26 +30,17 @@ export type DayOrderItem = {
   isGhost?: boolean;
 };
 
-export type ReadyToCollectOrder = {
-  id: string;
-  code: string;
-  customerName: string;
-  itemsSummary: string;
-  due: string;
-  duePaise?: number;
-  createdAt: string;
-  readyAt?: string | null;
-};
-
-export type InProgressOrder = {
+export type IncompleteOrder = {
   id: string;
   code: string;
   customerName: string;
   itemsSummary: string;
   total: string;
-  status: "quote" | "open_tab";
-  timeSlot?: string | null;
+  due: string;
+  duePaise?: number;
+  status: "quote" | "open_tab" | "ready";
   neededBy: string;
+  timeSlot?: string | null;
   createdAt: string;
 };
 
@@ -64,6 +55,16 @@ export type PendingRequestItem = {
   id: string;
   code: string;
   buyerName: string;
+  buyerPhone: string;
+  note: string | null;
+  lines: Array<{
+    itemName: string;
+    optionName: string | null;
+    extraNames: string[];
+    quantity: string;
+    unitLabel: string;
+    lineTotal: string;
+  }>;
   itemCount: number;
   grandTotal: string;
   createdAt: string;
@@ -79,6 +80,7 @@ export type PendingRequestSummary = {
 
 export type HomeDashboardData = {
   shopName: string;
+  shopLogoUrl?: string | null;
   handle: string;
   isOwner: boolean;
   isPassExpired?: boolean;
@@ -92,15 +94,12 @@ export type HomeDashboardData = {
     timeline: DayOrderItem[];
     ghosts: DayOrderItem[];
   };
-  readyToCollect: {
-    count: number;
+  incompleteOrders: {
+    toFinishCount: number;
+    readyCount: number;
     totalDue: string;
-    orders: ReadyToCollectOrder[];
-  };
-  inProgress: {
-    count: number;
-    totalAmount: string;
-    orders: InProgressOrder[];
+    totalCount: number;
+    orders: IncompleteOrder[];
   };
   customerDues: CustomerDue[];
 };

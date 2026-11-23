@@ -9,16 +9,17 @@ import {
 } from "./guest-store";
 import { istDateString } from "./date";
 
-describe("Home Dashboard & Order State Division", () => {
-  it("divides orders into Ready to Collect and In Progress with Ready to Collect prioritized", () => {
+describe("Home dashboard incomplete orders", () => {
+  it("shows cross-day work before ready orders that still need payment", () => {
     let state = createGuestState("bakery");
     const today = istDateString();
+    const yesterday = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
 
-    // 1. Add order 1: open tab (in progress)
     const res1 = addGuestOrder(state, {
       customerName: "Ramesh",
       customerPhone: "9876543210",
-      neededBy: today,
+      neededBy: yesterday,
+      timeSlot: "10:00",
       lines: [
         {
           itemName: "Bread",
@@ -31,7 +32,6 @@ describe("Home Dashboard & Order State Division", () => {
     state = res1.state;
     const order1Id = state.orders[0].id;
 
-    // 2. Add order 2: completed work but payment pending (ready)
     const res2 = addGuestOrder(state, {
       customerName: "Meena",
       customerPhone: "9876543211",
@@ -51,18 +51,17 @@ describe("Home Dashboard & Order State Division", () => {
 
     const dashboard = guestHomeDashboard(state, today);
 
-    // Ready to collect must have order2 (Meena)
-    expect(dashboard.readyToCollect.count).toBe(1);
-    expect(dashboard.readyToCollect.orders[0].customerName).toBe("Meena");
-    expect(dashboard.readyToCollect.orders[0].due).toBe("₹650.00");
-
-    // In progress must have order1 (Ramesh)
-    expect(dashboard.inProgress.count).toBe(1);
-    expect(dashboard.inProgress.orders[0].customerName).toBe("Ramesh");
-    expect(dashboard.inProgress.orders[0].total).toBe("₹900.00");
+    expect(dashboard.incompleteOrders.toFinishCount).toBe(1);
+    expect(dashboard.incompleteOrders.readyCount).toBe(1);
+    expect(dashboard.incompleteOrders.totalDue).toBe("₹1,550.00");
+    expect(dashboard.incompleteOrders.orders.map((order) => order.customerName)).toEqual([
+      "Ramesh",
+      "Meena",
+    ]);
+    expect(dashboard.incompleteOrders.orders[0].neededBy).toBe(yesterday);
   });
 
-  it("moves an in-progress order to ready to collect when marked complete", () => {
+  it("keeps a fully paid order until work is marked ready", () => {
     let state = createGuestState("bakery");
     const today = istDateString();
 
@@ -70,6 +69,8 @@ describe("Home Dashboard & Order State Division", () => {
       customerName: "Sana",
       customerPhone: "9876543212",
       neededBy: today,
+      status: "open_tab",
+      paidAmount: "8000.00",
       lines: [
         {
           itemName: "Bridal cake",
@@ -83,27 +84,15 @@ describe("Home Dashboard & Order State Division", () => {
     const orderId = state.orders[0].id;
 
     let dashboard = guestHomeDashboard(state, today);
-    expect(dashboard.inProgress.count).toBe(1);
-    expect(dashboard.readyToCollect.count).toBe(0);
+    expect(dashboard.incompleteOrders.toFinishCount).toBe(1);
+    expect(dashboard.incompleteOrders.orders[0].duePaise).toBe(0);
 
-    // Merchant taps [Complete]
     state = setGuestOrderStatus(state, orderId, "ready");
     dashboard = guestHomeDashboard(state, today);
-
-    expect(dashboard.inProgress.count).toBe(0);
-    expect(dashboard.readyToCollect.count).toBe(1);
-    expect(dashboard.readyToCollect.orders[0].customerName).toBe("Sana");
-    expect(dashboard.readyToCollect.orders[0].due).toBe("₹8,000.00");
-
-    // Undo reverts back to open_tab
-    state = setGuestOrderStatus(state, orderId, "open_tab");
-    dashboard = guestHomeDashboard(state, today);
-
-    expect(dashboard.inProgress.count).toBe(1);
-    expect(dashboard.readyToCollect.count).toBe(0);
+    expect(dashboard.incompleteOrders.totalCount).toBe(0);
   });
 
-  it("removes order from ready to collect once fully settled", () => {
+  it("removes a ready order after the full balance is collected", () => {
     let state = createGuestState("bakery");
     const today = istDateString();
 
@@ -125,13 +114,12 @@ describe("Home Dashboard & Order State Division", () => {
     state = setGuestOrderStatus(state, orderId, "ready");
 
     let dashboard = guestHomeDashboard(state, today);
-    expect(dashboard.readyToCollect.count).toBe(1);
+    expect(dashboard.incompleteOrders.readyCount).toBe(1);
 
-    // Full payment collected
     state = addGuestPayment(state, orderId, "1200.00", "upi");
     dashboard = guestHomeDashboard(state, today);
 
-    expect(dashboard.readyToCollect.count).toBe(0);
+    expect(dashboard.incompleteOrders.totalCount).toBe(0);
   });
 
   it("computes the 5 KPI cells accurately including cash left", () => {

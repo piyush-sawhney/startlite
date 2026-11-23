@@ -35,7 +35,13 @@ function lineTotalPaise(line: CartLine) {
   );
 }
 
-export function NewSaleForm({ items }: { items: PublicItem[] }) {
+export function NewSaleForm({
+  items,
+  onComplete,
+}: {
+  items: PublicItem[];
+  onComplete?: (orderId: string) => void;
+}) {
   const router = useRouter();
   const [mode, setMode] = useState<"quick" | "items">(
     items.length > 0 ? "items" : "quick",
@@ -136,7 +142,8 @@ export function NewSaleForm({ items }: { items: PublicItem[] }) {
     }
 
     const payload = await response.json();
-    router.push(`/app/sales/${payload.data.orderId}`);
+    if (onComplete) onComplete(payload.data.orderId);
+    else router.push(`/app/sales/${payload.data.orderId}`);
     router.refresh();
   }
 

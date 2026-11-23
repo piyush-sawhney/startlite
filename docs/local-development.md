@@ -60,7 +60,12 @@ Use `corepack pnpm` for every command. pnpm is not installed globally.
    ```bash
    corepack pnpm db:push
    corepack pnpm db:seed
+   corepack pnpm db:seed:dev
    ```
+
+   `db:seed` makes one demo shop. `db:seed:dev` makes 24 shops across all 12
+   packs. The accounts and the wipe commands live in
+   [dev-accounts.md](dev-accounts.md).
 
 5. Start the app.
 
@@ -84,6 +89,12 @@ prints neither the email nor the password.
 The seed makes one shop, three catalog items, two customers, two orders, and two
 expenses. It reads the password from the environment, so no secret sits in the
 repository.
+
+### Development accounts
+
+`db:seed:dev` creates 24 additional accounts, one or two for each category pack.
+Every account uses the same local password. The full table, the seeded data, and
+the empty-database flow live in [dev-accounts.md](dev-accounts.md).
 
 ## Try the workspace
 
@@ -113,6 +124,9 @@ still usable.
 | `corepack pnpm build` | Production build |
 | `corepack pnpm db:push` | Apply the schema to the database |
 | `corepack pnpm db:seed` | Reset the demo shop and its data |
+| `corepack pnpm db:seed:dev` | Create or refresh the 24 development shops |
+| `corepack pnpm db:wipe:dev` | Delete every row, for an empty database |
+| `corepack pnpm db:reset:dev` | Wipe, then seed the 24 development shops |
 
 ## Main routes
 
@@ -136,7 +150,26 @@ The totals use `decimal.js`, so a line of `0.5 × 140.00` is `70.00`, not a floa
 
 ## Reset the database
 
-Stop the container and remove its volume:
+To empty every table and keep the schema:
+
+```bash
+corepack pnpm db:wipe:dev
+```
+
+To empty every table and then create the 24 development shops:
+
+```bash
+corepack pnpm db:reset:dev
+```
+
+Both commands refuse to run in production or against a non-local database. The
+accounts and the full test flow live in [dev-accounts.md](dev-accounts.md).
+
+To reset only the demo data, run `corepack pnpm db:seed`. It deletes the
+`anitas-bakes` shop and rebuilds it. To reset only the 24 development shops, run
+`corepack pnpm db:seed:dev`.
+
+To destroy the container itself, stop it and remove its volume:
 
 ```bash
 docker stop startlite-db
@@ -145,9 +178,6 @@ docker volume rm startlite-db-data
 ```
 
 Then repeat steps 3 and 4.
-
-To reset only the demo data, run `corepack pnpm db:seed`. It deletes the
-`anitas-bakes` shop and rebuilds it.
 
 ## Media
 
@@ -160,7 +190,7 @@ Uploaded photos are written to `MEDIA_ROOT`. The default in `.env.local` is
 | Symptom | Fix |
 |---|---|
 | `ECONNREFUSED 5433` | Start the container with `docker start startlite-db` |
-| Login says the account is missing | Run `corepack pnpm db:seed` again |
+| Login says the account is missing | Run `corepack pnpm db:seed` or `corepack pnpm db:seed:dev` again |
 | Port 3000 is busy | Stop the other process, or run `corepack pnpm dev -- -p 3001` |
 | Schema out of date | Run `corepack pnpm db:push` |
 | Build warns about `output: standalone` | Use `corepack pnpm dev`. For a production run, use `node .next/standalone/server.js`. |

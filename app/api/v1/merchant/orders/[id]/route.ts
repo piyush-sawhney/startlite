@@ -58,10 +58,16 @@ export async function PATCH(
     return apiError("CONFLICT", "Log the balance before you mark it paid.");
   }
 
+  const nextStatus =
+    parsed.data.status === "ready" &&
+    dec(order.paidTotal).plus(order.tdsTotal).greaterThanOrEqualTo(order.grandTotal)
+      ? "settled"
+      : parsed.data.status;
+
   await db
     .update(orders)
     .set({
-      status: parsed.data.status,
+      status: nextStatus,
       progressNote:
         parsed.data.progressNote === undefined
           ? order.progressNote
@@ -74,5 +80,5 @@ export async function PATCH(
     })
     .where(eq(orders.id, order.id));
 
-  return apiData({ orderId: order.id, status: parsed.data.status });
+  return apiData({ orderId: order.id, status: nextStatus });
 }

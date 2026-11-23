@@ -501,7 +501,7 @@ stateDiagram-v2
     quote --> open_tab : merchant approves
     quote --> cancelled : buyer declines
     open_tab --> ready : work complete
-    open_tab --> settled : fully paid
+    open_tab --> settled : marked ready and fully paid
     open_tab --> cancelled : cancelled
     ready --> settled : fully paid
     ready --> open_tab : more work added
@@ -514,8 +514,8 @@ Allowed edits:
 | Status | Add items | Adjust | Log payment | Change status |
 |---|---|---|---|---|
 | `quote` | Yes | Yes | Yes | To `open_tab` or `cancelled` |
-| `open_tab` | Yes | Yes | Yes | To `ready`, `settled`, or `cancelled` |
-| `ready` | Yes | Yes | Yes | To `settled` or `open_tab` |
+| `open_tab` | Yes | Yes | Yes | To `ready`, `settled` when marked ready and fully paid, or `cancelled` |
+| `ready` | Yes | Yes | Yes | To `settled` when fully paid, or `open_tab` |
 | `settled` | No | No | No | None |
 | `cancelled` | No | No | No | None |
 
@@ -523,6 +523,13 @@ A `quote` is a request. The owner accepts it at the requested time, accepts a
 different time, or cancels. A changed time is a record of an agreement made
 outside the app: the client is notified, and there is no second confirmation.
 `confirmed_source` says which path was taken.
+
+`settled` means the work is ready and the balance is fully paid. A payment that
+fully pays an `open_tab` does not settle it; it stays open until the owner marks
+the work ready. Marking a fully paid `open_tab` as ready moves it directly to
+`settled`. Marking an unpaid `open_tab` as ready moves it to `ready`; its final
+payment then moves it to `settled`. This keeps readiness and payment distinct
+without a second status field.
 
 ## Pending order lifecycle
 
