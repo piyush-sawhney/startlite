@@ -1491,6 +1491,8 @@ export function guestHomeDashboard(
       id: order.id,
       code: order.code,
       customerName: order.customerName || "Walk-in sale",
+      customerPhone: order.customerPhone || undefined,
+      customerCountryCode: order.customerCountryCode || "+91",
       itemsSummary: getOrderSummary(order),
       total: formatPaise(totals.totalPaise),
       due: formatPaise(totals.duePaise),
@@ -1518,6 +1520,8 @@ export function guestHomeDashboard(
   const customerDues: CustomerDue[] = customers.slice(0, 5).map((c) => ({
     id: c.key,
     name: c.name || c.phone,
+    phone: c.phone || undefined,
+    countryCode: c.countryCode || "+91",
     pending: formatPaise(c.pendingPaise),
     lastPaidDate: c.lastPaidAt ? c.lastPaidAt.slice(0, 10) : null,
   }));

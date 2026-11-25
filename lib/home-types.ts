@@ -34,6 +34,8 @@ export type IncompleteOrder = {
   id: string;
   code: string;
   customerName: string;
+  customerPhone?: string;
+  customerCountryCode?: string;
   itemsSummary: string;
   total: string;
   due: string;
@@ -47,6 +49,8 @@ export type IncompleteOrder = {
 export type CustomerDue = {
   id: string;
   name: string;
+  phone?: string;
+  countryCode?: string;
   pending: string;
   lastPaidDate: string | null;
 };

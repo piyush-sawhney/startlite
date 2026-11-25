@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type {
   HomeDashboardData,
@@ -21,6 +21,7 @@ import { QuickActions } from "./QuickActions";
 import { DayView } from "./DayView";
 import { IncompleteOrders } from "./IncompleteOrders";
 import { OrderDetailsModal, type HomeOrderPreview } from "./OrderDetailsModal";
+import { EditOrderModal } from "./EditOrderModal";
 import { CollectCustomers } from "./CollectCustomers";
 import { AddCustomerModal, type CustomerInput } from "./AddCustomerModal";
 import { AddItemModal, type ItemInput } from "./AddItemModal";
@@ -76,6 +77,7 @@ export function HomeDashboard({
   const [showAddSale, setShowAddSale] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<HomeOrderPreview | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDue | null>(null);
+  const [editOrder, setEditOrder] = useState<IncompleteOrder | null>(null);
 
   // Quick action sheets
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
@@ -93,6 +95,10 @@ export function HomeDashboard({
     actionLabel?: string;
     onAction?: () => void;
   } | null>(null);
+
+  // Pull-to-refresh (signed-in owner only; guest is a no-op per spec)
+  const [refreshing, setRefreshing] = useState(false);
+  const touchStartY = useRef<number | null>(null);
 
   // A guest's dashboard is derived from local state, so re-sync when it changes.
   useEffect(() => {
@@ -121,6 +127,38 @@ export function HomeDashboard({
     }, 5000);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  // Pull-to-refresh handler (owner only; guest is a no-op per spec)
+  const PULL_THRESHOLD = 80;
+
+  function handleTouchStart(e: React.TouchEvent) {
+    if (!isOwner) return;
+    touchStartY.current = e.touches[0].clientY;
+  }
+
+  function handleTouchMove(e: React.TouchEvent) {
+    if (!isOwner || touchStartY.current === null || refreshing) return;
+    const delta = e.touches[0].clientY - touchStartY.current;
+    if (delta > 0) {
+      // Only pull from the top of the page
+      if (window.scrollY > 0) return;
+      e.preventDefault();
+    }
+  }
+
+  async function handleTouchEnd(e: React.TouchEvent) {
+    if (!isOwner || touchStartY.current === null) return;
+    const delta = e.changedTouches[0].clientY - touchStartY.current;
+    touchStartY.current = null;
+    if (delta > PULL_THRESHOLD) {
+      setRefreshing(true);
+      try {
+        await refreshDashboard();
+      } finally {
+        setRefreshing(false);
+      }
+    }
+  }
 
   // Refresh dashboard data
   async function refreshDashboard(targetDay = data.selectedDay) {
@@ -428,8 +466,27 @@ export function HomeDashboard({
 
   const pillState = isOwner ? "owner" : "guest";
 
+  // Next upcoming day that has a pending order, used when today is empty.
+  const nextOrderDay = data.isToday
+    ? data.incompleteOrders.orders
+        .map((o) => o.neededBy)
+        .filter((d) => d >= data.selectedDay)
+        .sort()[0]
+    : undefined;
+
   return (
-    <div className="relative min-h-dvh">
+    <div
+      className="relative min-h-dvh"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      style={{ touchAction: isOwner ? "pan-y" : "auto" }}
+    >
+      {refreshing && isOwner ? (
+        <div className="absolute top-0 left-0 right-0 flex items-center justify-center py-2 text-xs text-ink-muted border-b border-line bg-surface z-50">
+          Refreshing…
+        </div>
+      ) : null}
       {/* Launch Sheet on fresh device */}
       {showLaunchSheet ? (
         <LaunchSheet
@@ -487,6 +544,7 @@ export function HomeDashboard({
             {...data.incompleteOrders}
             onOpenOrder={setSelectedOrder}
             onCollect={setCollectOrder}
+            onEdit={(order) => setEditOrder(order)}
           />
 
           {/* 4. Day view, in flow below 1200 */}
@@ -501,6 +559,7 @@ export function HomeDashboard({
               onSelectOrder={handleOpenOrder}
               onSelectGhost={() => setShowRequestsPanel(true)}
               onNewOrder={handleAddSale}
+              nextOrderDay={nextOrderDay}
             />
           </div>
 
@@ -540,6 +599,7 @@ export function HomeDashboard({
             onSelectOrder={handleOpenOrder}
             onSelectGhost={() => setShowRequestsPanel(true)}
             onNewOrder={handleAddSale}
+            nextOrderDay={nextOrderDay}
           />
         </aside>
       </div>
@@ -654,6 +714,16 @@ export function HomeDashboard({
             customerName: order.customerName,
             due: order.due,
           });
+        }}
+      />
+
+      <EditOrderModal
+        order={editOrder}
+        onClose={() => setEditOrder(null)}
+        onSaved={() => {
+          setEditOrder(null);
+          void refreshDashboard();
+          setToast({ message: "Order updated" });
         }}
       />
 

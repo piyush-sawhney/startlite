@@ -15,6 +15,7 @@ export function DayView({
   onSelectOrder,
   onSelectGhost,
   onNewOrder,
+  nextOrderDay,
 }: {
   selectedDay: string;
   selectedDayLabel?: string;
@@ -26,6 +27,8 @@ export function DayView({
   onSelectOrder?: (id: string) => void;
   onSelectGhost?: (id: string) => void;
   onNewOrder?: () => void;
+  /** When today has no commitments, the nearest upcoming day that has one. */
+  nextOrderDay?: string;
 }) {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -48,6 +51,7 @@ export function DayView({
   }
 
   const hasOrders = anyTime.length > 0 || timeline.length > 0 || ghosts.length > 0;
+  const showNextOrder = isToday && !hasOrders && Boolean(nextOrderDay);
 
   return (
     <Card className="p-4">
@@ -129,14 +133,35 @@ export function DayView({
       >
         {!hasOrders ? (
           <div className="py-8 text-center">
-            <p className="text-sm text-ink-muted">Nothing for this day.</p>
-            <button
-              type="button"
-              onClick={onNewOrder}
-              className="mt-2 text-sm font-semibold text-accent hover:underline"
-            >
-              Add sale
-            </button>
+            {showNextOrder && nextOrderDay ? (
+              <>
+                <p className="text-sm text-ink-muted">
+                  Nothing for today. Next order{" "}
+                  <span className="font-medium text-ink">
+                    {relativeDayLabel(nextOrderDay)}
+                  </span>
+                  .
+                </p>
+                <button
+                  type="button"
+                  onClick={() => onSelectDay(nextOrderDay)}
+                  className="mt-2 text-sm font-semibold text-accent hover:underline"
+                >
+                  Go to {relativeDayLabel(nextOrderDay)}
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-ink-muted">Nothing for this day.</p>
+                <button
+                  type="button"
+                  onClick={onNewOrder}
+                  className="mt-2 text-sm font-semibold text-accent hover:underline"
+                >
+                  Add sale
+                </button>
+              </>
+            )}
           </div>
         ) : (
           <div className="mt-3 space-y-3">

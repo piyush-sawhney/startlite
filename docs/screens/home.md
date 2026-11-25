@@ -221,7 +221,7 @@ outlined with contextual icons (`UserPlus`, `PackagePlus`, `ArrowUpRight`).
 **Add sale** opens a full-screen overlay on mobile and a roomy dialog or side
 panel on desktop. Back or Escape closes it and returns to the unchanged Home.
 
-### 4. Incomplete orders
+### 4. Pending orders
 
 This is a cross-day work queue. It does not change when the selected calendar
 day changes.
@@ -237,16 +237,21 @@ day changes.
   earliest first. Use the confirmed date and slot for accepted orders, and the
   requested date and time for quotes. Orders without a slot follow, oldest
   placed first.
+- Orders past their needed date show an **Overdue** badge.
 - The header shows the count to finish, count ready to collect, and sum of
   unpaid balances.
-- Each row shows customer, first item plus `+N`, order total or amount due,
-  placed date, needed date and time (or `Any time`), and status.
+- Each row shows needed date and time (most prominent), first item plus `+N`,
+  order total or amount due, customer name, placed date, and status.
 - **Review** opens a quote in the order-details overlay. **Mark ready** opens
   order details with the ready action. **Collect** opens the payment overlay
   with the full balance prefilled. Tapping the row also opens order details.
+- Rows with a customer phone show **WhatsApp**, **SMS**, and **Call** icons for
+  quick contact.
+- An **Edit** icon on each row opens an edit sheet to change customer details,
+  needed-by date/time, items, quantities, prices, discount, and notes.
 - Marking work ready moves an unpaid order to **Ready to collect**. A fully paid
   order stays under **To finish** until marked ready, then leaves the queue.
-- When both groups are empty, show `No incomplete orders.` and `Add sale`.
+- When both groups are empty, show `No pending orders.` and `Add sale`.
 
 All Home actions use one overlay at a time. Opening another action replaces the
 current overlay rather than stacking dialogs. Mobile uses bottom or full-screen
@@ -332,8 +337,10 @@ Rules:
 
 - Top 5 customers by pending amount, highest first.
 - Row: name, pending amount, `last {date}`, chevron.
-- Tap opens the customer-details overlay. The Customers tab remains available
-  for full customer management.
+- Rows with a customer phone show **WhatsApp**, **SMS**, and **Call** icons for
+  quick payment reminders.
+- Tap the row to open the customer-details overlay. The Customers tab remains
+  available for full customer management.
 - Empty: `No dues.`
 - Hidden for a shop with no customers.
 
@@ -659,11 +666,14 @@ The skeleton uses the final heights, so nothing shifts when data arrives.
 | Day action | `Go to today` |
 | Day empty | `Nothing for this day.` |
 | Any time | `Any time` |
-| Queue header | `Incomplete orders` |
+| Queue header | `Pending orders` |
 | Queue groups | `To finish`, `Ready to collect` |
-| Queue empty | `No incomplete orders.` |
+| Queue empty | `No pending orders.` |
 | Queue row dates | `Placed {date}` and `Needed {date · time}` or `Any time` |
 | Queue actions | `Review`, `Mark ready`, `Collect`, `Order details` |
+| Queue contact actions | `WhatsApp`, `SMS`, `Call` (when customer phone exists) |
+| Queue badge | `Overdue` (when needed date has passed) |
+| Queue edit action | `Edit` (opens edit sheet for customer, dates, items, discount) |
 | Logo action | `Shop logo` |
 | Logo upload actions | `Upload logo`, `Change logo`, `Remove logo` |
 | Customers empty | `No dues.` |
@@ -714,29 +724,49 @@ The skeleton uses the final heights, so nothing shifts when data arrives.
 
 1. Does the week start on Monday in every locale? Current answer: yes, IST.
 2. Should the day view default to the next order when today is empty? Current
-   answer: no, today stays today.
+   answer: yes, show the nearest upcoming day with an order.
 3. Should **Mark ready** require a second confirmation? Current answer: no. It
    opens order details, where the owner confirms the action.
 4. Should an empty incomplete-order queue stay visible? Current answer: yes.
-   Keep one queue card with `No incomplete orders.` and `Add sale`.
+   Keep one queue card with `No pending orders.` and `Add sale`.
 
 ## TODO
 
-1. Incomplete order text to be changed to Pending Orders. 
+1. ~~Incomplete order text to be changed to Pending Orders.~~ Done — section
+   renamed to "Pending orders" throughout code and docs.
 
-2. The Orders in the Order Card List -> Prioritisation of the info shown. This app is being built for microwners, who probably get customers feom insta, referral etc. customer name is not as important as the order, delivery dates etc. So reformat the info within each order. Where message to the merchant is more important than customer name, needed by is more importamt than placed on, so on. So rethink and give me a plan on to make this order card more helpful and meaning full. 
+2. ~~The Orders in the Order Card List -> Prioritisation of the info shown.~~
+   Done — order card now leads with needed-by date/time, then items, then
+   customer name. Overdue badge added for past-due orders.
 
-3. Adding actions on the order item in order card list. A merchant might want to talk to the client,  or chat over WhatsApp, so add these interactive icons on the order itself. Also order  action buttons should be comprehensive, like mark complete (plus inform client), collect payment, etc. Give me a plan on this. 
+3. ~~Adding actions on the order item in order card list.~~ Done — WhatsApp,
+   SMS, and Call icons added to each order row (when customer phone exists) and
+   to each customer dues row. Message is prefilled with order details and due
+   amount.
+
+4. The idea is home screen is the primary action page of the app. so it should
+   be built like that . the other pages will be primarily report pages for
+   sales, customers or item and secondary for actions. So from home screen or
+   through the modals that open in home scree a merchant should ideally be able
+   to take all action.
 
 
-4. The idea is home screen is the primary action page of the app. so it should be built like that . the other pages will be primarily report pages for sales, customers or item and secondary for actions. So from home screen or through the modals that open in home scree a merchant should ideally be able to take all action. 
+5. improve the modals. Like add sale should have by default searchable items to
+   add, if item not present ability to add item (similar to add item modal),
+   chose from customer or add customer (similar to add customer). This should be
+   the most comprehensive modal.
 
+6. There should be a way to edit orders by the merchant, for example he should
+   be able to change needed by, quantity, add items to the order, apply
+   discounts etc ,.The idea is that all the coveraation that has happened
+   outside the app, there should be a way for merchant to edit. we should not
+   take order changes again and again from storefront user. give me a plan on
+   that.
 
-5. improve the modals. Like add sale should have by default searchable items to add, if item not present ability to add item (similar to add item modal), chose from customer or add customer (similar to add customer). This should be the most comprehensive modal. 
-
-6. There should be a way to edit orders by the merchant, for example he should be able to change needed by, quantity, add items to the order, apply discounts etc ,.The idea is that all the coveraation that has happened outside the app, there should be a way for merchant to edit. we should not take order changes again and again from storefront user. give me a plan on that. 
-
-7. Statuses -> Under Review, Waiting for Client Confirm, Accepted, Declined, Pending Payment, Completed (For which order is also done and payment is also received), give me more suggestions, for each business type and how can we make these generic. 
+7. Statuses -> Under Review, Waiting for Client Confirm, Accepted, Declined,
+   Pending Payment, Completed (For which order is also done and payment is also
+   received), give me more suggestions, for each business type and how can we
+   make these generic. 
 
 8. Day view should show all orders of the day irrespective of the status. Srollable list with a item view of 5 in mobile and height in desktop. 
 

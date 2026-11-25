@@ -764,6 +764,8 @@ export async function getHomeDashboard(
       id: order.id,
       code: order.orderCode,
       customerName: order.customerName || "Walk-in sale",
+      customerPhone: order.customerPhone || undefined,
+      customerCountryCode: "+91",
       itemsSummary: getOrderSummary(order.id),
       total: formatAmount(order.grandTotal),
       due: formatAmount(due),
@@ -812,6 +814,8 @@ export async function getHomeDashboard(
       customerDues.push({
         id: c.id,
         name: c.name,
+        phone: c.phone || undefined,
+        countryCode: "+91",
         pending: formatAmount(entry.due),
         lastPaidDate: c.lastPaidAt ? istDateString(c.lastPaidAt) : null,
       });
