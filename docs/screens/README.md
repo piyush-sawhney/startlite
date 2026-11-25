@@ -83,9 +83,9 @@ From 768 px the same six items become a left rail. The rail ends with the
 
 ### Header
 
-56 px on mobile, 64 px on desktop. Sticky. It holds the shop logo or initial,
-the shop name, and the state pill. The handle appears from 768 px. There is no
-search and no gear; Settings is a tab.
+56 px on mobile, 64 px on desktop. Sticky. It holds the shop logo or initial
+(round, 40 px), the shop name, and the state pill. The handle appears from
+768 px. There is no search and no gear; Settings is a tab.
 
 ### State pill
 

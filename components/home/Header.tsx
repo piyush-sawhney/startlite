@@ -36,7 +36,7 @@ export function HomeHeader({
             onClick={onEditLogo}
             aria-label="Edit shop logo"
             title="Edit shop logo"
-            className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-accent-soft text-base font-bold text-accent-strong shadow-[0_1px_2px_rgb(20_18_15/0.06)]"
+            className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-accent-soft text-base font-bold text-accent-strong shadow-[0_1px_2px_rgb(20_18_15/0.06)]"
           >
             {logoUrl ? (
               <img src={logoUrl} alt="" className="h-full w-full object-cover" />
@@ -46,7 +46,7 @@ export function HomeHeader({
           </button>
         ) : (
           <div
-            className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-accent-soft text-base font-bold text-accent-strong shadow-[0_1px_2px_rgb(20_18_15/0.06)]"
+            className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-accent-soft text-base font-bold text-accent-strong shadow-[0_1px_2px_rgb(20_18_15/0.06)]"
             aria-hidden="true"
           >
             {logoUrl ? (

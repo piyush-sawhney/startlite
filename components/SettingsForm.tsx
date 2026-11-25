@@ -80,10 +80,10 @@ export function SettingsForm({ initial }: { initial: Settings }) {
             <img
               src={form.shopLogoUrl}
               alt="Shop logo"
-              className="h-12 w-12 rounded-xl border border-line object-cover"
+              className="h-12 w-12 rounded-full border border-line object-cover"
             />
           ) : (
-            <div className="grid h-12 w-12 place-items-center rounded-xl bg-accent-soft text-lg font-bold text-accent-strong">
+            <div className="grid h-12 w-12 place-items-center rounded-full bg-accent-soft text-lg font-bold text-accent-strong">
               {form.businessName.trim().charAt(0).toUpperCase() || "S"}
             </div>
           )}

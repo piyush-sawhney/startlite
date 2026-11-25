@@ -18,7 +18,7 @@ export function SessionExpired({
       {/* Header with expired pill */}
       <div className="flex h-14 items-center justify-between border-b border-line pb-3">
         <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-accent-soft text-base font-bold text-accent-strong">
+          <div className="grid h-10 w-10 place-items-center rounded-full bg-accent-soft text-base font-bold text-accent-strong">
             {initial}
           </div>
           <p className="truncate text-base font-semibold text-ink">

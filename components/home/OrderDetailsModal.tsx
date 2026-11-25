@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import { formatNeededBy } from "@/lib/bill";
 import { istDateString } from "@/lib/date";
 import type { DayOrderItem, IncompleteOrder } from "@/lib/home-types";
@@ -18,19 +20,37 @@ export function OrderDetailsModal({
   onAccept,
   onMarkReady,
   onCollect,
+  onReopen,
+  onCancelOrder,
+  billHref,
 }: {
   order: HomeOrderPreview | IncompleteOrder | null;
   onClose: () => void;
   onAccept: (orderId: string) => void;
   onMarkReady: (orderId: string) => void;
   onCollect: (orderId: string) => void;
+  onReopen?: (orderId: string) => void;
+  onCancelOrder?: (orderId: string) => void;
+  billHref?: string;
 }) {
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
+
+  // Reset the confirm state whenever a different order opens.
+  useEffect(() => {
+    setConfirmingCancel(false);
+  }, [order?.id]);
+
   if (!order) return null;
 
   const placed = order.createdAt
     ? formatNeededBy(istDateString(new Date(order.createdAt)))
     : null;
   const needed = formatNeededBy(order.neededBy);
+
+  function resetAndClose() {
+    setConfirmingCancel(false);
+    onClose();
+  }
 
   return (
     <div
@@ -104,12 +124,68 @@ export function OrderDetailsModal({
           ) : null}
           <button
             type="button"
-            onClick={onClose}
+            onClick={resetAndClose}
             className={quietButton("min-h-11 flex-1")}
           >
             Close
           </button>
         </div>
+
+        {/* Secondary order actions */}
+        {onReopen || onCancelOrder || billHref ? (
+          <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
+            {billHref ? (
+              <Link
+                href={billHref}
+                className={quietButton("min-h-11 flex-1")}
+              >
+                Send bill
+              </Link>
+            ) : null}
+            {onReopen && order.status === "ready" ? (
+              <button
+                type="button"
+                onClick={() => onReopen(order.id)}
+                className={quietButton("min-h-11 flex-1")}
+              >
+                Reopen
+              </button>
+            ) : null}
+            {onCancelOrder && !confirmingCancel ? (
+              <button
+                type="button"
+                onClick={() => setConfirmingCancel(true)}
+                className={quietButton("min-h-11 flex-1 text-danger hover:bg-danger/10")}
+              >
+                Cancel order
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {confirmingCancel && onCancelOrder ? (
+          <div className="mt-3 rounded-xl border border-danger/30 bg-danger/5 p-3">
+            <p className="text-sm text-ink">
+              Cancel this order? Past bills keep their records.
+            </p>
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                onClick={() => onCancelOrder(order.id)}
+                className={quietButton("flex-1 text-danger hover:bg-danger/10")}
+              >
+                Cancel order
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmingCancel(false)}
+                className={quietButton("flex-1")}
+              >
+                Keep
+              </button>
+            </div>
+          </div>
+        ) : null}
       </section>
     </div>
   );

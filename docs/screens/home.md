@@ -165,8 +165,8 @@ Zones appear in this order on every width.
 
 ### 1. Header
 
-- Shop logo 40 px, rounded 12 px. Falls back to the first letter of the shop
-  name on `accent-soft`.
+- Shop logo 40 px, round (a circle). Falls back to the first letter of the shop
+  name on `accent-soft`, in the same round shape.
 - A signed-in owner can tap the logo to open **Shop logo**, then upload, replace,
   or remove it. Settings offers the same controls. Guests see the initial and
   cannot upload a logo.
@@ -260,6 +260,31 @@ day changes.
 All Home actions use one overlay at a time. Opening another action replaces the
 current overlay rather than stacking dialogs. Mobile uses bottom or full-screen
 sheets; desktop uses a dialog or side panel. Tab navigation remains navigation.
+
+### Home is the primary action page
+
+Home, or the overlays that open from it, must let the merchant take every
+daily action. The other tabs are primarily reports: Sales, Customers, and Items
+list and manage records; they are secondary for actions.
+
+Audit of every action and where it lives:
+
+| Action | Where |
+|---|---|
+| Add sale, customer, item, expense | Home quick actions |
+| Review, accept, mark ready, collect payment | Home order details overlay |
+| Cancel order, reopen a ready order | Home order details overlay |
+| Send bill | Home order details overlay → bill page |
+| WhatsApp, SMS, call a customer | Home order rows and customer dues rows |
+| Edit an order | Home edit sheet |
+| Share the storefront | Home header |
+| Rename the shop, change the logo | Home header |
+| Add previous due (opening due) | Customers tab, a rare setup step |
+| Edit or retire a catalog item | Items tab, a management step |
+| Store settings, language, store link | Settings tab |
+
+Opening the bill page from Home is the one navigation away from Home. Back
+returns to the unchanged Home.
 
 ### 5. Day view
 
@@ -620,6 +645,9 @@ same labels and the same order. No shape changes between adapters.
 | Tap an order row | Order-details overlay |
 | Tap **Review** | Order opens in order-details overlay |
 | Tap **Mark ready** | Order-details overlay opens with the ready action |
+| Tap **Reopen**, order ready | Order moves back to `accepted` |
+| Tap **Cancel order** | Confirm, then the order closes as `cancelled` |
+| Tap **Send bill** | Opens the bill page for that order |
 | Tap a ghost card or Review in the request bar | Requests overlay |
 | Tap **Collect** | Payment overlay, due prefilled |
 | Tap **Add sale** | Full-screen overlay on mobile; dialog or side panel on desktop |
@@ -800,11 +828,10 @@ The skeleton uses the final heights, so nothing shifts when data arrives.
    to each customer dues row. Message is prefilled with order details and due
    amount.
 
-4. The idea is home screen is the primary action page of the app. so it should
-   be built like that . the other pages will be primarily report pages for
-   sales, customers or item and secondary for actions. So from home screen or
-   through the modals that open in home scree a merchant should ideally be able
-   to take all action.
+4. ~~The idea is home screen is the primary action page of the app.~~ Done —
+   audited every action; the order actions (cancel, reopen, send bill) now live
+   in the Home order-details overlay. The audit table is in the zones section.
+   Rare setup and management steps stay on their tabs.
 
 
 5. ~~improve the modals. Like add sale should have by default searchable items
@@ -834,7 +861,10 @@ The skeleton uses the final heights, so nothing shifts when data arrives.
    the selected day. Mobile caps at 5 visible items; desktop uses a fixed
    height with internal scroll. 
 
-9. Way to update logo for the merchant in signed in state, round or reactangle logo, need discussion. 
+9. ~~Way to update logo for the merchant in signed in state, round or rectangle
+   logo, need discussion.~~ Done — the logo is round everywhere: Home header,
+   the Shop logo sheet preview, and the Settings preview. The uploaded image is
+   cropped to a circle; the initial fallback uses the same shape.
 
 10. ~~A permanent way that remains on the screen always, either in menu or
     similar to review notification, a way to quickly share the storefront.~~

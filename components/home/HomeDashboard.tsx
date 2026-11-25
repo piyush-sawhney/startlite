@@ -61,7 +61,7 @@ export function HomeDashboard({
     mode: string,
     note?: string,
   ) => Promise<void>;
-  onGuestStatusChange?: (orderId: string, status: "ready" | "accepted") => void;
+  onGuestStatusChange?: (orderId: string, status: "ready" | "accepted" | "cancelled") => void;
   onGuestAddCustomer?: (data: CustomerInput) => void;
   onGuestAddItem?: (data: ItemInput) => void;
   onGuestAddExpense?: (data: ExpenseInput) => void;
@@ -360,6 +360,62 @@ export function HomeDashboard({
     }
     setSelectedOrder(null);
     setToast({ message: "Order accepted" });
+  }
+
+  // Reopen a ready order back to accepted (more work was added).
+  async function handleReopenOrder(orderId: string) {
+    if (isOwner) {
+      try {
+        const response = await fetch(`/api/v1/merchant/orders/${orderId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "accepted" }),
+        });
+        if (!response.ok) {
+          const body = await response.json().catch(() => null);
+          throw new Error(body?.error?.message ?? "Could not reopen the order.");
+        }
+        await refreshDashboard();
+      } catch (error) {
+        setToast({
+          message:
+            error instanceof Error ? error.message : "Could not reopen the order.",
+        });
+        return;
+      }
+    } else {
+      onGuestStatusChange?.(orderId, "accepted");
+    }
+    setSelectedOrder(null);
+    setToast({ message: "Order reopened" });
+  }
+
+  // Cancel an order. Past bills keep their records.
+  async function handleCancelOrder(orderId: string) {
+    if (isOwner) {
+      try {
+        const response = await fetch(`/api/v1/merchant/orders/${orderId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "cancelled" }),
+        });
+        if (!response.ok) {
+          const body = await response.json().catch(() => null);
+          throw new Error(body?.error?.message ?? "Could not cancel the order.");
+        }
+        await refreshDashboard();
+      } catch (error) {
+        setToast({
+          message:
+            error instanceof Error ? error.message : "Could not cancel the order.",
+        });
+        return;
+      }
+    } else {
+      onGuestStatusChange?.(orderId, "cancelled");
+    }
+    setSelectedOrder(null);
+    setToast({ message: "Order cancelled" });
   }
 
   async function handleAcceptRequest(code: string) {
@@ -783,6 +839,13 @@ export function HomeDashboard({
           setSelectedOrder(null);
           void handleCompleteOrder({ id });
         }}
+        onReopen={isOwner ? handleReopenOrder : undefined}
+        onCancelOrder={isOwner ? handleCancelOrder : undefined}
+        billHref={
+          isOwner && selectedOrder
+            ? `/app/sales/${selectedOrder.id}/bill`
+            : undefined
+        }
         onCollect={() => {
           if (!selectedOrder) return;
           const order = selectedOrder;

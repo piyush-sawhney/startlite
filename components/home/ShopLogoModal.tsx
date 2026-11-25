@@ -87,7 +87,7 @@ export function ShopLogoModal({
           <img
             src={logoUrl}
             alt="Current shop logo"
-            className="mx-auto my-5 h-24 w-24 rounded-2xl border border-line object-cover"
+            className="mx-auto my-5 h-24 w-24 rounded-full border border-line object-cover"
           />
         ) : (
           <p className="my-5 rounded-xl bg-muted p-4 text-center text-sm text-ink-muted">
