@@ -119,8 +119,10 @@ export function DayView({
         </div>
       </div>
 
-      {/* Content */}
+      {/* Content — scrollable commitment list, capped at 5 items on mobile
+          and a fixed height on desktop so the right column stays pinned. */}
       <div
+        className="max-h-[260px] overflow-y-auto overscroll-contain lg:max-h-[340px]"
         onTouchStart={(event) => setTouchStartX(event.touches[0].clientX)}
         onTouchEnd={(event) => {
           if (touchStartX === null) return;

@@ -8,6 +8,7 @@ import type {
   CustomerDue,
 } from "@/lib/home-types";
 import type { PublicItem } from "@/lib/queries";
+import { istDateString } from "@/lib/date";
 import { NewSaleForm } from "@/components/NewSaleForm";
 import { HomeHeader } from "./Header";
 import {
@@ -127,6 +128,83 @@ export function HomeDashboard({
     }, 5000);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  // Keyboard shortcuts (desktop)
+  useEffect(() => {
+    if (!isOwner) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      // Don't capture when typing in an input
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT"
+      ) {
+        return;
+      }
+
+      if (e.key === "Escape") {
+        // Close the active overlay
+        if (showAddSale) { setShowAddSale(false); return; }
+        if (showAddCustomerModal) { setShowAddCustomerModal(false); return; }
+        if (showAddItemModal) { setShowAddItemModal(false); return; }
+        if (showAddExpenseModal) { setShowAddExpenseModal(false); return; }
+        if (selectedOrder) { setSelectedOrder(null); return; }
+        if (editOrder) { setEditOrder(null); return; }
+        if (selectedCustomer) { setSelectedCustomer(null); return; }
+        if (collectOrder) { setCollectOrder(null); return; }
+        if (showRequestsPanel) { setShowRequestsPanel(false); return; }
+        if (showSaveSheet) { setShowSaveSheet(false); return; }
+        if (showEditName) { setShowEditName(false); return; }
+        if (showEditLogo) { setShowEditLogo(false); return; }
+        return;
+      }
+
+      if (e.key === "t" || e.key === "T") {
+        handleSelectDay(istDateString());
+        return;
+      }
+
+      if (e.key === "n" || e.key === "N") {
+        handleAddSale();
+        return;
+      }
+
+      // 1-6 switch tabs
+      if (e.key >= "1" && e.key <= "6") {
+        const tabIndex = parseInt(e.key) - 1;
+        const tabRoutes = [
+          "/app",
+          "/app/sales",
+          "/app/customers",
+          "/app/catalog",
+          "/app/more/expenses",
+          "/app/more/settings",
+        ];
+        if (tabRoutes[tabIndex]) {
+          router.push(tabRoutes[tabIndex]);
+        }
+        return;
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    isOwner,
+    showAddSale,
+    showAddCustomerModal,
+    showAddItemModal,
+    showAddExpenseModal,
+    selectedOrder,
+    editOrder,
+    selectedCustomer,
+    collectOrder,
+    showRequestsPanel,
+    showSaveSheet,
+    showEditName,
+    showEditLogo,
+  ]);
 
   // Pull-to-refresh handler (owner only; guest is a no-op per spec)
   const PULL_THRESHOLD = 80;

@@ -287,21 +287,28 @@ share a word.
   accessible alternative.
 - `T` returns to today.
 
-**Any time.** Orders with no confirmed time (`confirmed_from IS NULL`) sit in a
-compact row above the timeline. This covers `none` and `date` precision.
+**Commitments.** Every order for the selected day, regardless of status, in one
+scrollable list. Grouped by time: **Any time** first (orders with no confirmed
+time), then **morning**, **afternoon**, **evening** (or a flat timeline by
+`confirmed_from` when time slots are enabled). Each card shows the time,
+customer, first item plus `+N`, total, due, and a status pill. Dashed ghost
+cards for storefront requests sit among them at their requested time.
 
-**Timeline.** Confirmed orders as solid cards, sorted by `confirmed_from`. Each
-card shows the time, customer, first item plus `+N`, total, due, and a status
-pill.
+**Scrollable.** The list scrolls inside its container. Mobile shows 5 items at
+a time before scrolling. Desktop uses a fixed height with internal scroll so
+the right column stays pinned.
 
 **Requests.** Storefront requests as dashed ghost cards at their requested time.
 A ghost card is not an order. Tapping it opens the Requests overlay, not the
 order-details overlay.
 
-**Empty day.** `Nothing for this day.` plus a text button `Add sale`.
+**Empty day.** `Nothing for this day.` plus a text button `Add sale`. When
+today is empty, the day view also shows the nearest upcoming day with an order
+and a `Go to {date}` button.
 
-**Caps.** No cap. The day is short by nature. The section scrolls with the page
-on mobile and inside the right column on desktop.
+**Caps.** No cap on total orders, but the visible viewport is capped at 5
+items on mobile and a fixed height on desktop. The section scrolls within its
+container; it never grows the page.
 
 ### 6. Metrics
 
@@ -590,6 +597,7 @@ Keyboard, desktop:
 - `Enter` on a row opens it.
 - `1` to `6` switch tabs.
 - `T` returns to today. `N` opens Add sale.
+- `Escape` closes the active overlay.
 
 Back:
 
@@ -756,19 +764,21 @@ The skeleton uses the final heights, so nothing shifts when data arrives.
    chose from customer or add customer (similar to add customer). This should be
    the most comprehensive modal.
 
-6. There should be a way to edit orders by the merchant, for example he should
-   be able to change needed by, quantity, add items to the order, apply
-   discounts etc ,.The idea is that all the coveraation that has happened
-   outside the app, there should be a way for merchant to edit. we should not
-   take order changes again and again from storefront user. give me a plan on
-   that.
+6. ~~There should be a way to edit orders by the merchant.~~ Done — edit sheet
+   added to Home with customer details, needed-by date/time, items
+   (add/remove/edit), discount, and notes. PATCH API extended to support all
+   fields. Keyboard shortcuts (T = today, N = add sale, 1-6 = tabs, Escape =
+   close overlay) added for desktop.
 
 7. Statuses -> Under Review, Waiting for Client Confirm, Accepted, Declined,
    Pending Payment, Completed (For which order is also done and payment is also
    received), give me more suggestions, for each business type and how can we
    make these generic. 
 
-8. Day view should show all orders of the day irrespective of the status. Srollable list with a item view of 5 in mobile and height in desktop. 
+8. ~~Day view should show all orders of the day irrespective of the status.~~
+   Done — day view is now a scrollable commitment list showing all orders for
+   the selected day. Mobile caps at 5 visible items; desktop uses a fixed
+   height with internal scroll. 
 
 9. Way to update logo for the merchant in signed in state, round or reactangle logo, need discussion. 
 
