@@ -29,6 +29,7 @@ import type {
   DayOrderItem,
   HomeDashboardData,
   IncompleteOrder,
+  OrderLinePreview,
   HomeKpi,
   PendingRequestItem,
 } from "./home-types";
@@ -56,6 +57,7 @@ export type PublicItem = {
     priceDelta: string;
     isMultiSelect: boolean;
     optionId: string | null;
+    groupLabel: string;
     isAvailable: boolean;
   }>;
 };
@@ -123,24 +125,44 @@ export async function getPublicItems(
     isAvailable: item.isAvailable,
     imageKey: item.imageKey,
     customerPrompt: item.customerPrompt,
+    // Primary option group holds absolute prices. Every other option group is
+    // a priced add-on; scoped extras (sub-variants) keep their parent option.
     options: options
-      .filter((option) => option.itemId === item.id)
+      .filter((option) => option.itemId === item.id && option.groupLabel === "Option")
       .map((option) => ({
         id: option.id,
         name: option.name,
         price: option.price,
         isAvailable: option.isAvailable,
       })),
-    extras: extras
-      .filter((extra) => extra.itemId === item.id)
-      .map((extra) => ({
-        id: extra.id,
-        name: extra.name,
-        priceDelta: extra.priceDelta,
-        isMultiSelect: extra.isMultiSelect,
-        optionId: extra.parentOptionId,
-        isAvailable: extra.isAvailable,
-      })),
+    extras: [
+      ...extras
+        .filter((extra) => extra.itemId === item.id)
+        .map((extra) => ({
+          id: extra.id,
+          name: extra.name,
+          priceDelta: extra.priceDelta,
+          isMultiSelect: extra.isMultiSelect,
+          optionId: extra.parentOptionId,
+          groupLabel: extra.groupLabel,
+          isAvailable: extra.isAvailable,
+          sortOrder: extra.sortOrder,
+        })),
+      ...options
+        .filter((option) => option.itemId === item.id && option.groupLabel !== "Option")
+        .map((option) => ({
+          id: option.id,
+          name: option.name,
+          priceDelta: option.price,
+          isMultiSelect: true,
+          optionId: null,
+          groupLabel: option.groupLabel,
+          isAvailable: option.isAvailable,
+          sortOrder: option.sortOrder,
+        })),
+    ]
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map(({ sortOrder: _sortOrder, ...extra }) => extra),
   }));
 }
 
@@ -492,6 +514,7 @@ export async function getHomeDashboard(
     pendingRows,
     customerRows,
     itemsList,
+    optionRows,
     logoRows,
   ] = await Promise.all([
     db
@@ -547,10 +570,26 @@ export async function getHomeDashboard(
     db
       .select({
         orderId: orderItems.orderId,
-        name: orderItems.itemNameSnapshot,
+        catalogItemId: orderItems.catalogItemId,
+        itemName: orderItems.itemNameSnapshot,
+        quantity: orderItems.quantity,
+        unitPrice: orderItems.unitPrice,
+        unitLabel: orderItems.unitLabelSnapshot,
+        optionName: orderItems.optionSnapshot,
+        extraNames: orderItems.extrasSnapshot,
+        lineTotal: orderItems.lineTotal,
+        note: orderItems.customerNote,
       })
       .from(orderItems)
       .where(eq(orderItems.businessId, businessId)),
+    db
+      .select({
+        itemId: itemOptions.itemId,
+        name: itemOptions.name,
+        price: itemOptions.price,
+      })
+      .from(itemOptions)
+      .where(eq(itemOptions.businessId, businessId)),
     db
       .select({ objectKey: media.objectKey })
       .from(media)
@@ -559,16 +598,38 @@ export async function getHomeDashboard(
       .limit(1),
   ]);
 
-  // Map order item names
-  const itemsByOrder = new Map<string, string[]>();
+  // Full line previews, so the order sheet can show numbered items with
+  // quantity, rate and amount instead of a flat name string.
+  const optionPrices = new Map(
+    optionRows.map((option) => [`${option.itemId}:${option.name}`, option.price]),
+  );
+  const itemsByOrder = new Map<string, OrderLinePreview[]>();
   for (const item of itemsList) {
     const list = itemsByOrder.get(item.orderId) ?? [];
-    list.push(item.name);
+    const optionPrice = item.catalogItemId
+      ? optionPrices.get(`${item.catalogItemId}:${item.optionName ?? ""}`)
+      : undefined;
+    list.push({
+      itemName: item.itemName,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      unitLabel: item.unitLabel ?? undefined,
+      optionName: item.optionName,
+      optionPrice,
+      extraNames: item.extraNames?.map((extra) => extra.name) ?? [],
+      extras: item.extraNames ?? [],
+      lineTotal: item.lineTotal,
+      note: item.note,
+    });
     itemsByOrder.set(item.orderId, list);
   }
 
+  function getOrderLines(orderId: string): OrderLinePreview[] {
+    return itemsByOrder.get(orderId) ?? [];
+  }
+
   function getOrderSummary(orderId: string): string {
-    return orderSummary(itemsByOrder.get(orderId) ?? []);
+    return orderSummary(getOrderLines(orderId).map((line) => line.itemName));
   }
 
   // 1. KPIs
@@ -721,6 +782,9 @@ export async function getHomeDashboard(
       timeSlot: order.timeSlot,
       neededBy: order.neededBy,
       note: order.deliveryNote,
+      customerPhone: order.customerPhone || undefined,
+      customerCountryCode: "+91",
+      lines: getOrderLines(order.id),
       isGhost: false,
     };
 
@@ -777,6 +841,7 @@ export async function getHomeDashboard(
       timeSlot: order.timeSlot,
       createdAt: order.createdAt.toISOString(),
       note: order.deliveryNote,
+      lines: getOrderLines(order.id),
     }];
   });
   const incompleteSummary = summarizeIncompleteOrders(incompleteOrderRows);

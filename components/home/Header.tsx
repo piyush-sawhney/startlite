@@ -28,7 +28,7 @@ export function HomeHeader({
   const showPower = pillState === "guest" || pillState === "expired";
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b border-line bg-white/95 px-4 py-2 backdrop-blur-md lg:px-8">
+    <header className="sticky top-0 z-20 flex h-13 items-center justify-between gap-1 border-b border-line bg-white/95 px-3 py-1.5 backdrop-blur-md sm:h-14 sm:gap-2 sm:px-4 sm:py-2 lg:px-8">
       <div className="flex min-w-0 items-center gap-2">
         {onEditLogo ? (
           <button
@@ -36,7 +36,7 @@ export function HomeHeader({
             onClick={onEditLogo}
             aria-label="Edit shop logo"
             title="Edit shop logo"
-            className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-accent-soft text-base font-bold text-accent-strong ring-1 ring-accent/25 shadow-[0_1px_2px_rgb(20_18_15/0.06)]"
+            className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-accent-soft text-sm font-bold text-accent-strong ring-1 ring-accent/25 shadow-[0_1px_2px_rgb(20_18_15/0.06)] sm:h-10 sm:w-10 sm:text-base"
           >
             {logoUrl ? (
               <img src={logoUrl} alt="" className="h-full w-full object-cover" />
@@ -46,7 +46,7 @@ export function HomeHeader({
           </button>
         ) : (
           <div
-            className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-accent-soft text-base font-bold text-accent-strong ring-1 ring-accent/25 shadow-[0_1px_2px_rgb(20_18_15/0.06)]"
+            className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-accent-soft text-sm font-bold text-accent-strong ring-1 ring-accent/25 shadow-[0_1px_2px_rgb(20_18_15/0.06)] sm:h-10 sm:w-10 sm:text-base"
             aria-hidden="true"
           >
             {logoUrl ? (
@@ -59,7 +59,7 @@ export function HomeHeader({
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-0.5">
             <h1
-              className="truncate text-base font-semibold leading-5 text-ink"
+              className="truncate text-sm font-bold leading-5 text-ink sm:text-base"
               title={shopName}
             >
               {shopName}

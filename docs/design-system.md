@@ -102,6 +102,11 @@ Rules:
 - Use the shared scale (`text-caption`, `text-small`, `text-body`, `text-title`)
   instead of ad-hoc pixel sizes. This keeps baselines aligned across screens.
 - Prefer 12 px over 10 px for captions. Never set body copy below 14 px.
+- **Capitalisation is a system, not a choice per label.** All labels, buttons,
+  headings, and status words use sentence case: `Add sale`, `Needed date`,
+  `Buyer's note`, `Amount due`. Uppercase is reserved for the `eyebrow` utility
+  (section labels only). Acronyms and product names keep their caps: `UPI`,
+  `SMS`, `WhatsApp`, `StartLite`. Never mix `Add Sale` with `Add sale`.
 - Amounts align right in lists and use a fixed decimal column.
 - The measure is 45 to 75 characters. Never full width on a tablet.
 - One family per script. Do not mix a Latin display font into regional text.

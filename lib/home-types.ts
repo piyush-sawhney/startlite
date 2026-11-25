@@ -19,6 +19,19 @@ export type HomeKpis = {
   thisWeekCashLeft: HomeKpi;
 };
 
+export type OrderLinePreview = {
+  itemName: string;
+  quantity: string;
+  unitPrice: string;
+  unitLabel?: string;
+  optionName?: string | null;
+  optionPrice?: string;
+  extraNames?: string[];
+  extras?: Array<{ name: string; priceDelta: string }>;
+  lineTotal: string;
+  note?: string | null;
+};
+
 export type DayOrderItem = {
   id: string;
   code: string;
@@ -30,6 +43,9 @@ export type DayOrderItem = {
   timeSlot?: string | null; // e.g. "10:00", "11:30"
   neededBy: string; // YYYY-MM-DD
   note?: string | null; // buyer's delivery note, shown on the card
+  customerPhone?: string;
+  customerCountryCode?: string;
+  lines?: OrderLinePreview[];
   isGhost?: boolean;
 };
 
@@ -48,6 +64,7 @@ export type IncompleteOrder = {
   timeSlot?: string | null;
   createdAt: string;
   note?: string | null;
+  lines?: OrderLinePreview[];
 };
 
 export type CustomerDue = {

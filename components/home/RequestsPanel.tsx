@@ -1,43 +1,27 @@
 "use client";
 
-import { useState } from "react";
 import { formatNeededBy } from "@/lib/bill";
-import { primaryButton } from "@/components/ui";
 import type { PendingRequestItem } from "@/lib/home-types";
-import { MessageSquare, X, Zap } from "lucide-react";
+import { ChevronRight, MessageSquare, X, Zap } from "lucide-react";
+import { orderSummary } from "@/lib/order-summary";
 
 /**
- * One step: every request shows what the buyer wants and a single Accept
- * action. The sheet uses the same cards, labels and buttons as the rest of
- * Home — reading the card is the review, with no detail screen or Back.
+ * Requests read like the rest of Home: a list of records you tap to open.
+ * Tapping a request opens the same order sheet that an order card opens, so
+ * the actions always appear in one predictable place.
  */
 export function RequestsPanel({
   requests,
   isOpen,
   onClose,
-  onAccept,
+  onSelectRequest,
 }: {
   requests: PendingRequestItem[];
   isOpen: boolean;
   onClose: () => void;
-  onAccept: (code: string) => Promise<void>;
+  onSelectRequest: (request: PendingRequestItem) => void;
 }) {
-  const [busyCode, setBusyCode] = useState<string | null>(null);
-  const [errorCode, setErrorCode] = useState<string | null>(null);
-
   if (!isOpen) return null;
-
-  async function accept(code: string) {
-    setBusyCode(code);
-    setErrorCode(null);
-    try {
-      await onAccept(code);
-    } catch {
-      setErrorCode(code);
-    } finally {
-      setBusyCode(null);
-    }
-  }
 
   return (
     <div
@@ -70,18 +54,20 @@ export function RequestsPanel({
           </button>
         </header>
 
-        <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-5">
+        <div className="flex-1 space-y-2 overflow-y-auto overscroll-contain p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-4">
           {requests.length === 0 ? (
             <p className="py-10 text-center text-small text-ink-muted">
               No requests.
             </p>
           ) : (
             requests.map((req) => (
-              <article
+              <button
                 key={req.id}
-                className="rounded-2xl border border-line bg-surface p-4 shadow-[0_1px_2px_rgb(20_18_15/0.04)]"
+                type="button"
+                onClick={() => onSelectRequest(req)}
+                className="w-full rounded-xl border border-line border-l-[3px] border-l-warning bg-surface px-3 py-2.5 text-left shadow-[0_1px_2px_rgb(20_18_15/0.04)] transition hover:border-warning/50 hover:bg-warning-soft/30"
               >
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate font-bold text-ink" title={req.buyerName}>
                       {req.buyerName}
@@ -90,68 +76,25 @@ export function RequestsPanel({
                       Needed by {formatNeededBy(req.neededBy)}
                       {req.timeSlot ? ` · ${req.timeSlot}` : " · Any time"}
                     </p>
-                    {req.buyerPhone ? (
-                      <p className="text-caption text-ink-subtle">{req.buyerPhone}</p>
-                    ) : null}
                   </div>
-                  <p className="figure shrink-0 text-base font-bold text-ink">
+                  <p className="figure shrink-0 text-small font-bold text-ink">
                     {req.grandTotal}
                   </p>
                 </div>
-
-                <div className="mt-3 rounded-xl bg-muted/70 px-3 py-2">
-                  <p className="eyebrow text-ink-subtle">Items</p>
-                  <ul className="mt-1 divide-y divide-line">
-                    {req.lines.map((line, index) => (
-                      <li
-                        key={`${line.itemName}-${index}`}
-                        className="flex items-center justify-between gap-3 py-1.5 text-small"
-                      >
-                        <span className="min-w-0">
-                          <span className="block truncate font-semibold text-ink">
-                            {line.itemName}
-                          </span>
-                          <span className="block truncate text-caption text-ink-muted">
-                            {line.quantity} {line.unitLabel}
-                            {line.optionName ? ` · ${line.optionName}` : ""}
-                            {line.extraNames.length
-                              ? ` · ${line.extraNames.join(", ")}`
-                              : ""}
-                          </span>
-                        </span>
-                        <span className="figure shrink-0 font-semibold text-ink">
-                          {line.lineTotal}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
+                <p className="mt-1.5 text-small text-ink">
+                  {orderSummary(req.lines.map((line) => line.itemName))}
+                </p>
                 {req.note ? (
-                  <div className="mt-2 rounded-xl border border-warning/30 bg-warning-soft px-3 py-2">
-                    <p className="eyebrow inline-flex items-center gap-1 text-warning">
-                      <MessageSquare className="h-3 w-3" aria-hidden="true" />
-                      Buyer's note
-                    </p>
-                    <p className="mt-1 text-small font-medium text-ink">{req.note}</p>
-                  </div>
-                ) : null}
-
-                {errorCode === req.code ? (
-                  <p className="mt-2 text-caption font-semibold text-danger" role="alert">
-                    Could not accept. Try again.
+                  <p className="mt-1 flex items-center gap-1 text-caption text-warning">
+                    <MessageSquare className="h-3 w-3 shrink-0" aria-hidden="true" />
+                    <span className="truncate">{req.note}</span>
                   </p>
                 ) : null}
-
-                <button
-                  type="button"
-                  disabled={busyCode !== null}
-                  onClick={() => void accept(req.code)}
-                  className={primaryButton("mt-3 w-full min-h-11")}
-                >
-                  {busyCode === req.code ? "Accepting…" : "Accept request"}
-                </button>
-              </article>
+                <span className="mt-1.5 inline-flex items-center gap-1 text-caption font-bold text-accent-strong">
+                  Review and accept
+                  <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </span>
+              </button>
             ))
           )}
         </div>

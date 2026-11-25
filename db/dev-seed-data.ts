@@ -28,6 +28,18 @@ export type PackSeedProfile = {
   /** Two labels for the first variant of an item, for example 500 g / 1 kg. */
   variants: [string, string];
   extra: { name: string; priceDelta: string };
+  /** A second option group on the first item, so combinations are exercisable. */
+  optionGroup: { label: string; choices: [string, string] };
+  /** An extra that only appears under one variant — a sub-variant. */
+  subVariant: {
+    parentVariant: string;
+    name: string;
+    priceDelta: string;
+  };
+  /** More selectable extras on the first item. */
+  extras: Array<{ name: string; priceDelta: string }>;
+  /** Two more catalogue items: one with variants, one a plain single item. */
+  extraItems: [StarterItem, StarterItem];
   /** Realistic expense titles, `Paid to — Paid for`. */
   expenses: string[];
   /** Identification labels shown beside a customer name. */
@@ -39,6 +51,16 @@ export const PACK_SEED_PROFILES: Record<string, PackSeedProfile> = {
   food: {
     variants: ["Half", "Full"],
     extra: { name: "Extra roti", priceDelta: "20.00" },
+    optionGroup: { label: "Spice", choices: ["Mild", "Extra spicy"] },
+    subVariant: { parentVariant: "Full", name: "Extra gravy", priceDelta: "30.00" },
+    extras: [
+      { name: "Pickle", priceDelta: "10.00" },
+      { name: "Papad", priceDelta: "15.00" },
+    ],
+    extraItems: [
+      { name: "Veg thali", price: "120.00", unit: "plate" },
+      { name: "Masala chai", price: "20.00", unit: "cup" },
+    ],
     expenses: [
       "Vegetable market — vegetables",
       "Gas cylinder — refill",
@@ -50,6 +72,16 @@ export const PACK_SEED_PROFILES: Record<string, PackSeedProfile> = {
   bakery: {
     variants: ["500 g", "1 kg"],
     extra: { name: "Eggless", priceDelta: "50.00" },
+    optionGroup: { label: "Finish", choices: ["Plain", "Buttercream"] },
+    subVariant: { parentVariant: "1 kg", name: "Wax flowers", priceDelta: "180.00" },
+    extras: [
+      { name: "Gift box", priceDelta: "40.00" },
+      { name: "Candle set", priceDelta: "25.00" },
+    ],
+    extraItems: [
+      { name: "Chocolate brownie", price: "140.00", unit: "piece" },
+      { name: "Tea cake", price: "60.00", unit: "slice" },
+    ],
     expenses: [
       "Flour mill — flour",
       "Dairy — butter and cream",
@@ -61,6 +93,16 @@ export const PACK_SEED_PROFILES: Record<string, PackSeedProfile> = {
   grocery: {
     variants: ["500 g", "1 kg"],
     extra: { name: "Home delivery", priceDelta: "30.00" },
+    optionGroup: { label: "Quality", choices: ["Regular", "Premium"] },
+    subVariant: { parentVariant: "1 kg", name: "Organic", priceDelta: "45.00" },
+    extras: [
+      { name: "Carry bag", priceDelta: "5.00" },
+      { name: "Express delivery", priceDelta: "60.00" },
+    ],
+    extraItems: [
+      { name: "Toor dal 1 kg", price: "170.00", unit: "packet" },
+      { name: "Cooking oil 1 L", price: "140.00", unit: "bottle" },
+    ],
     expenses: [
       "Wholesale market — stock",
       "Tempo — delivery",
@@ -72,6 +114,16 @@ export const PACK_SEED_PROFILES: Record<string, PackSeedProfile> = {
   tailoring: {
     variants: ["Standard", "Express"],
     extra: { name: "Home pickup", priceDelta: "100.00" },
+    optionGroup: { label: "Fit", choices: ["Regular", "Slim"] },
+    subVariant: { parentVariant: "Express", name: "Steaming", priceDelta: "80.00" },
+    extras: [
+      { name: "Lining", priceDelta: "250.00" },
+      { name: "Button set", priceDelta: "60.00" },
+    ],
+    extraItems: [
+      { name: "Shirt stitch", price: "450.00", unit: "piece" },
+      { name: "Trouser hem", price: "120.00", unit: "piece" },
+    ],
     expenses: [
       "Fabric shop — cloth",
       "Thread and buttons — supplies",
@@ -83,6 +135,16 @@ export const PACK_SEED_PROFILES: Record<string, PackSeedProfile> = {
   salon: {
     variants: ["Basic", "Premium"],
     extra: { name: "Head massage", priceDelta: "150.00" },
+    optionGroup: { label: "Stylist", choices: ["Junior", "Senior"] },
+    subVariant: { parentVariant: "Premium", name: "Hot towel", priceDelta: "90.00" },
+    extras: [
+      { name: "Hair wash", priceDelta: "120.00" },
+      { name: "Serum", priceDelta: "200.00" },
+    ],
+    extraItems: [
+      { name: "Haircut", price: "250.00", unit: "visit" },
+      { name: "Threading", price: "60.00", unit: "visit" },
+    ],
     expenses: [
       "Beauty supplier — products",
       "Salon rent — November",
@@ -94,6 +156,16 @@ export const PACK_SEED_PROFILES: Record<string, PackSeedProfile> = {
   tutoring: {
     variants: ["Group", "One to one"],
     extra: { name: "Study material", priceDelta: "200.00" },
+    optionGroup: { label: "Board", choices: ["CBSE", "ICSE"] },
+    subVariant: { parentVariant: "One to one", name: "Doubt session", priceDelta: "300.00" },
+    extras: [
+      { name: "Weekly test", priceDelta: "150.00" },
+      { name: "Home visit", priceDelta: "400.00" },
+    ],
+    extraItems: [
+      { name: "Chemistry tuition", price: "1500.00", unit: "month" },
+      { name: "Maths crash course", price: "2500.00", unit: "course" },
+    ],
     expenses: [
       "Book shop — workbooks",
       "Print shop — test papers",
@@ -105,6 +177,16 @@ export const PACK_SEED_PROFILES: Record<string, PackSeedProfile> = {
   repairs: {
     variants: ["Standard", "Same day"],
     extra: { name: "Pickup and drop", priceDelta: "100.00" },
+    optionGroup: { label: "Service", choices: ["Repair", "Replacement"] },
+    subVariant: { parentVariant: "Same day", name: "Priority bench", priceDelta: "250.00" },
+    extras: [
+      { name: "Screen guard", priceDelta: "150.00" },
+      { name: "Protective case", priceDelta: "300.00" },
+    ],
+    extraItems: [
+      { name: "Fan repair", price: "350.00", unit: "job" },
+      { name: "Washing machine service", price: "700.00", unit: "job" },
+    ],
     expenses: [
       "Spare parts — supplier",
       "Tools — purchase",
@@ -116,6 +198,16 @@ export const PACK_SEED_PROFILES: Record<string, PackSeedProfile> = {
   rentals: {
     variants: ["Half day", "Full day"],
     extra: { name: "Delivery and setup", priceDelta: "300.00" },
+    optionGroup: { label: "Setup", choices: ["Basic", "Decorated"] },
+    subVariant: { parentVariant: "Full day", name: "Late pickup", priceDelta: "500.00" },
+    extras: [
+      { name: "Extra chairs", priceDelta: "80.00" },
+      { name: "Table cloth", priceDelta: "120.00" },
+    ],
+    extraItems: [
+      { name: "Folding table", price: "300.00", unit: "day" },
+      { name: "Plastic chair", price: "80.00", unit: "day" },
+    ],
     expenses: [
       "Tent house — stock",
       "Transport — delivery",
@@ -127,6 +219,16 @@ export const PACK_SEED_PROFILES: Record<string, PackSeedProfile> = {
   freelance: {
     variants: ["Basic", "Standard"],
     extra: { name: "Extra revision", priceDelta: "500.00" },
+    optionGroup: { label: "Format", choices: ["Digital", "Print ready"] },
+    subVariant: { parentVariant: "Standard", name: "Source files", priceDelta: "1200.00" },
+    extras: [
+      { name: "Social crops", priceDelta: "800.00" },
+      { name: "Brand guide", priceDelta: "1500.00" },
+    ],
+    extraItems: [
+      { name: "Logo design", price: "3500.00", unit: "project" },
+      { name: "Flyer design", price: "1200.00", unit: "project" },
+    ],
     expenses: [
       "Software — subscription",
       "Internet — monthly",
@@ -138,6 +240,16 @@ export const PACK_SEED_PROFILES: Record<string, PackSeedProfile> = {
   home: {
     variants: ["Standard", "Deep"],
     extra: { name: "Consumables", priceDelta: "150.00" },
+    optionGroup: { label: "Rooms", choices: ["2 BHK", "3 BHK"] },
+    subVariant: { parentVariant: "Deep", name: "Balcony sweep", priceDelta: "250.00" },
+    extras: [
+      { name: "Window cleaning", priceDelta: "400.00" },
+      { name: "Fridge cleaning", priceDelta: "350.00" },
+    ],
+    extraItems: [
+      { name: "Kitchen deep clean", price: "1800.00", unit: "visit" },
+      { name: "Bathroom clean", price: "600.00", unit: "visit" },
+    ],
     expenses: [
       "Cleaning supplies — stock",
       "Transport — site visits",
@@ -149,6 +261,16 @@ export const PACK_SEED_PROFILES: Record<string, PackSeedProfile> = {
   wellness: {
     variants: ["Single", "Pack of 4"],
     extra: { name: "Diet chart", priceDelta: "300.00" },
+    optionGroup: { label: "Batch", choices: ["Morning", "Evening"] },
+    subVariant: { parentVariant: "Pack of 4", name: "Personal plan", priceDelta: "500.00" },
+    extras: [
+      { name: "Yoga mat", priceDelta: "450.00" },
+      { name: "Breathing session", priceDelta: "200.00" },
+    ],
+    extraItems: [
+      { name: "Personal training", price: "900.00", unit: "session" },
+      { name: "Stretch class", price: "350.00", unit: "class" },
+    ],
     expenses: [
       "Yoga mats — stock",
       "Studio rent — November",
@@ -160,6 +282,16 @@ export const PACK_SEED_PROFILES: Record<string, PackSeedProfile> = {
   pets: {
     variants: ["Small", "Large"],
     extra: { name: "Nail trim", priceDelta: "100.00" },
+    optionGroup: { label: "Coat", choices: ["Short", "Long"] },
+    subVariant: { parentVariant: "Large", name: "De-shedding", priceDelta: "250.00" },
+    extras: [
+      { name: "Ear cleaning", priceDelta: "120.00" },
+      { name: "Perfume spray", priceDelta: "180.00" },
+    ],
+    extraItems: [
+      { name: "Dog bath", price: "400.00", unit: "visit" },
+      { name: "Cat grooming", price: "500.00", unit: "visit" },
+    ],
     expenses: [
       "Pet food — stock",
       "Grooming tools — supplies",

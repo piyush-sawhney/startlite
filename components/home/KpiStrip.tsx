@@ -50,7 +50,7 @@ function KpiCell({
         if (e.key === "Enter" || e.key === " ") setShowFull(!showFull);
       }}
       className={cn(
-        "cursor-pointer select-none rounded-2xl border p-3.5 shadow-[0_1px_2px_rgb(20_18_15/0.04)] transition hover:-translate-y-0.5 hover:shadow-[0_6px_16px_rgb(20_18_15/0.08)] active:scale-[0.99] motion-reduce:hover:translate-y-0",
+        "cursor-pointer select-none rounded-xl border p-2.5 shadow-[0_1px_2px_rgb(20_18_15/0.04)] transition hover:shadow-[0_4px_12px_rgb(20_18_15/0.08)] active:scale-[0.99] sm:p-3",
         tones[tone],
         dark ? "text-white" : "text-ink",
         className,
@@ -60,7 +60,7 @@ function KpiCell({
       <div className="flex items-center gap-2">
         <span
           className={cn(
-            "grid h-8 w-8 shrink-0 place-items-center rounded-xl",
+            "grid h-7 w-7 shrink-0 place-items-center rounded-lg sm:h-8 sm:w-8 sm:rounded-xl",
             iconBg,
             iconColor,
           )}
@@ -118,6 +118,7 @@ function KpiCell({
 export function KpiStrip({ kpis }: { kpis: HomeKpis }) {
   return (
     <section aria-label="Key performance indicators">
+      <p className="eyebrow mb-2 text-ink-subtle">Money</p>
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
         {/* Money in today — positive green. */}
         <KpiCell

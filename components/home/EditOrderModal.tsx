@@ -295,59 +295,78 @@ export function EditOrderModal({
                     key={line.id ?? index}
                     className="rounded-md border border-line bg-surface p-3"
                   >
-                    <div className="space-y-2">
-                      <div className="grid grid-cols-4 gap-2">
-                        <input
-                          className="block min-h-9 rounded-md border border-line bg-surface px-2.5 text-[13px] text-ink focus:border-accent/50 focus:outline-none"
-                          value={line.itemName}
-                          onChange={(e) =>
-                            updateLine(index, { itemName: e.target.value })
-                          }
-                          placeholder="Item name"
-                        />
-                        <input
-                          className="block min-h-9 rounded-md border border-line bg-surface px-2.5 text-[13px] text-ink focus:border-accent/50 focus:outline-none"
-                          inputMode="decimal"
-                          value={line.quantity}
-                          onChange={(e) =>
-                            updateLine(index, { quantity: e.target.value })
-                          }
-                          placeholder="Qty"
-                        />
-                        <input
-                          className="block min-h-9 rounded-md border border-line bg-surface px-2.5 text-[13px] text-ink focus:border-accent/50 focus:outline-none"
-                          inputMode="decimal"
-                          value={line.unitPrice}
-                          onChange={(e) =>
-                            updateLine(index, { unitPrice: e.target.value })
-                          }
-                          placeholder="Price"
-                        />
-                        <input
-                          className="block min-h-9 rounded-md border border-line bg-surface px-2.5 text-[13px] text-ink focus:border-accent/50 focus:outline-none"
-                          value={line.unitLabel ?? ""}
-                          onChange={(e) =>
-                            updateLine(index, { unitLabel: e.target.value })
-                          }
-                          placeholder="Unit"
-                        />
-                      </div>
-                      <input
-                        className="block min-h-9 w-full rounded-md border border-line bg-surface px-2.5 text-[13px] text-ink focus:border-accent/50 focus:outline-none"
-                        value={line.note ?? ""}
-                        onChange={(e) =>
-                          updateLine(index, { note: e.target.value })
-                        }
-                        placeholder="Note (optional)"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeLine(index)}
-                        className="text-xs text-danger font-medium"
-                      >
-                        Remove item
-                      </button>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="grid h-5 w-5 place-items-center rounded-md bg-muted text-caption font-bold text-ink-muted">
+                        {index + 1}
+                      </span>
+                      <span className="eyebrow text-ink-subtle">
+                        Item {index + 1}
+                      </span>
                     </div>
+                    <div className="mb-1 grid grid-cols-[minmax(0,1fr)_58px_78px_54px] gap-2 text-caption font-bold text-ink-muted">
+                      <span>Item</span>
+                      <span className="figure">Qty</span>
+                      <span className="figure">Rate</span>
+                      <span>Unit</span>
+                    </div>
+                    <div className="grid grid-cols-[minmax(0,1fr)_58px_78px_54px] gap-2">
+                      <input
+                        aria-label={`Item ${index + 1} name`}
+                        className="block min-h-9 w-full rounded-md border border-line bg-surface px-2.5 text-[13px] text-ink focus:border-accent/50 focus:outline-none"
+                        value={line.itemName}
+                        onChange={(e) =>
+                          updateLine(index, { itemName: e.target.value })
+                        }
+                        placeholder="Item name"
+                      />
+                      <input
+                        aria-label={`Item ${index + 1} quantity`}
+                        className="figure block min-h-9 w-full rounded-md border border-line bg-surface px-2 text-[13px] text-ink focus:border-accent/50 focus:outline-none"
+                        inputMode="decimal"
+                        value={line.quantity}
+                        onChange={(e) =>
+                          updateLine(index, { quantity: e.target.value })
+                        }
+                        placeholder="0"
+                      />
+                      <input
+                        aria-label={`Item ${index + 1} rate`}
+                        className="figure block min-h-9 w-full rounded-md border border-line bg-surface px-2 text-[13px] text-ink focus:border-accent/50 focus:outline-none"
+                        inputMode="decimal"
+                        value={line.unitPrice}
+                        onChange={(e) =>
+                          updateLine(index, { unitPrice: e.target.value })
+                        }
+                        placeholder="0.00"
+                      />
+                      <input
+                        aria-label={`Item ${index + 1} unit`}
+                        className="block min-h-9 w-full rounded-md border border-line bg-surface px-2 text-[13px] text-ink focus:border-accent/50 focus:outline-none"
+                        value={line.unitLabel ?? ""}
+                        onChange={(e) =>
+                          updateLine(index, { unitLabel: e.target.value })
+                        }
+                        placeholder="pc"
+                      />
+                    </div>
+                    <label className="mt-2 block text-caption font-semibold text-ink-muted">
+                      Note for item {index + 1}
+                    </label>
+                    <input
+                      className="mt-1 block min-h-9 w-full rounded-md border border-line bg-surface px-2.5 text-[13px] text-ink focus:border-accent/50 focus:outline-none"
+                      value={line.note ?? ""}
+                      onChange={(e) =>
+                        updateLine(index, { note: e.target.value })
+                      }
+                      placeholder="Optional"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeLine(index)}
+                      className="mt-2 text-xs font-semibold text-danger"
+                    >
+                      Remove item
+                    </button>
                   </div>
                 ))
               )}

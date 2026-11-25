@@ -36,13 +36,24 @@ function atDay(dayOffset: number, hour: number, minute = 0): Date {
   );
 }
 
+type SeedOption = { id: string; name: string; price: string };
+type SeedExtra = {
+  name: string;
+  priceDelta: string;
+  parentOptionId?: string | null;
+};
+
 type SeededItem = {
   id: string;
   name: string;
   basePrice: string;
   unitLabel: string;
-  options: Array<{ id: string; name: string; price: string }>;
-  extra: { name: string; priceDelta: string } | null;
+  /** First option group; also used by the storefront request seed. */
+  options: SeedOption[];
+  /** Second option group on the first item, priced as deltas. */
+  secondGroupOptions: SeedOption[];
+  /** Plain extras plus extras scoped to one option (sub-variants). */
+  extras: SeedExtra[];
 };
 
 type SeededCustomer = {
@@ -54,7 +65,10 @@ type SeededCustomer = {
 type SeedLine = {
   item: SeededItem;
   optionIndex?: number;
+  secondOptionIndex?: number;
   quantity: string;
+  /** Whichever extras to attach, by index into `item.extras`. */
+  extraIndexes?: number[];
   withExtra?: boolean;
   note?: string | null;
 };
@@ -123,7 +137,13 @@ async function seedItems(
   profile: PackSeedProfile,
 ): Promise<SeededItem[]> {
   const pack = getPack(seed.pack);
-  const definitions = [...pack.starters, seed.customItem];
+  const definitions = [
+    ...pack.starters,
+    seed.customItem,
+    ...profile.extraItems,
+  ];
+  const customIndex = pack.starters.length;
+  const variantIndexes = new Set([0, customIndex, customIndex + 1]);
 
   const inserted = await db
     .insert(catalogItems)
@@ -140,14 +160,11 @@ async function seedItems(
     )
     .returning();
 
-  // The first item and the custom item carry two variants, so every shop has
-  // something to choose between in Add sale.
+  // The first item, the trade-specific item and the first extra item carry
+  // variants. The first item also gets a second option group and sub-variants.
   const optionRows: Array<typeof itemOptions.$inferInsert> = [];
-  for (const item of inserted) {
-    const hasVariants =
-      item.sortOrder === 1 || item.sortOrder === inserted.length;
-    if (!hasVariants) continue;
-
+  for (const [index, item] of inserted.entries()) {
+    if (!variantIndexes.has(index)) continue;
     const base = dec(item.basePrice);
     optionRows.push(
       {
@@ -167,35 +184,111 @@ async function seedItems(
     );
   }
 
+  const firstItem = inserted[0];
+  if (firstItem) {
+    const base = dec(firstItem.basePrice);
+    optionRows.push(
+      {
+        businessId,
+        itemId: firstItem.id,
+        groupLabel: profile.optionGroup.label,
+        name: profile.optionGroup.choices[0],
+        price: "0.00",
+        sortOrder: 2,
+      },
+      {
+        businessId,
+        itemId: firstItem.id,
+        groupLabel: profile.optionGroup.label,
+        name: profile.optionGroup.choices[1],
+        price: money(base.times(0.1)),
+        sortOrder: 3,
+      },
+    );
+  }
+
   const insertedOptions =
     optionRows.length > 0
       ? await db.insert(itemOptions).values(optionRows).returning()
       : [];
 
-  const firstItem = inserted.find((item) => item.sortOrder === 1);
+  const optionsFor = (itemId: string, groupLabel = "Option") =>
+    insertedOptions
+      .filter(
+        (option) => option.itemId === itemId && option.groupLabel === groupLabel,
+      )
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((option) => ({
+        id: option.id,
+        name: option.name,
+        price: option.price,
+      }));
+
+  const extraRows: Array<typeof itemExtras.$inferInsert> = [];
   if (firstItem) {
-    await db.insert(itemExtras).values({
+    extraRows.push(
+      {
+        businessId,
+        itemId: firstItem.id,
+        name: profile.extra.name,
+        priceDelta: profile.extra.priceDelta,
+        sortOrder: 0,
+      },
+      ...profile.extras.map((extra, index) => ({
+        businessId,
+        itemId: firstItem.id,
+        name: extra.name,
+        priceDelta: extra.priceDelta,
+        sortOrder: index + 1,
+      })),
+    );
+
+    const parent = insertedOptions.find(
+      (option) =>
+        option.itemId === firstItem.id && option.name === profile.subVariant.parentVariant,
+    );
+    extraRows.push({
       businessId,
       itemId: firstItem.id,
-      name: profile.extra.name,
-      priceDelta: profile.extra.priceDelta,
+      parentOptionId: parent?.id ?? null,
+      groupLabel: "Add-on",
+      name: profile.subVariant.name,
+      priceDelta: profile.subVariant.priceDelta,
+      sortOrder: 10,
+    });
+  }
+
+  const variantExtraItem = inserted[customIndex + 1];
+  if (variantExtraItem) {
+    extraRows.push({
+      businessId,
+      itemId: variantExtraItem.id,
+      name: profile.extras[0].name,
+      priceDelta: profile.extras[0].priceDelta,
       sortOrder: 0,
     });
   }
+
+  const insertedExtras =
+    extraRows.length > 0
+      ? await db.insert(itemExtras).values(extraRows).returning()
+      : [];
 
   return inserted.map((item) => ({
     id: item.id,
     name: item.name,
     basePrice: item.basePrice,
     unitLabel: item.unitLabel,
-    options: insertedOptions
-      .filter((option) => option.itemId === item.id)
-      .map((option) => ({
-        id: option.id,
-        name: option.name,
-        price: option.price,
+    options: optionsFor(item.id),
+    secondGroupOptions: optionsFor(item.id, profile.optionGroup.label),
+    extras: insertedExtras
+      .filter((extra) => extra.itemId === item.id)
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((extra) => ({
+        name: extra.name,
+        priceDelta: extra.priceDelta,
+        parentOptionId: extra.parentOptionId,
       })),
-    extra: item.sortOrder === 1 ? profile.extra : null,
   }));
 }
 
@@ -230,17 +323,27 @@ function buildLine(line: SeedLine) {
     line.optionIndex === undefined
       ? null
       : (line.item.options[line.optionIndex] ?? null);
-  const unitPrice = option?.price ?? line.item.basePrice;
-  const extras =
-    line.withExtra && line.item.extra ? [line.item.extra] : [];
+  const secondOption =
+    line.secondOptionIndex === undefined
+      ? null
+      : (line.item.secondGroupOptions[line.secondOptionIndex] ?? null);
+  const unitPrice = dec(option?.price ?? line.item.basePrice)
+    .plus(secondOption?.price ?? 0)
+    .toFixed(2);
+
+  const indexes = line.extraIndexes ?? (line.withExtra ? [0] : []);
+  const extras = indexes
+    .map((index) => line.item.extras[index])
+    .filter((extra): extra is SeedExtra => Boolean(extra));
+  const optionNames = [option?.name, secondOption?.name].filter(Boolean);
   const lineTotal = multiply(line.quantity, unitPrice);
 
   return {
     row: {
       catalogItemId: line.item.id,
       itemNameSnapshot: line.item.name,
-      optionSnapshot: option?.name ?? null,
-      extrasSnapshot: extras,
+      optionSnapshot: optionNames.length ? optionNames.join(" · ") : null,
+      extrasSnapshot: extras.map(({ name, priceDelta }) => ({ name, priceDelta })),
       quantity: line.quantity,
       unitPrice,
       unitLabelSnapshot: line.item.unitLabel,
@@ -345,8 +448,12 @@ async function seedBusiness(seed: DevBusinessSeed, seedIndex: number) {
   const items = await seedItems(business.id, seed, profile);
   const people = await seedCustomers(business.id, seedIndex, profile);
 
-  const customItem = items[items.length - 1];
+  const pack = getPack(seed.pack);
+  const customIndex = pack.starters.length;
   const [first, second, third] = items;
+  const customItem = items[customIndex];
+  const variantExtraItem = items[customIndex + 1];
+  const plainExtraItem = items[items.length - 1];
 
   const ordersToSeed: OrderSeed[] = [
     {
@@ -453,6 +560,108 @@ async function seedBusiness(seed: DevBusinessSeed, seedIndex: number) {
       paymentMode: "cash",
       billNo: "5",
     },
+    {
+      customer: people[2],
+      code: "ORD-1008",
+      status: "under_review",
+      source: "whatsapp_store",
+      neededBy: addDaysIst(0),
+      timeSlot: "09:30",
+      createdAt: atDay(0, 7, 50),
+      lines: [
+        {
+          item: first,
+          optionIndex: 0,
+          secondOptionIndex: 1,
+          extraIndexes: [0, 2],
+          quantity: "2",
+          note: "No onion",
+        },
+        { item: plainExtraItem, quantity: "3" },
+      ],
+      paid: "none",
+      paymentMode: "upi",
+      billNo: null,
+      deliveryNote: profile.customerNotes[1],
+    },
+    {
+      customer: people[1],
+      code: "ORD-1009",
+      status: "in_progress",
+      source: "phone",
+      neededBy: addDaysIst(-1),
+      timeSlot: null,
+      createdAt: atDay(-2, 14),
+      lines: [
+        { item: first, optionIndex: 1, quantity: "1" },
+        { item: second, quantity: "2" },
+        { item: variantExtraItem, extraIndexes: [0], quantity: "1" },
+      ],
+      paid: { percent: 50 },
+      paymentMode: "upi",
+      billNo: "6",
+      deliveryNote: "Call before delivery",
+    },
+    {
+      customer: people[3],
+      code: "ORD-1010",
+      status: "accepted",
+      source: "whatsapp_store",
+      neededBy: addDaysIst(3),
+      timeSlot: "Any time",
+      createdAt: atDay(0, 13, 20),
+      // Six lines exercise the "+N more" summary on Home cards.
+      lines: [
+        { item: first, optionIndex: 1, quantity: "1" },
+        { item: second, quantity: "2" },
+        { item: third, quantity: "1" },
+        { item: customItem, quantity: "1" },
+        { item: variantExtraItem, quantity: "2" },
+        { item: plainExtraItem, quantity: "4" },
+      ],
+      paid: { percent: 25 },
+      paymentMode: "cash",
+      billNo: "7",
+      deliveryNote: profile.deliveryNote,
+    },
+    {
+      customer: people[0],
+      code: "ORD-1011",
+      status: "declined",
+      source: "whatsapp_store",
+      neededBy: addDaysIst(1),
+      timeSlot: "12:00",
+      createdAt: atDay(0, 10, 5),
+      lines: [{ item: customItem, optionIndex: 0, quantity: "1" }],
+      paid: "none",
+      paymentMode: "upi",
+      billNo: null,
+    },
+    {
+      customer: people[1],
+      code: "ORD-1012",
+      status: "ready",
+      source: "walk_in",
+      neededBy: addDaysIst(0),
+      timeSlot: "18:00",
+      createdAt: atDay(0, 16),
+      lines: [
+        {
+          item: first,
+          optionIndex: 1,
+          secondOptionIndex: 1,
+          extraIndexes: [0, 1, 3],
+          quantity: "1",
+        },
+        { item: second, quantity: "2" },
+        { item: third, quantity: "1" },
+        { item: plainExtraItem, quantity: "2" },
+      ],
+      paid: { percent: 60 },
+      paymentMode: "upi",
+      billNo: "8",
+      deliveryNote: "Gate number 4",
+    },
   ];
 
   for (const order of ordersToSeed) {
@@ -491,37 +700,83 @@ async function seedBusiness(seed: DevBusinessSeed, seedIndex: number) {
     },
   ]);
 
-  const requestItem = items[0];
-  const requestOption = requestItem.options[0];
-  const requestPrice = requestOption?.price ?? requestItem.basePrice;
+  function requestLine(
+    item: SeededItem,
+    quantity = "1",
+    optionIndex?: number,
+  ) {
+    const option = optionIndex === undefined ? null : (item.options[optionIndex] ?? null);
+    const unitPrice = option?.price ?? item.basePrice;
+    return {
+      itemId: item.id,
+      itemName: item.name,
+      optionId: option?.id ?? null,
+      optionName: option?.name ?? null,
+      extraIds: [],
+      extraNames: [],
+      quantity,
+      unitPrice,
+      lineTotal: multiply(quantity, unitPrice),
+      unitLabel: item.unitLabel,
+    };
+  }
 
-  await db.insert(pendingOrders).values({
-    businessId: business.id,
-    code: `REQ-${seedIndex + 1}-${seed.handle.toUpperCase()}`,
-    buyerName: people[3].name,
-    buyerPhone: people[3].phone ?? `98765${String(seedIndex * 10 + 3).padStart(5, "0")}`,
-    neededBy: addDaysIst(0),
-    timeSlot: "15:00",
-    note: profile.deliveryNote,
-    lines: [
-      {
-        itemId: requestItem.id,
-        itemName: requestItem.name,
-        optionId: requestOption?.id ?? null,
-        optionName: requestOption?.name ?? null,
-        extraIds: [],
-        extraNames: [],
-        quantity: "1",
-        unitPrice: requestPrice,
-        lineTotal: requestPrice,
-        unitLabel: requestItem.unitLabel,
-      },
-    ],
-    revenueSubtotal: requestPrice,
-    grandTotal: requestPrice,
-    status: "pending",
-    createdAt: atDay(0, 7, 45),
-  });
+  const requestGroups = [
+    {
+      code: `REQ-${seedIndex + 1}-${seed.handle.toUpperCase()}`,
+      buyer: people[3],
+      neededBy: addDaysIst(0),
+      timeSlot: "15:00",
+      note: profile.deliveryNote,
+      lines: [requestLine(first, "1", 0)],
+      createdAt: atDay(0, 7, 45),
+    },
+    {
+      code: `REQ-${seedIndex + 1}B-${seed.handle.toUpperCase()}`,
+      buyer: people[4],
+      neededBy: addDaysIst(0),
+      timeSlot: "17:30",
+      note: profile.customerNotes[1],
+      lines: [
+        requestLine(second, "2"),
+        requestLine(customItem, "1", 1),
+      ],
+      createdAt: atDay(0, 8, 10),
+    },
+    {
+      code: `REQ-${seedIndex + 1}C-${seed.handle.toUpperCase()}`,
+      buyer: people[2],
+      neededBy: addDaysIst(1),
+      timeSlot: null,
+      note: "Please call when ready",
+      lines: [
+        requestLine(first, "1", 1),
+        requestLine(third, "2"),
+        requestLine(plainExtraItem, "3"),
+      ],
+      createdAt: atDay(0, 9, 5),
+    },
+  ];
+
+  for (const group of requestGroups) {
+    const total = sum(group.lines.map((line) => line.lineTotal));
+    await db.insert(pendingOrders).values({
+      businessId: business.id,
+      code: group.code,
+      buyerName: group.buyer.name,
+      buyerPhone:
+        group.buyer.phone ??
+        `98765${String(seedIndex * 10 + 3).padStart(5, "0")}`,
+      neededBy: group.neededBy,
+      timeSlot: group.timeSlot,
+      note: group.note,
+      lines: group.lines,
+      revenueSubtotal: total,
+      grandTotal: total,
+      status: "pending",
+      createdAt: group.createdAt,
+    });
+  }
 
   return business;
 }
@@ -559,7 +814,7 @@ export async function seedDevData() {
 
   return {
     businesses: DEV_BUSINESSES.length,
-    ordersPerBusiness: 7,
+    ordersPerBusiness: 12,
     password: DEV_SEED_PASSWORD,
   };
 }

@@ -258,6 +258,8 @@ day changes.
   Orders tab remains the place for the full order list.
 - Two visible groups: **To finish** (amber dot) before **Ready to collect**
   (teal dot). Each group header carries its count.
+- A **Sort** control offers Priority (default), Needed date, Newest, and Amount
+  due. It rearranges rows inside the two groups; it never merges the groups.
 - Sorting is urgency first: overdue, today, upcoming, undated. See
   [Purpose](#purpose) for the full priority order.
 - Orders past their needed date show an **Overdue** badge in red, with the
@@ -347,9 +349,11 @@ share a word.
 list. The day view reads its own query, so it is never limited by the 200 most
 recent orders used for the metrics. Cancelled, declined, and completed orders
 stay in the day's history. `Any time` covers orders with no slot, an empty
-slot, or the literal `Any time` / `None`. Each row shows the time, customer,
-first item plus `+N`, total, due in amber, and a status pill. A teal left rail
-marks an order; an amber left rail marks a storefront request.
+slot, or the literal `Any time` / `None`. Every row uses the **same card system
+as the pending-order list**: needed-by date and money lead, items and buyer's
+note follow, customer and code sit below, and one action chip sits in a shared
+toolbar with contact shortcuts. A teal rail marks an order; an amber rail marks
+a storefront request.
 
 **Scrollable.** On mobile every commitment is in the page flow; there is no
 inner scroll region that competes with page scrolling. On desktop the right
@@ -371,8 +375,10 @@ computes the same list from local orders with the same rules.
 
 ### 6. Metrics
 
-Five cells. Each cell is an icon, a short label, an amount, and a muted count.
-The same five cells, in the same order, at every width.
+Five cells under the eyebrow `Money`. Each cell is an icon, a short label, an
+amount, and a muted count. The same five cells, in the same order, at every
+width. Every zone on Home carries a plain label — Pending orders, the day,
+Money, To collect from customers — so the page reads in one predictable order.
 
 | Cell | Short label | Icon | Amount | Count | Period |
 |---|---|---|---|---|---|
@@ -495,7 +501,7 @@ a sale without leaving it, even when the customer or item does not exist yet.
 | Step | Content |
 |---|---|
 | Customer | Searchable customer list by name or phone. Selecting one shows their pending due. Or `Add new customer` inline (name, country code, phone, label, optional address) |
-| Items | Searchable item list by name. Each item expands to variant, sub-variant, quantity, and line note. Or `Add new item` inline (name, price, unit, category, photo, variants). `Quick amount` records one lump sum with no item list |
+| Items | Searchable item list by name. Each cart line is numbered and shows Item, Qty, Rate, Amount. The primary option group is the variant select; other option groups and scoped extras appear as labelled add-on chips. Or `Add new item` inline (name, price, unit, variants). `Quick amount` records one lump sum with no item list |
 | Schedule | `Now` for a walk-in, or `Later` with a date and a time. `Later` can be marked as an estimate |
 | Payment | `Full`, `Partial` (amount received now), or `Due later`, with mode Cash, UPI, Card, Bank, or Other |
 
@@ -545,10 +551,16 @@ header. An error appears on the affected card, not at the top of the sheet.
 ### Order sheet
 
 The order sheet opens with the next action already visible: **Accept request**,
-**Mark ready**, or **Collect payment**. Fields use plain labels — Total, Due,
-Placed. The status pill is context, not the instruction. Secondary actions
-(Send bill, Reopen, Cancel order) sit below the primary action. Cancelling asks
-`Cancel this order?` with `Yes, cancel` and `Keep it`.
+**Mark ready**, or **Collect payment**. Fields use plain labels — Placed, Needed
+by, Total, Due, Items, Buyer's note. Items are numbered and laid out in columns
+labelled `#`, `Item`, `Qty`, `Rate`, `Amount`. Under each item, the variant is
+labelled `Variant` with its price, add-ons are labelled `Add-ons` with each
+`+₹` delta, and the buyer's line note is labelled `Note`. The status pill is
+context, not the instruction. The same contact shortcuts as the card (WhatsApp, SMS, Call) and
+**Edit** for queued orders sit above the primary action, so a merchant never has
+to close the sheet to act on the order. Secondary actions (Send bill, Reopen,
+Cancel order) sit below the primary action. Cancelling asks `Cancel this order?`
+with `Yes, cancel` and `Keep it`.
 
 ## Guest and owner
 

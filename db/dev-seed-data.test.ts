@@ -23,6 +23,18 @@ describe("development seed data", () => {
     }
   });
 
+  it("gives every pack options, sub-variants, extras and extra items", () => {
+    for (const [pack, profile] of Object.entries(PACK_SEED_PROFILES)) {
+      expect(profile.variants, `${pack} variants`).toHaveLength(2);
+      expect(profile.optionGroup.choices, `${pack} option group`).toHaveLength(2);
+      expect(profile.subVariant.parentVariant, `${pack} sub-variant`).toBe(
+        profile.variants[1],
+      );
+      expect(profile.extras.length, `${pack} extras`).toBeGreaterThan(0);
+      expect(profile.extraItems, `${pack} extra items`).toHaveLength(2);
+    }
+  });
+
   it("uses unique handles and emails", () => {
     const handles = DEV_BUSINESSES.map((shop) => shop.handle);
     const emails = DEV_BUSINESSES.map((shop) => shop.email);

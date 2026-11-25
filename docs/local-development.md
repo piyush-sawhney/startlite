@@ -101,8 +101,13 @@ repository.
 ### Development accounts
 
 `db:seed:dev` creates 24 additional accounts, one or two for each category pack.
-Every account uses the same local password. The full table, the seeded data, and
-the empty-database flow live in [dev-accounts.md](dev-accounts.md).
+Every account uses the same local password. Each shop gets a deliberately rich
+workspace: pack starters plus a trade-specific item and two more items; two
+option groups on the first item; extras scoped to a variant (sub-variants); five
+customers; 12 orders across every status, overdue and undated work, a six-item
+order for the `+N more` summary, and three storefront requests with one, two,
+and three lines. The full account table and the empty-database flow live in
+[dev-accounts.md](dev-accounts.md).
 
 ## Try the workspace
 

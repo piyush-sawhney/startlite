@@ -25,6 +25,7 @@ import type {
   DayOrderItem,
   HomeDashboardData,
   IncompleteOrder,
+  OrderLinePreview,
 } from "./home-types";
 import { getPack } from "./packs";
 import {
@@ -1328,6 +1329,23 @@ export function guestHomeDashboard(
   const todayStart = startOfTodayIst().getTime();
   const weekStart = startOfWeekIst().getTime();
 
+  function getOrderLines(order: GuestOrder): OrderLinePreview[] {
+    return order.lines.map((line) => ({
+      itemName: line.itemName,
+      quantity: line.quantity,
+      unitPrice: formatPaise(Number(line.unitPrice)),
+      unitLabel: line.unitLabel,
+      optionName: line.optionName,
+      extraNames: line.extras.map((extra) => extra.name),
+      extras: line.extras.map((extra) => ({
+        name: extra.name,
+        priceDelta: formatPaise(Number(extra.priceDelta)),
+      })),
+      lineTotal: formatPaise(multiplyPaise(line.quantity, line.unitPrice)),
+      note: line.note,
+    }));
+  }
+
   function getOrderSummary(order: GuestOrder): string {
     return orderSummary(order.lines.map((line) => line.itemName));
   }
@@ -1460,6 +1478,9 @@ export function guestHomeDashboard(
       timeSlot: order.timeSlot || null,
       neededBy: order.neededBy,
       note: order.note || null,
+      customerPhone: order.customerPhone || undefined,
+      customerCountryCode: order.customerCountryCode || "+91",
+      lines: getOrderLines(order),
       isGhost: false,
     };
     if (hasScheduledTime(order.timeSlot)) timeline.push(item);
@@ -1495,6 +1516,7 @@ export function guestHomeDashboard(
       timeSlot: order.timeSlot || null,
       createdAt: order.createdAt,
       note: order.note || null,
+      lines: getOrderLines(order),
     }];
   });
   const incompleteSummary = summarizeIncompleteOrders(incompleteOrderRows);

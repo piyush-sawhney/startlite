@@ -2,11 +2,15 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { formatNeededBy } from "@/lib/bill";
+import { formatNeededBy, whatsappLink } from "@/lib/bill";
+import { callLink, smsLink } from "@/lib/contact";
 import { istDateString } from "@/lib/date";
 import type { DayOrderItem, IncompleteOrder } from "@/lib/home-types";
 import { StatusPill, primaryButton, quietButton } from "@/components/ui";
-import { X } from "lucide-react";
+import { Edit2, MessageCircle, Phone, Send, X } from "lucide-react";
+
+const contactClass =
+  "relative grid h-10 w-10 shrink-0 place-items-center rounded-xl transition after:absolute after:-inset-1 after:content-['']";
 
 export type HomeOrderPreview = Pick<
   DayOrderItem,
@@ -20,8 +24,12 @@ export type HomeOrderPreview = Pick<
   | "neededBy"
   | "timeSlot"
   | "note"
+  | "customerPhone"
+  | "customerCountryCode"
+  | "lines"
 > & {
   createdAt?: string;
+  isRequest?: boolean;
 };
 
 export function OrderDetailsModal({
@@ -32,6 +40,7 @@ export function OrderDetailsModal({
   onCollect,
   onReopen,
   onCancelOrder,
+  onEdit,
   billHref,
 }: {
   order: HomeOrderPreview | IncompleteOrder | null;
@@ -41,6 +50,7 @@ export function OrderDetailsModal({
   onCollect: (orderId: string) => void;
   onReopen?: (orderId: string) => void;
   onCancelOrder?: (orderId: string) => void;
+  onEdit?: () => void;
   billHref?: string;
 }) {
   const [confirmingCancel, setConfirmingCancel] = useState(false);
@@ -56,6 +66,9 @@ export function OrderDetailsModal({
     : null;
   const needed = formatNeededBy(order.neededBy);
   const hasDue = order.due !== "₹0.00";
+  const phone = order.customerPhone ?? "";
+  const hasPhone = phone.trim().length > 0;
+  const reminder = `Hi ${order.customerName}, your StartLite order #${order.code} (${order.itemsSummary}) ${order.status === "ready" ? "is ready for collection" : "is pending"}. Amount due: ${order.due}.`;
 
   function resetAndClose() {
     setConfirmingCancel(false);
@@ -91,13 +104,69 @@ export function OrderDetailsModal({
         </div>
 
         <div className="space-y-4 px-5 py-4">
-          <div className="rounded-xl bg-muted/70 px-3.5 py-3">
-            <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-subtle">
-              Items
-            </p>
-            <p className="mt-1 text-sm font-semibold text-ink">
-              {order.itemsSummary}
-            </p>
+          <div>
+            <p className="eyebrow mb-2 text-ink-subtle">Items</p>
+            <div className="overflow-hidden rounded-xl border border-line">
+              <div className="grid grid-cols-[24px_minmax(0,1fr)_52px_76px_84px] gap-2 bg-muted/60 px-3 py-2 text-caption font-bold text-ink-muted">
+                <span>#</span>
+                <span>Item</span>
+                <span className="figure">Qty</span>
+                <span className="figure">Rate</span>
+                <span className="figure">Amount</span>
+              </div>
+              {order.lines && order.lines.length > 0 ? (
+                order.lines.map((line, index) => (
+                  <div
+                    key={`${line.itemName}-${index}`}
+                    className="grid grid-cols-[24px_minmax(0,1fr)_52px_76px_84px] items-start gap-2 border-t border-line px-3 py-2 text-small"
+                  >
+                    <span className="grid h-5 w-5 place-items-center rounded-md bg-muted text-caption font-bold text-ink-muted">
+                      {index + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-ink" title={line.itemName}>
+                        {line.itemName}
+                      </p>
+                      {line.optionName ? (
+                        <p className="truncate text-caption text-ink-muted">
+                          Variant: {line.optionName}
+                          {line.optionPrice ? ` · ${line.optionPrice}` : ""}
+                        </p>
+                      ) : null}
+                      {line.extras && line.extras.length > 0 ? (
+                        <p className="truncate text-caption text-ink-muted">
+                          Add-ons:{" "}
+                          {line.extras
+                            .map((extra) => `${extra.name} +₹${extra.priceDelta}`)
+                            .join(", ")}
+                        </p>
+                      ) : null}
+                      {line.note ? (
+                        <p className="truncate text-caption text-ink-muted">
+                          Note: {line.note}
+                        </p>
+                      ) : null}
+                    </div>
+                    <span className="figure tnum text-ink">
+                      {line.quantity}
+                      {line.unitLabel ? (
+                        <span className="block text-caption font-normal text-ink-subtle">
+                          {line.unitLabel}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="figure tnum text-ink-muted">{line.unitPrice}</span>
+                    <span className="figure tnum font-semibold text-ink">
+                      {line.lineTotal}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="px-3 py-3 text-small font-semibold text-ink">
+                  {order.itemsSummary}
+                </p>
+              )}
+            </div>
           </div>
 
           {order.note ? (
@@ -133,6 +202,52 @@ export function OrderDetailsModal({
               </div>
             ) : null}
           </dl>
+
+          {/* The same contact and edit shortcuts the order card offers. */}
+          {hasPhone || onEdit ? (
+            <div className="flex items-center gap-2 border-t border-line pt-4">
+              <p className="eyebrow mr-auto text-ink-subtle">Message & edit</p>
+              <div className="flex items-center gap-2">
+                {hasPhone ? (
+                  <>
+                    <a
+                      href={whatsappLink(phone, reminder)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`WhatsApp ${order.customerName}`}
+                      className={`${contactClass} bg-success-soft text-success hover:bg-success/20`}
+                    >
+                      <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                    </a>
+                    <a
+                      href={smsLink(phone, order.customerCountryCode, reminder)}
+                      aria-label={`SMS ${order.customerName}`}
+                      className={`${contactClass} bg-info-soft text-info hover:bg-info/20`}
+                    >
+                      <Send className="h-4 w-4" aria-hidden="true" />
+                    </a>
+                    <a
+                      href={callLink(phone, order.customerCountryCode)}
+                      aria-label={`Call ${order.customerName}`}
+                      className={`${contactClass} bg-accent-soft text-accent-strong hover:bg-accent/20`}
+                    >
+                      <Phone className="h-4 w-4" aria-hidden="true" />
+                    </a>
+                  </>
+                ) : null}
+                {onEdit ? (
+                  <button
+                    type="button"
+                    onClick={onEdit}
+                    aria-label={`Edit ${order.customerName} order`}
+                    className={`${contactClass} border border-line bg-muted text-ink-muted hover:text-ink`}
+                  >
+                    <Edit2 className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
 
           {/* One primary action, named after what it does. */}
           <div className="space-y-2">

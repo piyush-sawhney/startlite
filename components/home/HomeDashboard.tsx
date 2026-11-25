@@ -612,6 +612,49 @@ export function HomeDashboard({
     if (dayOrder) setSelectedOrder(dayOrder);
   }
 
+  // The order sheet can hand straight off to the edit sheet for queued orders.
+  // A storefront request opens the same order sheet as a real order. The
+  // sheet then performs the relevant accept action for a pending request.
+  function handleSelectRequest(req: (typeof data.requests.requests)[number]) {
+    setShowRequestsPanel(false);
+    setSelectedOrder({
+      id: req.code,
+      code: req.code,
+      customerName: req.buyerName,
+      itemsSummary: req.lines
+        .map((line) => line.itemName)
+        .join(", "),
+      total: req.grandTotal,
+      due: req.grandTotal,
+      status: "under_review",
+      neededBy: req.neededBy,
+      timeSlot: req.timeSlot,
+      note: req.note,
+      customerPhone: req.buyerPhone,
+      customerCountryCode: "+91",
+      lines: req.lines.map((line) => ({
+        itemName: line.itemName,
+        quantity: line.quantity,
+        unitPrice: line.lineTotal,
+        unitLabel: line.unitLabel,
+        optionName: line.optionName,
+        extraNames: line.extraNames,
+        lineTotal: line.lineTotal,
+      })),
+      isRequest: true,
+    });
+  }
+
+  function handleEditSelectedOrder() {
+    if (!selectedOrder) return;
+    const queued = data.incompleteOrders.orders.find(
+      (order) => order.id === selectedOrder.id,
+    );
+    if (!queued) return;
+    setSelectedOrder(null);
+    setEditOrder(queued);
+  }
+
   function handleSelectCustomer(id: string) {
     const customer = data.customerDues.find((entry) => entry.id === id);
     if (customer) setSelectedCustomer(customer);
@@ -854,7 +897,7 @@ export function HomeDashboard({
         requests={data.requests.requests}
         isOpen={showRequestsPanel}
         onClose={() => setShowRequestsPanel(false)}
-        onAccept={handleAcceptRequest}
+        onSelectRequest={handleSelectRequest}
       />
 
       <AddSaleModal
@@ -876,15 +919,38 @@ export function HomeDashboard({
       <OrderDetailsModal
         order={selectedOrder}
         onClose={() => setSelectedOrder(null)}
-        onAccept={handleAcceptQuote}
+        onAccept={(id) => {
+          if (selectedOrder?.isRequest) {
+            setSelectedOrder(null);
+            void handleAcceptRequest(id).catch((error) =>
+              setToast({
+                message:
+                  error instanceof Error ? error.message : "Could not accept request.",
+              }),
+            );
+            return;
+          }
+          handleAcceptQuote(id);
+        }}
         onMarkReady={(id) => {
           setSelectedOrder(null);
           void handleCompleteOrder({ id });
         }}
-        onReopen={isOwner ? handleReopenOrder : undefined}
-        onCancelOrder={isOwner ? handleCancelOrder : undefined}
+        onReopen={isOwner && !selectedOrder?.isRequest ? handleReopenOrder : undefined}
+        onCancelOrder={
+          isOwner && !selectedOrder?.isRequest ? handleCancelOrder : undefined
+        }
+        onEdit={
+          isOwner &&
+          selectedOrder &&
+          data.incompleteOrders.orders.some(
+            (order) => order.id === selectedOrder.id,
+          )
+            ? handleEditSelectedOrder
+            : undefined
+        }
         billHref={
-          isOwner && selectedOrder
+          isOwner && selectedOrder && !selectedOrder.isRequest
             ? `/app/sales/${selectedOrder.id}/bill`
             : undefined
         }

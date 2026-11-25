@@ -51,8 +51,27 @@ function lineUnitPaise(
   const option = item.options.find((entry) => entry.id === optionId);
   const base =
     item.priceMode === "quote" ? "0" : option?.price ?? item.basePrice;
-  const extras = item.extras.filter((extra) => extraIds.includes(extra.id));
+  const extras = item.extras.filter(
+    (extra) =>
+      extraIds.includes(extra.id) &&
+      (extra.optionId === null || extra.optionId === optionId),
+  );
   return addPaise(base, ...extras.map((extra) => extra.priceDelta));
+}
+
+/** Extras and sub-variants, grouped by their label for the chosen option. */
+function groupedExtras(item: PublicItem, optionId: string | null) {
+  const visible = item.extras.filter(
+    (extra) =>
+      extra.isAvailable &&
+      (extra.optionId === null || extra.optionId === optionId),
+  );
+  const groups = new Map<string, typeof visible>();
+  for (const extra of visible) {
+    const label = extra.groupLabel || "Extra";
+    groups.set(label, [...(groups.get(label) ?? []), extra]);
+  }
+  return [...groups.entries()];
 }
 
 function lineTotalPaise(line: CartLine) {
@@ -112,6 +131,20 @@ export function AddSaleModal({
 
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // A nested add-item / add-customer sheet owns Escape. Without this, the
+  // dashboard would close the whole sale and lose the cart.
+  useEffect(() => {
+    if (!showNewItem && !showNewCustomer) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      event.stopImmediatePropagation();
+      setShowNewItem(false);
+      setShowNewCustomer(false);
+    }
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [showNewItem, showNewCustomer]);
 
   // Reset the form only when the sheet opens, never when items refresh after
   // an inline add (that would wipe the cart).
@@ -681,13 +714,30 @@ export function AddSaleModal({
 
               {cart.length > 0 ? (
                 <div className="space-y-2">
-                  {cart.map((line) => (
+                  <div className="flex items-center justify-between text-caption font-bold text-ink-muted">
+                    <span>Item</span>
+                    <span className="figure">Amount</span>
+                  </div>
+                  {cart.map((line, index) => (
                     <div
                       key={line.key}
                       className="rounded-md border border-line bg-surface p-3"
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-medium">{line.item.name}</p>
+                        <div className="flex min-w-0 items-start gap-2">
+                          <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-muted text-caption font-bold text-ink-muted">
+                            {index + 1}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-ink">
+                              {line.item.name}
+                            </p>
+                            <p className="text-caption text-ink-muted">
+                              Rate {formatPaise(toPaise(line.item.basePrice))} /{" "}
+                              {line.item.unitLabel}
+                            </p>
+                          </div>
+                        </div>
                         <button
                           type="button"
                           className="text-xs text-danger"
@@ -707,11 +757,19 @@ export function AddSaleModal({
                         <select
                           className={`${inputClass} mt-2`}
                           value={line.optionId ?? ""}
-                          onChange={(event) =>
+                          onChange={(event) => {
+                            const optionId = event.target.value;
                             updateLine(line.key, {
-                              optionId: event.target.value,
-                            })
-                          }
+                              optionId,
+                              // Sub-variant extras belong to one chosen option.
+                              extraIds: line.extraIds.filter((id) => {
+                                const extra = line.item.extras.find(
+                                  (entry) => entry.id === id,
+                                );
+                                return extra?.optionId === null || extra?.optionId === optionId;
+                              }),
+                            });
+                          }}
                         >
                           {line.item.options.map((option) => (
                             <option key={option.id} value={option.id}>
@@ -722,28 +780,33 @@ export function AddSaleModal({
                         </select>
                       ) : null}
 
-                      {line.item.extras.length > 0 ? (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {line.item.extras.map((extra) => (
-                            <button
-                              key={extra.id}
-                              type="button"
-                              onClick={() => toggleExtra(line, extra.id)}
-                              className={cn(
-                                "rounded-full border px-2.5 py-1 text-xs",
-                                line.extraIds.includes(extra.id)
-                                  ? "border-accent bg-accent-soft font-medium text-accent-strong"
-                                  : "border-line text-ink-muted",
-                              )}
-                            >
-                              {extra.name}
-                              {Number(extra.priceDelta) > 0
-                                ? ` +${formatPaise(toPaise(extra.priceDelta))}`
-                                : ""}
-                            </button>
-                          ))}
-                        </div>
-                      ) : null}
+                      {groupedExtras(line.item, line.optionId).map(
+                        ([label, entries]) => (
+                          <div key={label} className="mt-2">
+                            <p className="eyebrow mb-1 text-ink-subtle">{label}</p>
+                            <div className="flex flex-wrap gap-2">
+                              {entries.map((extra) => (
+                                <button
+                                  key={extra.id}
+                                  type="button"
+                                  onClick={() => toggleExtra(line, extra.id)}
+                                  className={cn(
+                                    "rounded-full border px-2.5 py-1 text-xs",
+                                    line.extraIds.includes(extra.id)
+                                      ? "border-accent bg-accent-soft font-medium text-accent-strong"
+                                      : "border-line text-ink-muted",
+                                  )}
+                                >
+                                  {extra.name}
+                                  {Number(extra.priceDelta) > 0
+                                    ? ` +${formatPaise(toPaise(extra.priceDelta))}`
+                                    : ""}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ),
+                      )}
 
                       <div className="mt-2 flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -783,7 +846,7 @@ export function AddSaleModal({
                             +
                           </button>
                         </div>
-                        <p className="tnum text-sm font-semibold">
+                        <p className="figure tnum text-sm font-semibold text-ink">
                           {formatPaise(lineTotalPaise(line))}
                         </p>
                       </div>

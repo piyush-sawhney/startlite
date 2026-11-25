@@ -1,8 +1,10 @@
 "use client";
 
-import { Card, SectionLabel, StatusPill, quietButton } from "@/components/ui";
+import { useMemo, useState } from "react";
+import { Card, StatusPill } from "@/components/ui";
 import { whatsappLink } from "@/lib/bill";
 import { formatNeededBy } from "@/lib/bill";
+import { callLink, phoneDigits, smsLink } from "@/lib/contact";
 import { istDateString } from "@/lib/date";
 import { isReady } from "@/lib/order-status";
 import {
@@ -11,6 +13,7 @@ import {
   MessageCircle,
   MessageSquare,
   Package,
+  ChevronDown,
   Phone,
   Send,
   Edit2,
@@ -19,22 +22,30 @@ import type { IncompleteOrder } from "@/lib/home-types";
 
 const HOME_ORDER_LIMIT = 10;
 
-function phoneDigits(phone: string, countryCode = "+91"): string {
-  const digits = phone.replace(/\D/g, "");
-  if (digits.startsWith("0")) return digits.slice(1);
-  const cc = countryCode.replace("+", "");
-  if (!digits.startsWith(cc)) return cc + digits;
-  return digits;
-}
+type SortKey = "priority" | "needed" | "newest" | "due";
 
-function smsLink(phone: string, countryCode: string | undefined, text: string): string {
-  const to = phoneDigits(phone, countryCode);
-  return `sms:${to}?body=${encodeURIComponent(text)}`;
-}
+const SORT_LABELS: Record<SortKey, string> = {
+  priority: "Priority",
+  needed: "Needed date",
+  newest: "Newest",
+  due: "Amount due",
+};
 
-function callLink(phone: string, countryCode: string | undefined): string {
-  const to = phoneDigits(phone, countryCode);
-  return `tel:${to}`;
+function sortOrders(orders: IncompleteOrder[], key: SortKey) {
+  if (key === "priority") return orders;
+  const sorted = [...orders];
+  if (key === "needed") {
+    return sorted.sort(
+      (a, b) =>
+        (a.neededBy || "").localeCompare(b.neededBy || "") ||
+        (a.timeSlot ?? "").localeCompare(b.timeSlot ?? "") ||
+        a.createdAt.localeCompare(b.createdAt),
+    );
+  }
+  if (key === "newest") {
+    return sorted.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+  return sorted.sort((a, b) => (b.duePaise ?? 0) - (a.duePaise ?? 0));
 }
 
 function isOverdue(order: IncompleteOrder): boolean {
@@ -64,7 +75,12 @@ export function IncompleteOrders({
   onCollect: (order: IncompleteOrder) => void;
   onEdit?: (order: IncompleteOrder) => void;
 }) {
-  const visibleOrders = orders.slice(0, HOME_ORDER_LIMIT);
+  const [sortKey, setSortKey] = useState<SortKey>("priority");
+  const [showSort, setShowSort] = useState(false);
+  const visibleOrders = useMemo(
+    () => sortOrders(orders.slice(0, HOME_ORDER_LIMIT), sortKey),
+    [orders, sortKey],
+  );
   const toFinish = visibleOrders.filter((order) => !isReady(order.status));
   const readyToCollect = visibleOrders.filter((order) => isReady(order.status));
 
@@ -98,80 +114,83 @@ export function IncompleteOrders({
     return (
       <article
         key={order.id}
-        className={`rounded-xl border border-line border-l-[3px] bg-surface px-3.5 py-3 shadow-[0_1px_2px_rgb(20_18_15/0.04)] ${
-          isCollectGroup ? "border-l-accent" : "border-l-warning"
+        className={`rounded-xl border border-line border-l-[3px] bg-surface px-3 py-2.5 shadow-[0_1px_2px_rgb(20_18_15/0.04)] 2xl:grid 2xl:grid-cols-[minmax(0,1fr)_auto] 2xl:items-center 2xl:gap-3 lg:px-3 lg:py-2 ${
+          isCollectGroup ? "border-l-warning" : "border-l-accent/60"
         }`}
       >
         <button
           type="button"
           onClick={() => onOpenOrder(order)}
           aria-label={`Order details: ${order.customerName}, ${order.itemsSummary}, ${order.due} due`}
-          className="block w-full min-w-0 text-left"
+          className="block w-full min-w-0 text-left 2xl:col-start-1 2xl:min-w-0"
         >
           {/* One tight block: deadline and items lead, details sit below. */}
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <p className="flex min-w-0 items-center gap-1.5 text-small">
+          {/* Deadline and money lead; items and the buyer's note follow. */}
+          <div className="flex items-start justify-between gap-2 2xl:items-center 2xl:gap-4">
+            <div className="min-w-0 2xl:flex-1">
+              <p className="flex items-center gap-1.5 text-caption text-ink-subtle">
                 <CalendarClock
                   className="h-3.5 w-3.5 shrink-0 text-accent-strong"
                   aria-hidden="true"
                 />
-                <span className="eyebrow shrink-0 text-ink-subtle">Needed by</span>
-                <span className="truncate font-bold text-ink">
-                  {needed ?? "Any time"}
-                  {hasSlot && order.timeSlot ? ` · ${order.timeSlot}` : ""}
-                </span>
+                Needed by
               </p>
-              <p className="mt-1.5 flex items-start gap-1.5 text-small leading-5">
+              <p className="mt-0.5 truncate text-body font-bold text-ink">
+                {needed ?? "Any time"}
+                {hasSlot && order.timeSlot ? ` · ${order.timeSlot}` : ""}
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-col items-end gap-0.5">
+              <p
+                className={`figure text-small font-bold ${
+                  isCollectGroup ? "text-warning" : "text-ink"
+                }`}
+              >
+                {isCollectGroup
+                  ? `${order.due} due`
+                  : `${order.due} due · ${order.total} total`}
+              </p>
+              <div className="flex flex-wrap items-center justify-end gap-1">
+                {isOverdue(order) ? (
+                  <span className="rounded-full bg-danger px-2 py-0.5 text-caption font-bold text-white">
+                    Overdue
+                  </span>
+                ) : null}
+                <StatusPill status={order.status} />
+              </div>
+            </div>
+          </div>
+
+          <div className="2xl:mt-1 2xl:flex 2xl:items-start 2xl:gap-4">
+            <div className="mt-2 min-w-0 flex-1 2xl:mt-0">
+              <p className="flex items-start gap-1.5 text-small leading-5">
                 <Package
                   className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-muted"
                   aria-hidden="true"
                 />
-                <span className="line-clamp-2 font-semibold text-ink" title={order.itemsSummary}>
-                  {order.itemsSummary}
-                </span>
+                <span className="font-semibold text-ink">{order.itemsSummary}</span>
               </p>
-            </div>
-            <div className="flex shrink-0 flex-col items-end gap-1">
-              {isOverdue(order) ? (
-                <span className="rounded-full bg-danger px-2 py-0.5 text-caption font-bold text-white">
-                  Overdue
-                </span>
+              {order.note ? (
+                <p className="mt-1 flex items-start gap-1.5 rounded-lg bg-warning-soft px-2 py-1 text-caption leading-4 text-ink">
+                  <MessageSquare
+                    className="mt-0.5 h-3 w-3 shrink-0 text-warning"
+                    aria-hidden="true"
+                  />
+                  <span>{order.note}</span>
+                </p>
               ) : null}
-              <StatusPill status={order.status} />
             </div>
-          </div>
 
-          {order.note ? (
-            <p className="mt-1.5 flex items-start gap-1.5 rounded-lg bg-warning-soft px-2 py-1 text-caption leading-4 text-ink">
-              <MessageSquare
-                className="mt-0.5 h-3 w-3 shrink-0 text-warning"
-                aria-hidden="true"
-              />
-              <span className="line-clamp-2">{order.note}</span>
-            </p>
-          ) : null}
-
-          <div className="mt-2 flex items-center justify-between gap-2 border-t border-line pt-2">
-            <p className="min-w-0 truncate text-caption text-ink-muted">
+            <p className="mt-1.5 truncate text-caption text-ink-muted 2xl:mt-0 2xl:w-[160px] 2xl:shrink-0">
               <span className="font-semibold text-ink">{order.customerName}</span>
               <span className="tnum"> · #{order.code}</span>
               <span className="tnum"> · Placed {placed}</span>
-            </p>
-            <p
-              className={`figure shrink-0 text-small font-bold ${
-                isCollectGroup ? "text-accent-strong" : "text-ink"
-              }`}
-            >
-              {isCollectGroup
-                ? `${order.due} due`
-                : `${order.total} total · ${order.due} due`}
             </p>
           </div>
         </button>
 
         {/* Contact shortcuts and the single row action share one bar. */}
-        <div className="mt-2.5 flex items-center gap-2">
+        <div className="mt-2.5 flex items-center gap-2 2xl:col-start-2 2xl:row-start-1 2xl:mt-0 2xl:shrink-0 2xl:border-l 2xl:border-line 2xl:pl-3">
           {hasPhone ? (
             <>
               <a
@@ -218,8 +237,8 @@ export function IncompleteOrders({
             }
             className={
               isCollectGroup
-                ? "ml-auto min-h-10 shrink-0 rounded-xl border border-accent/30 bg-accent-soft px-3.5 text-xs font-bold text-accent-strong transition hover:bg-accent/15"
-                : quietButton("ml-auto min-h-10 shrink-0 px-3.5 text-xs font-semibold")
+                ? "ml-auto inline-flex min-h-9 shrink-0 items-center justify-center rounded-xl border border-warning/30 bg-warning-soft px-3 text-xs font-bold text-warning transition hover:bg-warning/15 lg:min-h-10"
+                : "ml-auto inline-flex min-h-9 shrink-0 items-center justify-center rounded-xl border border-accent/30 bg-accent-soft px-3 text-xs font-bold text-accent-strong transition hover:bg-accent/15 lg:min-h-10"
             }
           >
             {actionLabel}
@@ -258,31 +277,71 @@ export function IncompleteOrders({
 
   return (
     <Card className="overflow-hidden p-0">
-      <div className="flex items-start gap-3 border-b border-line px-4 py-3.5">
+      <div className="flex items-center gap-2.5 border-b border-line px-4 py-2.5 lg:gap-3 lg:py-2">
         <span
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent-strong"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent-strong"
           aria-hidden="true"
         >
           <ClipboardList className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <SectionLabel>Pending orders</SectionLabel>
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-            <span className="inline-flex items-center gap-1.5 font-medium text-ink-muted">
-              <span className="h-1.5 w-1.5 rounded-full bg-warning" aria-hidden="true" />
+          <h2 className="truncate text-small font-bold text-ink lg:text-body">
+            Pending orders
+          </h2>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-caption text-ink-muted">
+            <span className="inline-flex items-center gap-1.5 font-medium">
+              <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
               {toFinishCount} to finish
             </span>
             <span className="text-ink-subtle" aria-hidden="true">·</span>
-            <span className="inline-flex items-center gap-1.5 font-medium text-ink-muted">
-              <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
+            <span className="inline-flex items-center gap-1.5 font-medium">
+              <span className="h-1.5 w-1.5 rounded-full bg-warning" aria-hidden="true" />
               {readyCount} to collect
             </span>
           </div>
         </div>
-        <p className="tnum shrink-0 self-center text-sm font-bold text-ink">
-          {totalDue}
-          <span className="block text-[10px] font-medium text-ink-subtle">pending</span>
-        </p>
+        <div className="flex shrink-0 items-center gap-2">
+          {totalCount > 0 ? (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowSort(!showSort)}
+                aria-expanded={showSort}
+                aria-label={`Sort orders: ${SORT_LABELS[sortKey]}`}
+                className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-caption font-bold text-accent-strong transition hover:bg-accent-soft"
+              >
+                <span className="hidden sm:inline">Sort: </span>
+                {SORT_LABELS[sortKey]}
+                <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+              {showSort ? (
+                <div className="absolute right-0 top-10 z-20 w-40 overflow-hidden rounded-xl border border-line bg-surface shadow-lg">
+                  {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => {
+                        setSortKey(key);
+                        setShowSort(false);
+                      }}
+                      className={`block w-full px-3 py-2 text-left text-small transition hover:bg-muted ${
+                        key === sortKey
+                          ? "font-bold text-accent-strong"
+                          : "text-ink-muted"
+                      }`}
+                    >
+                      {SORT_LABELS[key]}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          <div className="text-right">
+            <p className="eyebrow text-ink-subtle">Due</p>
+            <p className="figure text-small font-bold text-ink">{totalDue}</p>
+          </div>
+        </div>
       </div>
 
       {/* Mobile scrolls with the page. Only the desktop card scrolls inside
@@ -296,12 +355,12 @@ export function IncompleteOrders({
           aria-label="Pending orders"
           className="space-y-2 p-2 lg:max-h-[34rem] lg:overflow-y-auto lg:overscroll-contain"
         >
-          {renderGroup("to-finish", "To finish", toFinishCount, "bg-warning", toFinish)}
+          {renderGroup("to-finish", "To finish", toFinishCount, "bg-accent", toFinish)}
           {renderGroup(
             "ready-to-collect",
             "Ready to collect",
             readyCount,
-            "bg-accent",
+            "bg-warning",
             readyToCollect,
           )}
         </div>

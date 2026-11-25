@@ -2,10 +2,26 @@
 
 import { useState } from "react";
 import { Card, StatusPill } from "@/components/ui";
+import { formatNeededBy, whatsappLink } from "@/lib/bill";
 import { cn } from "@/lib/cn";
+import { callLink, smsLink } from "@/lib/contact";
 import { istDateString, relativeDayLabel } from "@/lib/date";
 import type { DayOrderItem } from "@/lib/home-types";
-import { Calendar, CalendarDays, ChevronLeft, ChevronRight, MessageSquare } from "lucide-react";
+import {
+  Calendar,
+  CalendarClock,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  MessageCircle,
+  MessageSquare,
+  Package,
+  Phone,
+  Send,
+} from "lucide-react";
+
+const contactClass =
+  "relative grid h-9 w-9 shrink-0 place-items-center rounded-xl transition after:absolute after:-inset-1 after:content-['']";
 
 export function DayView({
   selectedDay,
@@ -69,11 +85,14 @@ export function DayView({
 
   function renderRow(item: DayOrderItem, withTime: boolean) {
     const isGhost = Boolean(item.isGhost);
+    const hasDue = item.due !== "₹0.00";
+    const phone = item.customerPhone ?? "";
+    const hasPhone = !isGhost && phone.trim().length > 0;
+    const message = `Hi ${item.customerName}, your StartLite order #${item.code} (${item.itemsSummary}) ${item.status === "ready" ? "is ready for collection" : "is pending"}. Amount due: ${item.due}.`;
     function open() {
       if (isGhost) onSelectGhost?.(item.id);
       else onSelectOrder?.(item.id);
     }
-    const hasDue = item.due !== "₹0.00";
 
     return (
       <div
@@ -88,59 +107,95 @@ export function DayView({
           }
         }}
         className={cn(
-          "flex cursor-pointer items-center justify-between gap-2 rounded-xl border-l-[3px] border-y border-r px-3 py-2.5 text-xs transition",
-          isGhost
-            ? "border-l-warning border-y-warning/25 border-r-warning/25 bg-warning-soft/50 hover:bg-warning-soft"
-            : "border-l-accent border-y-line border-r-line bg-surface hover:border-y-accent/30 hover:bg-accent-soft/30",
+          "cursor-pointer rounded-xl border border-line border-l-[3px] bg-surface px-3 py-2.5 shadow-[0_1px_2px_rgb(20_18_15/0.04)] transition hover:shadow-[0_4px_12px_rgb(20_18_15/0.08)]",
+          isGhost ? "border-l-warning bg-warning-soft/30" : "border-l-accent/60",
         )}
       >
-        <div className="min-w-0">
-          <p
-            className="truncate text-ink"
-            title={`${item.timeSlot ? `${item.timeSlot} · ` : ""}${isGhost ? "Request: " : ""}${item.customerName} · ${item.itemsSummary}`}
-          >
-            {withTime && item.timeSlot ? (
-              <span
-                className={cn(
-                  "font-bold",
-                  isGhost ? "text-warning" : "text-accent-strong",
-                )}
-              >
-                {item.timeSlot}{" "}
-              </span>
-            ) : null}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="flex items-center gap-1.5 text-caption text-ink-subtle">
+              <CalendarClock className="h-3.5 w-3.5 shrink-0 text-warning" aria-hidden="true" />
+              {isGhost ? "Requested" : "Needed by"}
+            </p>
+            <p className="mt-0.5 truncate text-body font-bold text-ink">
+              {formatNeededBy(item.neededBy) ?? "Any time"}
+              {withTime && item.timeSlot ? ` · ${item.timeSlot}` : ""}
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-0.5">
+            <p className={cn("figure text-small font-bold", hasDue ? "text-warning" : "text-ink")}>
+              {item.total}
+              {hasDue ? ` · ${item.due} due` : ""}
+            </p>
             {isGhost ? (
-              <span className="font-bold text-warning">Request: </span>
-            ) : !withTime ? (
-              <span className="text-ink-subtle">· </span>
-            ) : null}
-            <span className="font-semibold text-ink">{item.customerName}</span> ·{" "}
-            <span className="text-ink-muted">{item.itemsSummary}</span>
-            {item.note ? (
-              <span
-                className="ml-1 inline-flex text-warning"
-                title={item.note}
-                aria-label={`Buyer's note: ${item.note}`}
-              >
-                <MessageSquare className="h-3 w-3" aria-hidden="true" />
+              <span className="rounded-full bg-warning px-2 py-0.5 text-caption font-bold text-white">
+                Request
               </span>
-            ) : null}
-          </p>
+            ) : (
+              <StatusPill status={item.status} />
+            )}
+          </div>
         </div>
-        <div className="ml-1 flex shrink-0 items-center gap-2">
-          <span className="tnum font-semibold text-ink">{item.total}</span>
-          {hasDue ? (
-            <span className="tnum text-[10px] font-semibold text-warning">
-              {item.due} due
-            </span>
+
+        <p className="mt-2 flex items-start gap-1.5 text-small leading-5">
+          <Package className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-muted" aria-hidden="true" />
+          <span className="font-semibold text-ink">{item.itemsSummary}</span>
+        </p>
+        {item.note ? (
+          <p className="mt-1 flex items-start gap-1.5 rounded-lg bg-warning-soft px-2 py-1 text-caption leading-4 text-ink">
+            <MessageSquare className="mt-0.5 h-3 w-3 shrink-0 text-warning" aria-hidden="true" />
+            <span>{item.note}</span>
+          </p>
+        ) : null}
+
+        <p className="mt-1.5 truncate text-caption text-ink-muted">
+          <span className="font-semibold text-ink">{item.customerName}</span>
+          <span className="tnum"> · #{item.code}</span>
+        </p>
+
+        <div className="mt-2 flex items-center gap-2">
+          {hasPhone ? (
+            <>
+              <a
+                href={whatsappLink(phone, message)}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`WhatsApp ${item.customerName}`}
+                className={contactClass + " bg-success-soft text-success hover:bg-success/20"}
+              >
+                <MessageCircle className="h-4 w-4" aria-hidden="true" />
+              </a>
+              <a
+                href={smsLink(phone, item.customerCountryCode, message)}
+                aria-label={`SMS ${item.customerName}`}
+                className={contactClass + " bg-info-soft text-info hover:bg-info/20"}
+              >
+                <Send className="h-4 w-4" aria-hidden="true" />
+              </a>
+              <a
+                href={callLink(phone, item.customerCountryCode)}
+                aria-label={`Call ${item.customerName}`}
+                className={contactClass + " bg-accent-soft text-accent-strong hover:bg-accent/20"}
+              >
+                <Phone className="h-4 w-4" aria-hidden="true" />
+              </a>
+            </>
           ) : null}
-          {isGhost ? (
-            <span className="rounded-full bg-warning px-2 py-0.5 text-[10px] font-bold text-white">
-              Review
-            </span>
-          ) : (
-            <StatusPill status={item.status} />
-          )}
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              open();
+            }}
+            className={cn(
+              "ml-auto inline-flex min-h-9 shrink-0 items-center justify-center rounded-xl border px-3 text-xs font-bold transition",
+              isGhost
+                ? "border-warning/30 bg-warning-soft text-warning hover:bg-warning/15"
+                : "border-accent/30 bg-accent-soft text-accent-strong hover:bg-accent/15",
+            )}
+          >
+            {isGhost ? "Review request" : "Order details"}
+          </button>
         </div>
       </div>
     );

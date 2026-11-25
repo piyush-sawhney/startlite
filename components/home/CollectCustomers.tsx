@@ -2,26 +2,9 @@
 
 import { Card, SectionLabel } from "@/components/ui";
 import { whatsappLink } from "@/lib/bill";
+import { callLink, smsLink } from "@/lib/contact";
 import { MessageCircle, Phone, Send, Wallet } from "lucide-react";
 import type { CustomerDue } from "@/lib/home-types";
-
-function phoneDigits(phone: string, countryCode = "+91"): string {
-  const digits = phone.replace(/\D/g, "");
-  if (digits.startsWith("0")) return digits.slice(1);
-  const cc = countryCode.replace("+", "");
-  if (!digits.startsWith(cc)) return cc + digits;
-  return digits;
-}
-
-function smsLink(phone: string, countryCode: string | undefined, text: string): string {
-  const to = phoneDigits(phone, countryCode);
-  return `sms:${to}?body=${encodeURIComponent(text)}`;
-}
-
-function callLink(phone: string, countryCode: string | undefined): string {
-  const to = phoneDigits(phone, countryCode);
-  return `tel:${to}`;
-}
 
 const contactClass =
   "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition after:absolute after:-inset-1 after:content-['']";
