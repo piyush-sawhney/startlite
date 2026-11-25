@@ -41,46 +41,67 @@ are:
 Light theme only in v1. Dark tokens stay reserved in the same file but are not
 exposed.
 
-| Token | OKLCH | Approx hex | Use |
-|---|---|---|---|
-| `canvas` | `0.985 0.004 90` | `#FBFAF7` | Page background |
-| `surface` | `1 0 0` | `#FFFFFF` | Cards, sheets |
-| `surface-muted` | `0.965 0.005 90` | `#F4F2ED` | Inputs, inactive tabs |
-| `border` | `0.905 0.006 90` | `#E4E1D9` | Dividers, card outlines |
-| `ink` | `0.24 0.012 70` | `#2A2724` | Primary text |
-| `ink-muted` | `0.50 0.010 70` | `#75706A` | Secondary text |
-| `ink-subtle` | `0.63 0.008 70` | `#9C978F` | Captions, placeholders |
-| `accent` | `0.47 0.075 195` | `#12666B` | Primary actions, active tab |
-| `accent-strong` | `0.38 0.070 195` | `#0B4D52` | Pressed state, links |
-| `accent-soft` | `0.950 0.020 195` | `#E5F2F2` | Selected chips, highlights |
-| `success` | `0.55 0.110 155` | `#2E7D5B` | Paid, settled |
-| `warning` | `0.66 0.140 70` | `#B8730F` | Due soon, low stock |
-| `danger` | `0.55 0.170 25` | `#B33A2B` | Overdue, destructive |
-| `info` | `0.55 0.130 250` | `#2F5FB3` | Informational badges |
+| Token | Hex | Use |
+|---|---|---|
+| `canvas` | `#FFFFFF` | Page background, plain white |
+| `surface` | `#FFFFFF` | Cards, sheets |
+| `muted` | `#F4F7F6` | Inactive chips, soft row bands |
+| `line` | `#E2E9E6` | Dividers, card outlines |
+| `ink` | `#17231F` | Primary text, 16.2:1 on white |
+| `ink-muted` | `#52635E` | Secondary text, 6.4:1 on white |
+| `ink-subtle` | `#63736D` | Captions and placeholders, 5:1 on white |
+| `accent` | `#0B6E62` | Primary actions, active tab, 6.1:1 on white |
+| `accent-strong` | `#07544B` | Pressed state, links, net-cash card |
+| `accent-soft` | `#E6F4F1` | Selected chips, teal tints |
+| `success` | `#137A4B` | Money in, settled, WhatsApp, 5.4:1 on white |
+| `success-soft` | `#E8F6EE` | Green tint |
+| `warning` | `#A85A08` | Money due, requests, 5.1:1 on white |
+| `warning-soft` | `#FFF3E3` | Amber tint |
+| `danger` | `#C0392B` | Money out, overdue, destructive, 5.4:1 on white |
+| `danger-soft` | `#FDECEB` | Red tint |
+| `info` | `#2E5FA3` | Waiting, SMS, 6.4:1 on white |
+| `info-soft` | `#EAF1FB` | Blue tint |
 
 Rules:
 
+- The page is plain white. Cards are white with a hairline border and a 1 px
+  shadow. Depth comes from spacing, alignment, and a restrained semantic tint —
+  not from a coloured page.
+- Every semantic colour is at least 4.5:1 on white and on its own soft tint, so
+  it can carry small text as well as an icon or a dot.
 - Status color never carries meaning alone. Pair it with a word and an icon.
-- Body text uses `ink` on `canvas` or `surface`. That pair exceeds 12:1 contrast.
-- `accent` on `surface` exceeds 6:1. Use white text on `accent`.
-- Do not tint large surfaces with status colors. Use a left border or a pill.
+- Reserve red for money out, overdue, and destructive actions. Amber means an
+  action is waiting; teal means the primary action or a net position.
+- Do not tint large surfaces with status colours. Use a soft tint, a left rail,
+  or a pill. The one exception is the deep teal net-cash card.
 
 ## Typography
 
+The app uses one family: Inter when it is installed, otherwise the system UI
+stack. No font is fetched at build or runtime. Regional scripts use their own
+Noto family through the same stack.
+
 | Role | Family | Weight | Size and line height |
 |---|---|---|---|
-| Marketing display | Instrument Serif | 400 | 40/48, Latin only |
-| Page title | Inter | 600 | 24/32 |
-| Section title | Inter | 600 | 20/28 |
-| Body | Inter | 400 | 16/24 |
-| Body strong | Inter | 600 | 16/24 |
-| Small | Inter | 400 | 14/20 |
-| Caption | Inter | 500 | 12/16 |
-| Micro | Inter | 500 | 11/14, tracking `0.02em` |
+| Page title | Sans | 700 | 24/32, tracking `-0.022em` |
+| Section title | Sans | 700 | 18/24, tracking `-0.022em` |
+| Body | Sans | 400 | 16/24, tracking `-0.006em` |
+| Body strong | Sans | 600–700 | 14–16/20–24 |
+| Small | Sans | 500 | 14/20 |
+| Caption | Sans | 500 | 12/16 |
+| Eyebrow / group label | Sans | 700 | 12/16, uppercase, tracking `0.08em` |
+| Footer micro | Sans | 500 | 11/14, tracking `0.02em` |
 
 Rules:
 
-- All amounts use `font-variant-numeric: tabular-nums`.
+- All amounts use the `figure` utility: tabular digits, right alignment, and
+  `font-feature-settings: "tnum"`.
+- The `eyebrow` utility is the only uppercase label style: 12 px, weight 700,
+  tracking `0.08em`. Labels are plain words, never one-word riddles. An eyebrow
+  names its section; it does not decorate it.
+- Use the shared scale (`text-caption`, `text-small`, `text-body`, `text-title`)
+  instead of ad-hoc pixel sizes. This keeps baselines aligned across screens.
+- Prefer 12 px over 10 px for captions. Never set body copy below 14 px.
 - Amounts align right in lists and use a fixed decimal column.
 - The measure is 45 to 75 characters. Never full width on a tablet.
 - One family per script. Do not mix a Latin display font into regional text.

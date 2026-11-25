@@ -14,7 +14,8 @@ import {
   pendingOrders,
 } from "@/db/schema";
 import { dec, formatAmount, formatCompactAmount } from "./money";
-import { summarizeIncompleteOrders } from "./home-orders";
+import { hasScheduledTime, summarizeIncompleteOrders } from "./home-orders";
+import { orderSummary } from "./order-summary";
 import {
   isCancelled,
   isClosed,
@@ -484,6 +485,7 @@ export async function getHomeDashboard(
 
   const [
     orderRows,
+    dayRows,
     incompleteRows,
     paymentRows,
     expenseRows,
@@ -498,6 +500,14 @@ export async function getHomeDashboard(
       .where(eq(orders.businessId, businessId))
       .orderBy(desc(orders.createdAt))
       .limit(200),
+    // The day view is a commitment list, not a slice of recent orders. Query
+    // every order needed on the selected day, with no cap and no status filter,
+    // so an order placed months ago or since cancelled is still visible.
+    db
+      .select()
+      .from(orders)
+      .where(and(eq(orders.businessId, businessId), eq(orders.neededBy, selectedDay)))
+      .orderBy(asc(orders.timeSlot), asc(orders.createdAt)),
     db
       .select()
       .from(orders)
@@ -558,10 +568,7 @@ export async function getHomeDashboard(
   }
 
   function getOrderSummary(orderId: string): string {
-    const items = itemsByOrder.get(orderId) ?? [];
-    if (items.length === 0) return "1 item";
-    if (items.length === 1) return items[0];
-    return `${items[0]} · +${items.length - 1}`;
+    return orderSummary(itemsByOrder.get(orderId) ?? []);
   }
 
   // 1. KPIs
@@ -693,15 +700,13 @@ export async function getHomeDashboard(
     })),
   };
 
-  // 3. Day view for selectedDay
-  const dayOrders = orderRows.filter(
-    (order) => order.neededBy === selectedDay && !isCancelled(order.status),
-  );
-
+  // 3. Day view for selectedDay. Every order needed on this day is included,
+  // whatever its status. Cancelled and completed work is still part of the
+  // day's history and must not silently disappear.
   const anyTime: DayOrderItem[] = [];
   const timeline: DayOrderItem[] = [];
 
-  for (const order of dayOrders) {
+  for (const order of dayRows) {
     const due = dec(order.grandTotal)
       .minus(order.paidTotal)
       .minus(order.tdsTotal);
@@ -715,17 +720,14 @@ export async function getHomeDashboard(
       status: order.status as DayOrderItem["status"],
       timeSlot: order.timeSlot,
       neededBy: order.neededBy,
+      note: order.deliveryNote,
       isGhost: false,
     };
 
-    if (
-      !order.timeSlot ||
-      order.timeSlot.trim().toLowerCase() === "any time" ||
-      order.timeSlot.trim().toLowerCase() === "none"
-    ) {
-      anyTime.push(item);
-    } else {
+    if (hasScheduledTime(order.timeSlot)) {
       timeline.push(item);
+    } else {
+      anyTime.push(item);
     }
   }
 
@@ -774,6 +776,7 @@ export async function getHomeDashboard(
       neededBy: order.neededBy,
       timeSlot: order.timeSlot,
       createdAt: order.createdAt.toISOString(),
+      note: order.deliveryNote,
     }];
   });
   const incompleteSummary = summarizeIncompleteOrders(incompleteOrderRows);

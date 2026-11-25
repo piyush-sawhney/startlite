@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Label, inputClass, primaryButton, quietButton } from "@/components/ui";
+import { SheetClose } from "./SheetClose";
 
 type CollectableOrder = {
   id: string;
@@ -64,54 +65,63 @@ export function CollectPaymentModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="collect-payment-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 backdrop-blur-sm sm:items-center sm:p-4"
     >
-      <div className="w-full max-w-[420px] rounded-2xl border border-line bg-surface p-6 shadow-2xl">
-        <div className="border-b border-line pb-3">
-          <h2 id="collect-payment-title" className="text-lg font-semibold text-ink">
-            Collect payment
-          </h2>
-          <p className="mt-0.5 text-xs text-ink-muted">
-            {order.customerName} · Due: {order.due}
-          </p>
+      <div className="max-h-[92dvh] w-full max-w-[420px] overflow-y-auto rounded-t-2xl border border-line bg-surface p-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:pb-6">
+        <div className="flex items-start justify-between gap-2 border-b border-line pb-3">
+          <div className="min-w-0">
+            <h2 id="collect-payment-title" className="text-title font-bold text-ink">
+              Collect payment
+            </h2>
+            <p className="mt-0.5 text-caption text-ink-muted">
+              {order.customerName} · {order.due} due
+            </p>
+          </div>
+          <SheetClose onClose={onClose} label="Close Collect payment" />
         </div>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
-            <Label>Amount (₹)</Label>
+            <Label>Amount</Label>
             <input
               type="text"
               inputMode="decimal"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               className={inputClass}
-              placeholder="0.00"
+              placeholder="₹0.00"
               required
             />
           </div>
 
           <div>
-            <Label>Payment mode</Label>
-            <div className="grid grid-cols-3 gap-1.5">
-              {(["upi", "cash", "card", "bank", "other"] as const).map((m) => (
+            <Label>Mode</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                ["upi", "UPI"],
+                ["cash", "Cash"],
+                ["card", "Card"],
+                ["bank", "Bank"],
+                ["other", "Other"],
+              ] as const).map(([id, label]) => (
                 <button
-                  key={m}
+                  key={id}
                   type="button"
-                  onClick={() => setMode(m)}
-                  className={`rounded-xl border py-2 text-xs font-semibold capitalize transition ${
-                    mode === m
+                  onClick={() => setMode(id)}
+                  className={`min-h-11 rounded-xl border text-xs font-bold transition ${
+                    mode === id
                       ? "border-accent bg-accent-soft text-accent-strong"
-                      : "border-line bg-surface text-ink hover:bg-muted"
+                      : "border-line bg-surface text-ink-muted hover:bg-muted"
                   }`}
                 >
-                  {m}
+                  {label}
                 </button>
               ))}
             </div>
           </div>
 
           <div>
-            <Label>Note (optional)</Label>
+            <Label>Note</Label>
             <input
               type="text"
               value={note}

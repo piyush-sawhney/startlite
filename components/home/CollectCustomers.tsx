@@ -2,7 +2,7 @@
 
 import { Card, SectionLabel } from "@/components/ui";
 import { whatsappLink } from "@/lib/bill";
-import { MessageCircle, Phone, Send } from "lucide-react";
+import { MessageCircle, Phone, Send, Wallet } from "lucide-react";
 import type { CustomerDue } from "@/lib/home-types";
 
 function phoneDigits(phone: string, countryCode = "+91"): string {
@@ -23,6 +23,9 @@ function callLink(phone: string, countryCode: string | undefined): string {
   return `tel:${to}`;
 }
 
+const contactClass =
+  "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition after:absolute after:-inset-1 after:content-['']";
+
 export function CollectCustomers({
   customers,
   onSelectCustomer,
@@ -32,18 +35,31 @@ export function CollectCustomers({
 }) {
   return (
     <Card className="p-4">
-      <div className="border-b border-line pb-3">
+      <div className="flex items-center gap-2.5 border-b border-line pb-3">
+        <span
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-warning-soft text-warning"
+          aria-hidden="true"
+        >
+          <Wallet className="h-4 w-4" />
+        </span>
         <SectionLabel>To collect from customers</SectionLabel>
+        {customers.length > 0 ? (
+          <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-[11px] font-bold text-ink-muted">
+            {customers.length}
+          </span>
+        ) : null}
       </div>
 
       {customers.length === 0 ? (
         <p className="py-6 text-center text-sm text-ink-muted">No dues.</p>
       ) : (
-        <div className="mt-2 divide-y divide-line">
+        <div className="mt-1 divide-y divide-line">
           {customers.map((c) => {
-            const phone = c.phone;
+            // `hasPhone` guards rendering; the fallback keeps the link helpers
+            // (which require a string) type-safe without changing runtime data.
+            const phone = c.phone ?? "";
             const countryCode = c.countryCode;
-            const hasPhone = Boolean(phone && phone.trim().length > 0);
+            const hasPhone = phone.trim().length > 0;
             const reminderMessage = `Hi ${c.name}, this is a friendly reminder that you have ₹${c.pending} pending with us. Please clear the balance at your earliest. Thank you!`;
 
             return (
@@ -52,10 +68,16 @@ export function CollectCustomers({
                 role="button"
                 tabIndex={0}
                 onClick={() => onSelectCustomer(c.id)}
-                className="flex cursor-pointer items-center justify-between py-2.5 transition active:bg-muted/40"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onSelectCustomer(c.id);
+                  }
+                }}
+                className="flex cursor-pointer items-center justify-between gap-2 rounded-lg py-2.5 transition hover:bg-muted/60 active:bg-muted"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-ink" title={c.name}>
+                  <p className="truncate font-semibold text-ink" title={c.name}>
                     {c.name}
                   </p>
                   {c.lastPaidDate ? (
@@ -63,10 +85,8 @@ export function CollectCustomers({
                   ) : null}
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="tnum font-semibold text-warning">
-                    {c.pending}
-                  </span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="tnum font-bold text-warning">{c.pending}</span>
 
                   {hasPhone ? (
                     <>
@@ -74,25 +94,22 @@ export function CollectCustomers({
                         href={whatsappLink(phone, reminderMessage)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        type="button"
                         aria-label={`WhatsApp ${c.name}`}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-500 text-white hover:bg-green-600 transition"
+                        className={`${contactClass} bg-success-soft text-success hover:bg-success/20`}
                       >
                         <MessageCircle className="h-4 w-4" aria-hidden="true" />
                       </a>
                       <a
                         href={smsLink(phone, countryCode, reminderMessage)}
-                        type="button"
                         aria-label={`SMS ${c.name}`}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition"
+                        className={`${contactClass} bg-info-soft text-info hover:bg-info/20`}
                       >
                         <Send className="h-4 w-4" aria-hidden="true" />
                       </a>
                       <a
                         href={callLink(phone, countryCode)}
-                        type="button"
                         aria-label={`Call ${c.name}`}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 transition"
+                        className={`${contactClass} bg-accent-soft text-accent-strong hover:bg-accent/20`}
                       >
                         <Phone className="h-4 w-4" aria-hidden="true" />
                       </a>

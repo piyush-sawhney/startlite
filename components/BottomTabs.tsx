@@ -283,6 +283,9 @@ export function MerchantNav({
           <p className="text-center text-[11px] leading-4 text-ink-subtle">
             Saved on this account
           </p>
+          <p className="text-center text-[11px] leading-4 text-ink-subtle">
+            StartLite · v1
+          </p>
         </>
       }
     />

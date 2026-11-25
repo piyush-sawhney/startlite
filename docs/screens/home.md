@@ -8,6 +8,11 @@
   handful of signals differ. Logo upload is owner-only.
 - The screen answers three questions: what money is waiting, what work is
   unfinished, and what is happening today.
+- Visual language: a plain white canvas and white cards. Color is reserved for
+  meaning — brand teal for primary actions and net cash, green for money in,
+  amber for money due and requests, red for money out and overdue, blue for
+  waiting. A label and a word always carry the meaning; color never does it
+  alone.
 
 ## Purpose
 
@@ -22,9 +27,19 @@ An order stays in the queue until work is ready and payment is complete:
 | Work is not ready | `under_review`, `waiting_client`, `accepted`, `in_progress`, even if fully paid | **To finish** |
 | Work is ready, payment incomplete | `ready`. Work is done. Money is still due. | **Ready to collect** |
 
-**To finish** always comes first. Within each group, scheduled orders sort by
-required date and slot (if available), earliest first. Orders without a slot sort by oldest
-placed time.
+**To finish** always comes first. Inside each group the queue is sorted by
+urgency, most important first:
+
+1. Overdue — the needed date has passed.
+2. Needed today.
+3. Upcoming, earliest date first.
+4. Undated.
+
+Inside one band, a timed commitment comes before an "Any time" order, then the
+earliest slot wins, then the oldest placed order. A scheduled order for next
+week never outranks an overdue order with no slot. The sort takes the real
+today, not the selected day in the calendar, so the queue stays independent of
+the day view.
 
 ## Arrival
 
@@ -57,12 +72,12 @@ bar. There is no back button on Home.
 ┌────────────────────────────────────┐
 │ ▢  Anita's Bakes       ● Not saved │  header 56
 ├────────────────────────────────────┤
-│ ⚡ 3 requests · oldest 2h  Review › │  request bar 40
+│ 3 requests · oldest 2h  Review › │  request bar 40
 ├────────────────────────────────────┤
 │ [ Add sale ]       [ Add customer ]│  quick actions
 │ [ Add item ]       [ Add expense ] │
 ├────────────────────────────────────┤
-│ INCOMPLETE ORDERS                  │
+│ PENDING ORDERS                  │
 │ 3 to finish · 5 to collect        │
 │ ₹6,200 pending                    │
 │ TO FINISH                          │
@@ -109,11 +124,11 @@ bar. There is no back button on Home.
 
 ```
 ┌──────────┬──────────────────────────────────┬─────────────────┐
-│ StartLite│ ▢ Anita's Bakes      ● Not saved │ ⚡ 3 requests   │
+│ StartLite│ ▢ Anita's Bakes      ● Not saved │ 3 requests   │
 │          ├──────────────────────────────────┤─────────────────│
 │ Home   ● │ [Add sale][Customer][Item][Exp]  │ Sat, 21-Nov-2026  ▤  │
 │ Orders   │                                  │                 │
-│ Customers│ INCOMPLETE ORDERS                │ ANY TIME        │
+│ Customers│ PENDING ORDERS                │ ANY TIME        │
 │ Items    │ 3 to finish · 5 to collect       │  · Ramesh ₹900  │
 │ Expenses │ ₹6,200 pending                   │                 │
 │ Settings │ TO FINISH                        │ 10:00 Meena     │
@@ -198,9 +213,11 @@ fill, no border. Their tap target is 44 px even though the icon is 16 px.
 ### 2. Request bar
 
 - Visible only when `pending_orders` has at least one row for this shop.
-- Copy: `⚡ {n} requests · oldest {age}` with `Review ›` on the right.
+- Copy: `{n} requests · oldest {age}` with `Review ›` on the right. The bolt is
+  an SVG icon, never an emoji.
 - Age is the oldest row, in `2h` or `3d` form.
-- Tap opens the Requests overlay. Accepting does not navigate away.
+- Amber on white: the color says "attention", the words say what it is.
+- Tap opens the Requests sheet. Accepting does not navigate away.
 - A guest never sees this bar. A guest has no public storefront.
 - Hidden entirely when the count is zero. No placeholder.
 
@@ -213,13 +230,14 @@ Four equal buttons. Two columns on mobile, one row on desktop.
 
 | Button | Opens | Style |
 |---|---|---|
-| **Add sale** | Full-screen sheet on mobile; dialog or side panel on desktop | Primary, filled accent |
-| **Add customer** | Responsive modal sheet | Outlined, quiet |
-| **Add item** | Responsive modal sheet | Outlined, quiet |
-| **Add expense** | Responsive modal sheet | Outlined, quiet |
+| **Add sale** | Full-screen sheet on mobile; dialog or side panel on desktop | Filled brand teal |
+| **Add customer** | Bottom sheet on mobile; dialog on desktop | White card, blue `UserPlus` |
+| **Add item** | Bottom sheet on mobile; dialog on desktop | White card, teal `PackagePlus` |
+| **Add expense** | Bottom sheet on mobile; dialog on desktop | White card, red `ArrowUpRight` |
 
-**Add sale** is the only filled accent button on the screen. The other three are
-outlined with contextual icons (`UserPlus`, `PackagePlus`, `ArrowUpRight`).
+**Add sale** is the only filled accent button on the screen. All four buttons
+are 48 px tall on mobile. Each secondary icon has a meaningful hue: blue for a
+person, teal for a catalog item, red for money going out.
 
 **Add sale** opens a full-screen overlay on mobile and a roomy dialog or side
 panel on desktop. Back or Escape closes it and returns to the unchanged Home.
@@ -234,25 +252,32 @@ day changes.
   `declined`, and `cancelled`.
 - `completed` means both work is ready and the balance is paid. A fully paid
   `accepted` or `in_progress` order remains here until work is marked ready.
-- Show up to 10 orders. The list scrolls inside the card when needed. The Orders
-  tab remains the place for the full order list.
-- Group the open statuses under **To finish**, before **Ready to collect**.
-- In each group, scheduled orders sort by effective needed date and slot,
-  earliest first. Use the confirmed date and slot for accepted orders, and the
-  requested date and time for quotes. Orders without a slot follow, oldest
-  placed first.
-- Orders past their needed date show an **Overdue** badge.
+- Show up to 10 orders. On mobile the card grows with its rows and the page
+  scrolls normally. From 1200 px the card scrolls inside itself with
+  `overscroll-contain`, so a wheel or swipe at its end never moves the page. The
+  Orders tab remains the place for the full order list.
+- Two visible groups: **To finish** (amber dot) before **Ready to collect**
+  (teal dot). Each group header carries its count.
+- Sorting is urgency first: overdue, today, upcoming, undated. See
+  [Purpose](#purpose) for the full priority order.
+- Orders past their needed date show an **Overdue** badge in red, with the
+  word "Overdue" as well as the colour.
 - The header shows the count to finish, count ready to collect, and sum of
-  unpaid balances.
-- Each row shows needed date and time (most prominent), first item plus `+N`,
-  order total or amount due, customer name, placed date, and status.
-- **Review** opens a quote in the order-details overlay. **Mark ready** opens
-  order details with the ready action. **Collect** opens the payment overlay
-  with the full balance prefilled. Tapping the row also opens order details.
-- Rows with a customer phone show **WhatsApp**, **SMS**, and **Call** icons for
-  quick contact.
+  unpaid balances. A left rail marks each row's group.
+- Each row leads with the two things the merchant scans: **Needed by** (date
+  and time) and **Items**. Up to three item names are shown; a longer list
+  reads `Cake, Bread, Tea · +2 more`. A buyer's note appears in its own amber
+  block labelled `Buyer's note`; it is never hidden inside the item line.
+- Below the highlights come the customer name, `Placed {date}`, status, and the
+  total or amount due.
+- The row action names the next action: **Accept**, **Mark ready**, or
+  **Collect**. Tapping the row opens the same action sheet. There is no
+  separate Review step.
+- Rows with a customer phone show **WhatsApp**, **SMS**, and **Call** icons on
+  soft green, blue, and teal chips. Every icon is 40 px with a 44 px hit area.
 - An **Edit** icon on each row opens an edit sheet to change customer details,
   needed-by date/time, items, quantities, prices, discount, and notes.
+- Labels are plain: "Due" means money owed, not a vague "Pending".
 - Marking work ready moves an unpaid order to **Ready to collect**. A fully paid
   order stays under **To finish** until marked ready, then leaves the queue.
 - When both groups are empty, show `No pending orders.` and `Add sale`.
@@ -272,7 +297,7 @@ Audit of every action and where it lives:
 | Action | Where |
 |---|---|
 | Add sale, customer, item, expense | Home quick actions |
-| Review, accept, mark ready, collect payment | Home order details overlay |
+| Accept, mark ready, collect payment | Home order sheet |
 | Cancel order, reopen a ready order | Home order details overlay |
 | Send bill | Home order details overlay → bill page |
 | WhatsApp, SMS, call a customer | Home order rows and customer dues rows |
@@ -310,34 +335,39 @@ share a word.
   a pill, because a pill means "this is selected".
 - The calendar button stays pinned at the far right, so nothing shifts when the
   action appears.
-- Chevrons and calendar are 44 × 44.
-- On desktop the label expands to `Today · Sun, 22 Nov`.
+- Chevrons and calendar are SVG icons in 44 × 44 buttons. The calendar label
+  uses a second calendar glyph so the two controls read differently.
+- A count pill shows the number of commitments, so a long day is visible at a
+  glance even though the list scrolls.
 - Swipe left and right on the card area to change day. The chevrons are the
   accessible alternative.
 - `T` returns to today.
 
-**Commitments.** Every order for the selected day, regardless of status, in one
-scrollable list. Grouped by time: **Any time** first (orders with no confirmed
-time), then **morning**, **afternoon**, **evening** (or a flat timeline by
-`confirmed_from` when time slots are enabled). Each card shows the time,
-customer, first item plus `+N`, total, due, and a status pill. Dashed ghost
-cards for storefront requests sit among them at their requested time.
+**Commitments.** Every order needed on the selected day, in one scrollable
+list. The day view reads its own query, so it is never limited by the 200 most
+recent orders used for the metrics. Cancelled, declined, and completed orders
+stay in the day's history. `Any time` covers orders with no slot, an empty
+slot, or the literal `Any time` / `None`. Each row shows the time, customer,
+first item plus `+N`, total, due in amber, and a status pill. A teal left rail
+marks an order; an amber left rail marks a storefront request.
 
-**Scrollable.** The list scrolls inside its container. Mobile shows 5 items at
-a time before scrolling. Desktop uses a fixed height with internal scroll so
-the right column stays pinned.
+**Scrollable.** On mobile every commitment is in the page flow; there is no
+inner scroll region that competes with page scrolling. On desktop the right
+column has a fixed height with `overscroll-contain`, so it stays pinned while
+its own list scrolls.
 
-**Requests.** Storefront requests as dashed ghost cards at their requested time.
-A ghost card is not an order. Tapping it opens the Requests overlay, not the
-order-details overlay.
+**Requests.** Storefront requests sit among the orders at their requested time.
+A request is not an order. Tapping it opens the Requests sheet, not the
+order-details sheet.
 
 **Empty day.** `Nothing for this day.` plus a text button `Add sale`. When
 today is empty, the day view also shows the nearest upcoming day with an order
 and a `Go to {date}` button.
 
-**Caps.** No cap on total orders, but the visible viewport is capped at 5
-items on mobile and a fixed height on desktop. The section scrolls within its
-container; it never grows the page.
+**Caps.** No cap on the number of orders returned, and no status filter. On
+mobile the list grows with the page. On desktop the viewport is capped and
+scrolls inside the card without chaining to the page. The guest workspace
+computes the same list from local orders with the same rules.
 
 ### 6. Metrics
 
@@ -351,6 +381,11 @@ The same five cells, in the same order, at every width.
 | This week · Sales | `Sales` | Trending up | Revenue subtotal of the week's orders | Orders | Monday to Sunday |
 | This week · Expenses | `Cash out` | Red arrow up-right | Expenses logged this week | Entries | Monday to Sunday |
 | This week · Cash left | `Cash left` | Wallet | Revenue received minus expenses | None | Monday to Sunday |
+
+Each cell is a soft tint of its own meaning: green for money in, amber for
+money due, teal for sales, red for money out. **Cash left** is a deep teal card
+that spans both columns; it is the net position and the one dark anchor on the
+screen. All five amount/icon pairs are readable at 4.5:1 or better.
 
 Rules:
 
@@ -373,9 +408,10 @@ Rules:
 
 - Top 5 customers by pending amount, highest first.
 - Row: name, pending amount, `last {date}`, chevron.
-- Rows with a customer phone show **WhatsApp**, **SMS**, and **Call** icons for
-  quick payment reminders.
-- Tap the row to open the customer-details overlay. The Customers tab remains
+- Rows with a customer phone show **WhatsApp**, **SMS**, and **Call** icons on
+  soft green, blue, and teal chips with 44 px hit areas.
+- A count pill sits in the header. Rows are keyboard operable.
+- Tap the row to open the customer-details sheet. The Customers tab remains
   available for full customer management.
 - Empty: `No dues.`
 - Hidden for a shop with no customers.
@@ -387,8 +423,10 @@ desktop. It never competes with the shop name.
 
 ## Entry sheets
 
-Four sheets are reachable from Home. Each is specified here as a field contract;
-each gets its own screen doc when it is built.
+Four entry sheets are reachable from Home. The Requests and order sheets are
+specified with them below. Each gets its own screen doc when it is built. All
+sheets are bottom sheets on mobile, reach above the safe area, and keep their
+primary action visible while the content scrolls.
 
 ### Add customer
 
@@ -397,7 +435,7 @@ each gets its own screen doc when it is built.
 | Name | yes | — |
 | Country code | yes | `+91` India |
 | WhatsApp number | no | 10 digits when the code is `+91` |
-| Identification label | no | e.g. `regular`, `Sector 4` |
+| Label | no | e.g. `regular`, `Sector 4` |
 | Store address | toggle | off |
 | Address line 1 | yes when the toggle is on | — |
 | Address line 2 | no | — |
@@ -407,8 +445,8 @@ each gets its own screen doc when it is built.
 | Country | no | India |
 | Pincode | no | 6 digits when the country is India |
 
-The identification label is how the merchant recognises the person later. It is
-free text, not a fixed list.
+The label is how the merchant recognises the person later. It is free text, not
+a fixed list. The field is called "Label", with an example in the placeholder.
 
 ### Add item
 
@@ -456,10 +494,16 @@ a sale without leaving it, even when the customer or item does not exist yet.
 
 | Step | Content |
 |---|---|
-| Who | Searchable customer list by name or phone. Selecting one shows their pending due. Or `Add new customer` inline (name, country code, phone, label, optional address) |
-| What | Searchable item list by name. Each item expands to variant, sub-variant, quantity, and line note. Or `Add new item` inline (name, price, unit, category, photo, variants). A `Quick amount` toggle records a lump sum with no item list |
-| When | `Now` for a walk-in, or `Later` with a date and a time. `Later` can be marked as an estimate |
+| Customer | Searchable customer list by name or phone. Selecting one shows their pending due. Or `Add new customer` inline (name, country code, phone, label, optional address) |
+| Items | Searchable item list by name. Each item expands to variant, sub-variant, quantity, and line note. Or `Add new item` inline (name, price, unit, category, photo, variants). `Quick amount` records one lump sum with no item list |
+| Schedule | `Now` for a walk-in, or `Later` with a date and a time. `Later` can be marked as an estimate |
 | Payment | `Full`, `Partial` (amount received now), or `Due later`, with mode Cash, UPI, Card, Bank, or Other |
+
+The section names are plain nouns — Customer, Items, Schedule, Payment — never
+single-word riddles such as "Who", "What", or "When". The outcome is written in
+plain words: `Paid in full`, `Payment pending`, `Booked`, or `Estimate`. Internal
+status names never appear in the form. The running total and **Save sale** stay
+pinned to the bottom of the mobile sheet.
 
 Rules:
 
@@ -469,7 +513,7 @@ Rules:
   existing customer offers to use that customer instead of creating a duplicate.
 - Adding a customer or item inline saves it to the shop and selects it in the
   sale, so the merchant never loses the cart.
-- The sheet shows a live total, paid, due, and the status it will save as.
+- The sheet shows a live total, paid, due, and the plain-language outcome.
 - One overlay at a time. Opening `Add new item` or `Add new customer` replaces
   the sale sheet and returns to it with the new record selected.
 
@@ -485,6 +529,26 @@ Resulting status:
 `Add sale` is also the way to record a payment against an existing order: pick
 the order, then `Log payment`. That path is the same payment form the **Collect**
 button opens.
+
+### Requests sheet
+
+One step, no drill-down. The sheet lists every pending storefront request as a
+card: buyer, needed date and time, each item with quantity and price, any note,
+the total, and one **Accept request** button. Reading the card is the review.
+There is no detail screen, no `Review order` button, and no Back button inside
+the sheet. Accepting closes the sheet and refreshes Home.
+
+On mobile the sheet rises from the bottom and has a **Close** button above the
+safe area. On desktop it is a 440 px side panel with a close button in the
+header. An error appears on the affected card, not at the top of the sheet.
+
+### Order sheet
+
+The order sheet opens with the next action already visible: **Accept request**,
+**Mark ready**, or **Collect payment**. Fields use plain labels — Total, Due,
+Placed. The status pill is context, not the instruction. Secondary actions
+(Send bill, Reopen, Cancel order) sit below the primary action. Cancelling asks
+`Cancel this order?` with `Yes, cancel` and `Keep it`.
 
 ## Guest and owner
 
@@ -643,12 +707,12 @@ same labels and the same order. No shape changes between adapters.
 | Tap `Go to today` | Return to today |
 | Tap the calendar button | Month sheet, then a day |
 | Tap an order row | Order-details overlay |
-| Tap **Review** | Order opens in order-details overlay |
+| Tap an order row or **Accept** | Order opens in the order sheet |
 | Tap **Mark ready** | Order-details overlay opens with the ready action |
 | Tap **Reopen**, order ready | Order moves back to `accepted` |
 | Tap **Cancel order** | Confirm, then the order closes as `cancelled` |
 | Tap **Send bill** | Opens the bill page for that order |
-| Tap a ghost card or Review in the request bar | Requests overlay |
+| Tap a ghost card or Review in the request bar | Requests sheet |
 | Tap **Collect** | Payment overlay, due prefilled |
 | Tap **Add sale** | Full-screen overlay on mobile; dialog or side panel on desktop |
 | Tap **Add customer** | Customer overlay |
@@ -676,6 +740,34 @@ Back:
 - Home has no back button.
 - Back or Escape closes the active overlay and restores the Home scroll position.
 - Only tab changes leave Home.
+
+## Interaction contract
+
+Every button and sheet on Home follows the same rules, so a merchant never has
+to learn a new pattern halfway through a task.
+
+- **One overlay at a time.** Tab navigation is navigation; everything else is
+  a sheet. Opening another action replaces the current sheet.
+- **One close affordance.** Each sheet has a 44 px labelled `X` button in its
+  header (`SheetClose`). A long form may also end with a Close or Cancel button,
+  but there is never a text glyph such as `×` or `✕`.
+- **One sheet shape.** Bottom sheet on mobile with rounded top corners and
+  safe-area padding; centred dialog from 640 px; right-side panel only for
+  Requests on desktop. All use `surface`, `line`, the same radius and `e2`.
+- **One action vocabulary.** `Add sale`, `Accept request`, `Mark ready`,
+  `Collect payment`, `Save sale`. No sheet invents a synonym for an action that
+  already exists elsewhere.
+- **One alignment grid.** The header shares the content gutter (16 px mobile,
+  32 px desktop). Labels sit left, figures are right-aligned and tabular. Each
+  order is its own bordered card with a 3 px status rail, an order code, and an
+  8 px gap to the next card. Needed-by and Items lead the card; customer, code,
+  placed date, and money share one baseline on the last line.
+- **Escapable.** Escape and the close button both dismiss the active sheet.
+  Keyboard shortcuts (`N`, `T`, `1`–`6`) are ignored while a control has focus.
+- **Scroll ownership.** Mobile scrolls the page. Desktop cards scroll inside
+  themselves with `overscroll-contain`; no inner region hijacks page scroll.
+- **Feedback.** A write shows one toast above the tab bar. Errors appear next
+  to the field or card that caused them, never only at the top of a sheet.
 
 ## States
 
@@ -733,7 +825,6 @@ The skeleton uses the final heights, so nothing shifts when data arrives.
 | Share sheet copy | `Copy link` / `Copied` |
 | Share sheet WhatsApp | `Share on WhatsApp` |
 | Edit name title | `Shop name` |
-| Edit name hint | `Buyers see this name on every bill.` |
 | Edit name save | `Save name` |
 | Request bar | `{n} requests · oldest {age}` and `Review` |
 | Metrics 1 | `Cash in` (full label `Today · Paid`) |
@@ -754,7 +845,12 @@ The skeleton uses the final heights, so nothing shifts when data arrives.
 | Queue groups | `To finish`, `Ready to collect` |
 | Queue empty | `No pending orders.` |
 | Queue row dates | `Placed {date}` and `Needed {date · time}` or `Any time` |
-| Queue actions | `Review`, `Mark ready`, `Collect`, `Order details` |
+| Queue actions | `Accept`, `Mark ready`, `Collect`, `Order details` |
+| Requests sheet | `Requests`, `Accept request`, `Close requests`, `Close` |
+| Order sheet actions | `Accept request`, `Mark ready`, `Collect payment`, `Send bill`, `Reopen`, `Cancel order` |
+| Cancel confirm | `Cancel this order?`, `Yes, cancel`, `Keep it` |
+| Add sale sections | `Customer`, `Items`, `Schedule`, `Payment` |
+| Add sale outcome | `Paid in full`, `Payment pending`, `Booked`, `Estimate` |
 | Queue contact actions | `WhatsApp`, `SMS`, `Call` (when customer phone exists) |
 | Queue badge | `Overdue` (when needed date has passed) |
 | Queue edit action | `Edit` (opens edit sheet for customer, dates, items, discount) |
@@ -762,12 +858,12 @@ The skeleton uses the final heights, so nothing shifts when data arrives.
 | Logo upload actions | `Upload logo`, `Change logo`, `Remove logo` |
 | Customers empty | `No dues.` |
 | Guest toast | `Saved on this phone. Sign in to keep it safe.` |
-| Launch title | `Is this your shop?` |
-| Launch body | `Sign in to open your shop on this phone. New here? Start fresh. It saves on this phone.` |
+| Launch title | `Your shop` |
+| Launch body | `Sign in, or start fresh on this phone.` |
 | Launch buttons | `Sign in`, `Start fresh` |
-| Launch footnote | `You can sign in later from Settings.` |
+| Launch footnote | `Sign in any time from Settings.` |
 | Save sheet title | `Save your shop` |
-| Save sheet body | `This shop is only on this phone. Sign in to keep it safe and open it on another phone.` |
+| Save sheet body | `This shop is only on this phone. Sign in to keep it.` |
 | Save sheet buttons | `Sign in`, `Create account`, `Keep using this phone` |
 | Expired title | `Your session ended.` |
 | Expired body | `Sign in to open your shop.` |
@@ -870,3 +966,20 @@ The skeleton uses the final heights, so nothing shifts when data arrives.
     similar to review notification, a way to quickly share the storefront.~~
     Done — share button in the header (owner only) opens a Share storefront
     sheet with copy link and WhatsApp share.
+
+11. ~~Pending order cards need a clear default priority.~~ Done — the queue
+    ranks overdue, today, upcoming, then undated, with scheduled commitments
+    before "Any time" inside a band. See [Purpose](#purpose).
+
+12. ~~The day calendar view should have all orders of today.~~ Done — the day
+    view uses its own unbounded query for the selected day and includes every
+    status. The five-row limit is a viewport cap only.
+
+13. ~~Review UX looks too complicated.~~ Done — the Requests sheet shows each
+    request in full with one **Accept request** action. No detail step, no Back,
+    no "Review order" button.
+
+14. ~~Mobile view and labels need refinement.~~ Done — plain white canvas,
+    semantic colour, bottom sheets with safe-area padding and visible primary
+    actions, 44 px hit areas, and plain labels such as Customer, Items,
+    Schedule, Due, and Booked.

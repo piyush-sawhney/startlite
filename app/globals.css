@@ -1,21 +1,31 @@
 @import "tailwindcss";
 
 @theme {
-  --color-canvas: oklch(0.975 0.009 95);
+  /* Plain white workspace. Cards stay white; meaning comes from a small set of
+     saturated semantic colours and their soft tints, never from a tinted page. */
+  --color-canvas: #ffffff;
   --color-surface: #ffffff;
-  --color-muted: oklch(0.955 0.012 95);
-  --color-line: oklch(0.9 0.012 95);
-  --color-ink: oklch(0.24 0.018 160);
-  --color-ink-muted: oklch(0.49 0.014 160);
-  --color-ink-subtle: oklch(0.62 0.012 160);
-  --color-accent: oklch(0.46 0.105 160);
-  --color-accent-strong: oklch(0.36 0.085 160);
-  --color-accent-soft: oklch(0.955 0.032 160);
-  --color-sand: oklch(0.965 0.026 85);
-  --color-success: oklch(0.51 0.11 155);
-  --color-warning: oklch(0.64 0.14 70);
-  --color-danger: oklch(0.55 0.17 25);
-  --color-info: oklch(0.55 0.13 250);
+  --color-muted: #f4f7f6;
+  --color-line: #e2e9e6;
+  --color-ink: #17231f;
+  --color-ink-muted: #52635e;
+  --color-ink-subtle: #63736d;
+
+  --color-accent: #0b6e62;
+  --color-accent-strong: #07544b;
+  --color-accent-soft: #e6f4f1;
+  --color-sand: #f7f3ea;
+
+  /* Each semantic colour is at least 4.5:1 on white and on its own soft tint,
+     so it can carry text as well as a dot, icon or border. */
+  --color-success: #137a4b;
+  --color-success-soft: #e8f6ee;
+  --color-warning: #a85a08;
+  --color-warning-soft: #fff3e3;
+  --color-danger: #c0392b;
+  --color-danger-soft: #fdeceb;
+  --color-info: #2e5fa3;
+  --color-info-soft: #eaf1fb;
 
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -23,8 +33,21 @@
   --radius-xl: 24px;
   --radius-2xl: 20px;
 
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    "Noto Sans", "Noto Sans Devanagari", sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, "Noto Sans", "Noto Sans Devanagari",
+    sans-serif;
+
+  /* One type scale for the whole app. Use these instead of ad-hoc pixel sizes. */
+  --text-micro: 0.6875rem;
+  --text-micro--line-height: 0.875rem;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1rem;
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.25rem;
+  --text-body: 1rem;
+  --text-body--line-height: 1.5rem;
+  --text-title: 1.25rem;
+  --text-title--line-height: 1.75rem;
 }
 
 @layer base {
@@ -37,14 +60,27 @@
     background: var(--color-canvas);
     color: var(--color-ink);
     font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    letter-spacing: -0.006em;
+    font-feature-settings: "cv11", "ss01";
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
     text-wrap: pretty;
   }
 
   h1,
   h2,
   h3 {
+    letter-spacing: -0.022em;
     text-wrap: balance;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    letter-spacing: inherit;
   }
 
   button,
@@ -62,6 +98,23 @@
 
 @utility tnum {
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Short, uppercase section label. Always paired with a real heading or row. */
+@utility eyebrow {
+  font-size: var(--text-caption);
+  line-height: var(--text-caption--line-height);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Money and other figures: fixed-width digits, right aligned in a column. */
+@utility figure {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  text-align: right;
 }
 
 @utility safe-bottom {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Label, inputClass, primaryButton, quietButton } from "@/components/ui";
+import { SheetClose } from "./SheetClose";
 
 export function EditShopNameModal({
   isOpen,
@@ -51,16 +52,14 @@ export function EditShopNameModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="edit-shop-name-title"
-      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-4 backdrop-blur-sm sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 backdrop-blur-sm sm:items-center sm:p-4"
     >
-      <div className="w-full max-w-[420px] rounded-2xl border border-line bg-surface p-5 shadow-2xl">
-        <div className="border-b border-line pb-3">
-          <h2 id="edit-shop-name-title" className="text-lg font-semibold text-ink">
+      <div className="w-full max-w-[420px] rounded-t-2xl border border-line bg-surface p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:pb-5">
+        <div className="flex items-center justify-between gap-2 border-b border-line pb-3">
+          <h2 id="edit-shop-name-title" className="text-title font-bold text-ink">
             Shop name
           </h2>
-          <p className="mt-0.5 text-xs text-ink-muted">
-            Buyers see this name on every bill.
-          </p>
+          <SheetClose onClose={onClose} label="Close Shop name" />
         </div>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">

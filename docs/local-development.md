@@ -48,12 +48,20 @@ Use `corepack pnpm` for every command. pnpm is not installed globally.
      -e POSTGRES_PASSWORD=startlite \
      -e POSTGRES_DB=startlite \
      -p 5433:5432 \
-     -v startlite-db-data:/var/lib/postgresql/data \
+     -v startlite-db-data:/var/lib/postgresql \
      postgres:18
    ```
 
    The connection string in `.env.local` expects port `5433`. The container
    name is `startlite-db`.
+
+   > **Postgres 18+ volume layout:** The `postgres:18+` image stores data under
+   > `/var/lib/postgresql` (in a major-version-specific subdirectory such as
+   > `/var/lib/postgresql/18/data`), not directly at `/var/lib/postgresql/data`.
+   > Mount a single volume at `/var/lib/postgresql` so `pg_upgrade --link` works
+   > without mount-point boundary issues. Mounting at
+   > `/var/lib/postgresql/data` is the old pattern and will fail with 18+.
+   > See https://github.com/docker-library/postgres/pull/1259
 
 4. Create the tables and load the demo data.
 
@@ -178,6 +186,15 @@ docker volume rm startlite-db-data
 ```
 
 Then repeat steps 3 and 4.
+
+If you already have a `startlite-db-data` volume created with an older Postgres
+image, its data lived at `/var/lib/postgresql/data`. With `postgres:18+` the
+image looks for versioned directories under `/var/lib/postgresql`, so the old
+data won't be found. Either:
+
+- Destroy the volume (`docker volume rm startlite-db-data`) and reseed, or
+- Migrate the data with `pg_upgrade` (requires both the old and new Postgres
+  versions present).
 
 ## Media
 

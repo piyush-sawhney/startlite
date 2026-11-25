@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Label, primaryButton, quietButton } from "@/components/ui";
 import { uploadImageFile } from "@/lib/image-client";
+import { SheetClose } from "./SheetClose";
 
 export function ShopLogoModal({
   isOpen,
@@ -71,16 +72,14 @@ export function ShopLogoModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="shop-logo-title"
-      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-4 backdrop-blur-sm sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 backdrop-blur-sm sm:items-center sm:p-4"
     >
-      <section className="w-full max-w-[420px] rounded-2xl border border-line bg-surface p-5 shadow-2xl">
-        <div className="border-b border-line pb-3">
-          <h2 id="shop-logo-title" className="text-lg font-semibold text-ink">
+      <section className="w-full max-w-[420px] rounded-t-2xl border border-line bg-surface p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:pb-5">
+        <div className="flex items-center justify-between gap-2 border-b border-line pb-3">
+          <h2 id="shop-logo-title" className="text-title font-bold text-ink">
             Shop logo
           </h2>
-          <p className="mt-1 text-xs text-ink-muted">
-            Add a square image that buyers can recognise.
-          </p>
+          <SheetClose onClose={onClose} label="Close Shop logo" />
         </div>
 
         {logoUrl ? (

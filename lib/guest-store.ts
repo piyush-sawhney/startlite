@@ -10,7 +10,8 @@
  */
 
 import { formatDayHeading, istDateString, startOfTodayIst, startOfWeekIst } from "./date";
-import { summarizeIncompleteOrders } from "./home-orders";
+import { hasScheduledTime, summarizeIncompleteOrders } from "./home-orders";
+import { orderSummary } from "./order-summary";
 import {
   isCancelled,
   isClosed,
@@ -1328,9 +1329,7 @@ export function guestHomeDashboard(
   const weekStart = startOfWeekIst().getTime();
 
   function getOrderSummary(order: GuestOrder): string {
-    if (order.lines.length === 0) return "1 item";
-    if (order.lines.length === 1) return order.lines[0].itemName;
-    return `${order.lines[0].itemName} · +${order.lines.length - 1}`;
+    return orderSummary(order.lines.map((line) => line.itemName));
   }
 
   // 1. KPIs
@@ -1439,9 +1438,10 @@ export function guestHomeDashboard(
     },
   };
 
-  // 2. Day view
+  // 2. Day view. Every order needed on the selected day, whatever its status,
+  // so the guest view matches the owner view.
   const dayOrders = state.orders.filter(
-    (order) => order.neededBy === selectedDay && !isCancelled(order.status),
+    (order) => order.neededBy === selectedDay,
   );
 
   const anyTime: DayOrderItem[] = [];
@@ -1459,9 +1459,10 @@ export function guestHomeDashboard(
       status: totals.status,
       timeSlot: order.timeSlot || null,
       neededBy: order.neededBy,
+      note: order.note || null,
       isGhost: false,
     };
-    if (order.timeSlot) timeline.push(item);
+    if (hasScheduledTime(order.timeSlot)) timeline.push(item);
     else anyTime.push(item);
   }
 
@@ -1493,6 +1494,7 @@ export function guestHomeDashboard(
       neededBy: order.neededBy,
       timeSlot: order.timeSlot || null,
       createdAt: order.createdAt,
+      note: order.note || null,
     }];
   });
   const incompleteSummary = summarizeIncompleteOrders(incompleteOrderRows);

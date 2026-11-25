@@ -25,14 +25,12 @@ export function LaunchSheet({
           </p>
           <h2
             id="launch-sheet-title"
-            className="mt-1 text-2xl font-semibold tracking-tight text-ink"
+            className="mt-1 text-2xl font-bold tracking-tight text-ink"
           >
-            Is this your shop?
+            Your shop
           </h2>
           <p className="mt-3 text-[14px] leading-relaxed text-ink-muted">
-            Sign in to open your shop on this phone.
-            <br />
-            New here? Start fresh. It saves on this phone.
+            Sign in, or start fresh on this phone.
           </p>
         </div>
 
@@ -53,7 +51,7 @@ export function LaunchSheet({
         </div>
 
         <p className="mt-5 text-center text-xs text-ink-subtle">
-          You can sign in later from Settings.
+          Sign in any time from Settings.
         </p>
       </div>
     </div>

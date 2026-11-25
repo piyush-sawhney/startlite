@@ -18,6 +18,13 @@ import type { GuestViewProps } from "./types";
 export function GuestHome({ state, update, go, toast }: GuestViewProps) {
   const [day, setDay] = useState(istDateString());
   const data = guestHomeDashboard(state, day);
+  // A shop exists once the merchant has added any record. This decides whether
+  // the first-run launch sheet is shown; today's KPI counts must not decide it.
+  const hasLocalShop =
+    state.items.length > 0 ||
+    state.customers.length > 0 ||
+    state.orders.length > 0 ||
+    state.expenses.length > 0;
 
   return (
     <HomeDashboard
@@ -106,6 +113,7 @@ export function GuestHome({ state, update, go, toast }: GuestViewProps) {
         toast("Shop name saved");
       }}
       onGuestSelectDay={(next) => setDay(next)}
+      hasLocalShop={hasLocalShop}
     />
   );
 }

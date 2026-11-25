@@ -29,6 +29,7 @@ export type DayOrderItem = {
   status: OrderStatus;
   timeSlot?: string | null; // e.g. "10:00", "11:30"
   neededBy: string; // YYYY-MM-DD
+  note?: string | null; // buyer's delivery note, shown on the card
   isGhost?: boolean;
 };
 
@@ -46,6 +47,7 @@ export type IncompleteOrder = {
   neededBy: string;
   timeSlot?: string | null;
   createdAt: string;
+  note?: string | null;
 };
 
 export type CustomerDue = {

@@ -4,13 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import type { PublicItem } from "@/lib/queries";
 import { AddItemModal, type ItemInput } from "./AddItemModal";
 import { AddCustomerModal, type CustomerInput } from "./AddCustomerModal";
-import {
-  inputClass,
-  Label,
-  primaryButton,
-  quietButton,
-  StatusPill,
-} from "@/components/ui";
+import { SheetClose } from "./SheetClose";
+import { inputClass, Label, primaryButton, quietButton } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import {
   addPaise,
@@ -216,6 +211,16 @@ export function AddSaleModal({
         ? "completed"
         : "ready";
 
+  // Plain outcome instead of an internal status name.
+  const outcome =
+    previewStatus === "completed"
+      ? "Paid in full"
+      : previewStatus === "ready"
+        ? "Payment pending"
+        : previewStatus === "accepted"
+          ? "Booked"
+          : "Estimate";
+
   const payOrder = dueOrders.find((order) => order.id === payOrderId) ?? null;
   const payDuePaise = payOrder?.duePaise ?? 0;
 
@@ -397,19 +402,12 @@ export function AddSaleModal({
       aria-labelledby="home-add-sale-title"
       className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-0 backdrop-blur-sm sm:items-center sm:p-4"
     >
-      <section className="max-h-[94dvh] w-full max-w-[640px] overflow-y-auto rounded-t-2xl border border-line bg-surface p-5 shadow-2xl sm:rounded-2xl">
+      <section className="max-h-[94dvh] w-full max-w-[640px] overflow-y-auto rounded-t-2xl border border-line bg-surface p-5 pb-0 shadow-2xl sm:rounded-2xl sm:pb-5">
         <div className="mb-4 flex items-center justify-between border-b border-line pb-3">
           <h2 id="home-add-sale-title" className="text-lg font-semibold">
             Add sale
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-h-11 min-w-11 rounded-lg text-ink-muted hover:bg-muted"
-            aria-label="Close Add sale"
-          >
-            ×
-          </button>
+          <SheetClose onClose={onClose} label="Close Add sale" />
         </div>
 
         <div className="mb-4 grid grid-cols-2 gap-2 rounded-md bg-muted p-1">
@@ -521,7 +519,7 @@ export function AddSaleModal({
           <form onSubmit={submitSale} className="space-y-4">
             {/* Who */}
             <section className="space-y-3 rounded-2xl border border-line bg-surface p-4">
-              <h3 className="text-sm font-semibold text-ink">Who</h3>
+              <h3 className="text-sm font-bold text-ink">Customer</h3>
 
               {selectedCustomer ? (
                 <div className="flex items-center justify-between gap-3 rounded-md bg-accent-soft px-3 py-2">
@@ -592,7 +590,7 @@ export function AddSaleModal({
 
             {/* What */}
             <section className="space-y-3 rounded-2xl border border-line bg-surface p-4">
-              <h3 className="text-sm font-semibold text-ink">What</h3>
+              <h3 className="text-sm font-bold text-ink">Items</h3>
 
               <div className="grid grid-cols-2 gap-2 rounded-md bg-muted p-1">
                 <button
@@ -628,7 +626,7 @@ export function AddSaleModal({
                     placeholder="0.00"
                   />
                   <p className="mt-1 text-xs text-ink-subtle">
-                    For a sale with no item list. The bill says “Sale”.
+                    No item list. One amount.
                   </p>
                 </div>
               ) : (
@@ -801,7 +799,7 @@ export function AddSaleModal({
 
             {/* When */}
             <section className="space-y-3 rounded-2xl border border-line bg-surface p-4">
-              <h3 className="text-sm font-semibold text-ink">When</h3>
+              <h3 className="text-sm font-bold text-ink">Schedule</h3>
               <div className="grid grid-cols-2 gap-2">
                 {(["now", "later"] as const).map((entry) => (
                   <button
@@ -855,7 +853,7 @@ export function AddSaleModal({
 
             {/* Payment */}
             <section className="space-y-3 rounded-2xl border border-line bg-surface p-4">
-              <h3 className="text-sm font-semibold text-ink">Payment</h3>
+              <h3 className="text-sm font-bold text-ink">Payment</h3>
               <div className="grid grid-cols-3 gap-2">
                 {(
                   [
@@ -931,10 +929,9 @@ export function AddSaleModal({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-ink-muted">Will save as</span>
-                <StatusPill status={previewStatus} />
-              </div>
+              <p className="rounded-lg bg-muted px-3 py-2 text-xs font-semibold text-ink">
+                {outcome}
+              </p>
             </section>
 
             <div>
@@ -947,12 +944,21 @@ export function AddSaleModal({
               />
             </div>
 
-            <button
-              className={primaryButton("w-full min-h-12")}
-              disabled={busy}
-            >
-              {busy ? "Saving…" : "Save sale"}
-            </button>
+            {/* The save action stays reachable while the long form scrolls. */}
+            <div className="sticky bottom-0 -mx-5 border-t border-line bg-surface px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:static sm:mx-0 sm:px-0 sm:pb-0">
+              <div className="mb-2 flex items-center justify-between text-xs">
+                <span className="font-medium text-ink-muted">Total</span>
+                <span className="tnum font-bold text-ink">
+                  {formatPaise(cartTotalPaise)}
+                </span>
+              </div>
+              <button
+                className={primaryButton("w-full min-h-12")}
+                disabled={busy}
+              >
+                {busy ? "Saving…" : "Save sale"}
+              </button>
+            </div>
           </form>
         )}
       </section>

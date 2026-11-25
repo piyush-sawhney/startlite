@@ -2,9 +2,15 @@
 
 import { useState } from "react";
 import { formatNeededBy } from "@/lib/bill";
-import { primaryButton, quietButton } from "@/components/ui";
+import { primaryButton } from "@/components/ui";
 import type { PendingRequestItem } from "@/lib/home-types";
+import { MessageSquare, X, Zap } from "lucide-react";
 
+/**
+ * One step: every request shows what the buyer wants and a single Accept
+ * action. The sheet uses the same cards, labels and buttons as the rest of
+ * Home — reading the card is the review, with no detail screen or Back.
+ */
 export function RequestsPanel({
   requests,
   isOpen,
@@ -16,23 +22,20 @@ export function RequestsPanel({
   onClose: () => void;
   onAccept: (code: string) => Promise<void>;
 }) {
-  const [selected, setSelected] = useState<PendingRequestItem | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [busyCode, setBusyCode] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  async function acceptRequest() {
-    if (!selected) return;
-    setBusy(true);
-    setError(null);
+  async function accept(code: string) {
+    setBusyCode(code);
+    setErrorCode(null);
     try {
-      await onAccept(selected.code);
-      setSelected(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not accept request.");
+      await onAccept(code);
+    } catch {
+      setErrorCode(code);
     } finally {
-      setBusy(false);
+      setBusyCode(null);
     }
   }
 
@@ -40,150 +43,119 @@ export function RequestsPanel({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Pending requests"
-      className="fixed inset-0 z-50 flex items-center justify-end bg-ink/30 backdrop-blur-sm"
+      aria-label="Storefront requests"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 backdrop-blur-sm sm:items-stretch sm:justify-end"
     >
-      <div className="h-full w-full max-w-[420px] bg-surface p-6 shadow-2xl overflow-y-auto">
-        <div className="flex items-center justify-between border-b border-line pb-4">
-          <div>
-            <h2 className="text-lg font-semibold text-ink">
-              {selected ? "Review request" : "Storefront requests"}
-            </h2>
-            <p className="text-xs text-ink-muted">
-              {selected ? selected.code : `${requests.length} waiting for review`}
+      <section className="flex max-h-[92dvh] w-full flex-col rounded-t-2xl border border-line bg-surface shadow-2xl sm:h-full sm:max-h-none sm:max-w-[440px] sm:rounded-none sm:border-y-0 sm:border-r-0">
+        <header className="flex shrink-0 items-center gap-3 border-b border-line px-4 py-3 sm:px-5">
+          <span
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-warning-soft text-warning"
+            aria-hidden="true"
+          >
+            <Zap className="h-4 w-4" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-title font-bold text-ink">Requests</h2>
+            <p className="text-caption text-ink-muted">
+              {requests.length} {requests.length === 1 ? "request" : "requests"}
             </p>
           </div>
           <button
             type="button"
-            onClick={() => {
-              setSelected(null);
-              setError(null);
-              onClose();
-            }}
-            className="rounded-lg p-1 text-ink-muted hover:bg-muted hover:text-ink"
-            aria-label="Close panel"
+            onClick={onClose}
+            aria-label="Close requests"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-ink-muted transition hover:bg-muted hover:text-ink"
           >
-            ✕
+            <X className="h-5 w-5" aria-hidden="true" />
           </button>
-        </div>
+        </header>
 
-        {selected ? (
-          <div className="mt-5 space-y-4">
-            <div>
-              <p className="text-sm font-semibold text-ink">{selected.buyerName}</p>
-              <p className="mt-1 text-sm text-ink-muted">{selected.buyerPhone}</p>
-              <p className="mt-1 text-sm text-ink-muted">
-                {selected.itemCount} {selected.itemCount === 1 ? "item" : "items"}
-              </p>
-              <p className="mt-1 text-sm text-ink-muted">
-                Needed {formatNeededBy(selected.neededBy)}
-                {selected.timeSlot ? ` · ${selected.timeSlot}` : " · Any time"}
-              </p>
-            </div>
-            <div className="divide-y divide-line rounded-xl border border-line">
-              {selected.lines.map((line, index) => (
-                <div
-                  key={`${line.itemName}-${index}`}
-                  className="flex items-start justify-between gap-3 p-3 text-sm"
-                >
-                  <div className="min-w-0">
-                    <p className="font-medium text-ink">{line.itemName}</p>
-                    <p className="text-xs text-ink-muted">
-                      {line.quantity} {line.unitLabel}
-                      {line.optionName ? ` · ${line.optionName}` : ""}
-                      {line.extraNames.length ? ` · ${line.extraNames.join(", ")}` : ""}
-                    </p>
-                  </div>
-                  <p className="tnum shrink-0 font-medium">{line.lineTotal}</p>
-                </div>
-              ))}
-            </div>
-            {selected.note ? (
-              <p className="rounded-xl bg-muted p-3 text-sm text-ink-muted">
-                Note: {selected.note}
-              </p>
-            ) : null}
-            <p className="tnum border-t border-line pt-3 text-lg font-semibold">
-              {selected.grandTotal}
+        <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-5">
+          {requests.length === 0 ? (
+            <p className="py-10 text-center text-small text-ink-muted">
+              No requests.
             </p>
-            {error ? (
-              <p className="text-sm text-danger" role="alert">
-                {error}
-              </p>
-            ) : null}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  setSelected(null);
-                  setError(null);
-                }}
-                className={quietButton("min-h-11 flex-1")}
+          ) : (
+            requests.map((req) => (
+              <article
+                key={req.id}
+                className="rounded-2xl border border-line bg-surface p-4 shadow-[0_1px_2px_rgb(20_18_15/0.04)]"
               >
-                Back
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void acceptRequest()}
-                className={primaryButton("min-h-11 flex-1")}
-              >
-                {busy ? "Accepting..." : "Accept"}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="mt-4 space-y-3">
-            {requests.length === 0 ? (
-              <p className="py-8 text-center text-sm text-ink-muted">
-                No pending requests.
-              </p>
-            ) : (
-              requests.map((req) => (
-                <div
-                  key={req.id}
-                  className="rounded-xl border border-line bg-surface p-4 transition hover:border-accent/40"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p
-                        className="truncate font-semibold text-ink"
-                        title={req.buyerName}
-                      >
-                        {req.buyerName}
-                      </p>
-                      <p
-                        className="truncate text-xs text-ink-muted"
-                        title={`${req.itemCount} items${req.timeSlot ? ` · ${req.timeSlot}` : ""} · ${req.neededBy}`}
-                      >
-                        {req.itemCount} {req.itemCount === 1 ? "item" : "items"}
-                        {req.timeSlot ? ` · ${req.timeSlot}` : ""} · {req.neededBy}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="tnum font-semibold text-ink">{req.grandTotal}</p>
-                    </div>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-bold text-ink" title={req.buyerName}>
+                      {req.buyerName}
+                    </p>
+                    <p className="mt-0.5 text-caption text-ink-muted">
+                      Needed by {formatNeededBy(req.neededBy)}
+                      {req.timeSlot ? ` · ${req.timeSlot}` : " · Any time"}
+                    </p>
+                    {req.buyerPhone ? (
+                      <p className="text-caption text-ink-subtle">{req.buyerPhone}</p>
+                    ) : null}
                   </div>
-
-                  <div className="mt-3 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelected(req);
-                        setError(null);
-                      }}
-                      className={quietButton("min-h-9 flex-1 py-1.5 text-xs")}
-                    >
-                      Review order ›
-                    </button>
-                  </div>
+                  <p className="figure shrink-0 text-base font-bold text-ink">
+                    {req.grandTotal}
+                  </p>
                 </div>
-              ))
-            )}
-          </div>
-        )}
-      </div>
+
+                <div className="mt-3 rounded-xl bg-muted/70 px-3 py-2">
+                  <p className="eyebrow text-ink-subtle">Items</p>
+                  <ul className="mt-1 divide-y divide-line">
+                    {req.lines.map((line, index) => (
+                      <li
+                        key={`${line.itemName}-${index}`}
+                        className="flex items-center justify-between gap-3 py-1.5 text-small"
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate font-semibold text-ink">
+                            {line.itemName}
+                          </span>
+                          <span className="block truncate text-caption text-ink-muted">
+                            {line.quantity} {line.unitLabel}
+                            {line.optionName ? ` · ${line.optionName}` : ""}
+                            {line.extraNames.length
+                              ? ` · ${line.extraNames.join(", ")}`
+                              : ""}
+                          </span>
+                        </span>
+                        <span className="figure shrink-0 font-semibold text-ink">
+                          {line.lineTotal}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {req.note ? (
+                  <div className="mt-2 rounded-xl border border-warning/30 bg-warning-soft px-3 py-2">
+                    <p className="eyebrow inline-flex items-center gap-1 text-warning">
+                      <MessageSquare className="h-3 w-3" aria-hidden="true" />
+                      Buyer's note
+                    </p>
+                    <p className="mt-1 text-small font-medium text-ink">{req.note}</p>
+                  </div>
+                ) : null}
+
+                {errorCode === req.code ? (
+                  <p className="mt-2 text-caption font-semibold text-danger" role="alert">
+                    Could not accept. Try again.
+                  </p>
+                ) : null}
+
+                <button
+                  type="button"
+                  disabled={busyCode !== null}
+                  onClick={() => void accept(req.code)}
+                  className={primaryButton("mt-3 w-full min-h-11")}
+                >
+                  {busyCode === req.code ? "Accepting…" : "Accept request"}
+                </button>
+              </article>
+            ))
+          )}
+        </div>
+      </section>
     </div>
   );
 }

@@ -61,6 +61,9 @@ export function GuestNav({
             <p className="text-center text-[11px] leading-4 text-ink-subtle">
               Works without an account
             </p>
+            <p className="text-center text-[11px] leading-4 text-ink-subtle">
+              StartLite · v1
+            </p>
           </>
         }
       />

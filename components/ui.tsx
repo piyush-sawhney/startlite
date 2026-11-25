@@ -3,14 +3,14 @@ import { cn } from "@/lib/cn";
 
 export function primaryButton(extra?: string) {
   return cn(
-    "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-accent px-4 text-[15px] font-semibold text-white shadow-[0_1px_2px_rgb(20_18_15/0.08)] transition hover:bg-accent-strong active:bg-accent-strong disabled:opacity-50",
+    "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-accent px-4 text-body font-semibold text-white shadow-[0_1px_2px_rgb(20_18_15/0.08)] transition hover:bg-accent-strong active:bg-accent-strong disabled:opacity-50",
     extra,
   );
 }
 
 export function quietButton(extra?: string) {
   return cn(
-    "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 text-[15px] font-medium text-ink transition hover:bg-muted active:bg-muted disabled:opacity-50",
+    "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 text-body font-medium text-ink transition hover:bg-muted active:bg-muted disabled:opacity-50",
     extra,
   );
 }
@@ -92,7 +92,7 @@ export function MetricTile({
     >
       <p
         className={cn(
-          "text-[11px] font-semibold leading-4",
+          "text-caption font-semibold",
           LABEL_TONES[tone],
         )}
       >
@@ -109,7 +109,7 @@ export function MetricTile({
       {period ? (
         <p
           className={cn(
-            "mt-0.5 text-[10px]",
+            "mt-0.5 text-caption",
             tone === "dark" ? "text-white/55" : "text-ink-subtle",
           )}
         >
@@ -119,7 +119,7 @@ export function MetricTile({
       {hint ? (
         <p
           className={cn(
-            "mt-1 text-[10px] font-semibold",
+            "mt-1 text-caption font-semibold",
             LABEL_TONES[tone],
           )}
         >
@@ -145,9 +145,7 @@ export function PageHeader({
     <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
         {eyebrow ? (
-          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-subtle">
-            {eyebrow}
-          </p>
+          <p className="eyebrow mb-1 text-ink-subtle">{eyebrow}</p>
         ) : null}
         <h1 className="text-[26px] font-semibold leading-8 tracking-tight lg:text-[32px] lg:leading-10">
           {title}
@@ -163,7 +161,7 @@ export function PageHeader({
 
 export function Label({ children }: { children: ReactNode }) {
   return (
-    <span className="mb-1 block text-[13px] font-medium text-ink-muted">
+    <span className="mb-1 block text-small font-medium text-ink-muted">
       {children}
     </span>
   );
@@ -177,20 +175,20 @@ export function StatusPill({ status }: { status: string }) {
     under_review: { label: "Under review", className: "bg-muted text-ink-muted" },
     waiting_client: {
       label: "Waiting for client",
-      className: "bg-info/10 text-info",
+      className: "bg-info-soft text-info",
     },
     accepted: { label: "Accepted", className: "bg-accent-soft text-accent-strong" },
     in_progress: { label: "In progress", className: "bg-accent-soft text-accent-strong" },
-    ready: { label: "Ready", className: "bg-warning/10 text-warning" },
-    completed: { label: "Completed", className: "bg-success/10 text-success" },
-    declined: { label: "Declined", className: "bg-danger/10 text-danger" },
-    cancelled: { label: "Cancelled", className: "bg-danger/10 text-danger" },
+    ready: { label: "Ready", className: "bg-warning-soft text-warning" },
+    completed: { label: "Completed", className: "bg-success-soft text-success" },
+    declined: { label: "Declined", className: "bg-danger-soft text-danger" },
+    cancelled: { label: "Cancelled", className: "bg-danger-soft text-danger" },
   };
   const entry = map[status] ?? { label: status, className: "bg-muted text-ink-muted" };
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold",
+        "inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold",
         entry.className,
       )}
     >
@@ -220,7 +218,7 @@ export function EmptyState({
 /** Small uppercase label used above grouped sections. */
 export function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-subtle">
+    <p className="text-xs font-bold uppercase tracking-[0.08em] text-ink-muted">
       {children}
     </p>
   );

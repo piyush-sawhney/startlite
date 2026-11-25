@@ -122,6 +122,59 @@ describe("Home dashboard incomplete orders", () => {
     expect(dashboard.incompleteOrders.totalCount).toBe(0);
   });
 
+  it("keeps every order needed today in the day view, whatever its status", () => {
+    let state = createGuestState("bakery");
+    const today = istDateString();
+
+    const res = addGuestOrder(state, {
+      customerName: "Cancelled customer",
+      neededBy: today,
+      lines: [
+        {
+          itemName: "Cake",
+          quantity: "1",
+          unitPrice: "650.00",
+          unitLabel: "kg",
+        },
+      ],
+    });
+    state = res.state;
+    const orderId = state.orders[0].id;
+    state = setGuestOrderStatus(state, orderId, "cancelled");
+
+    const dashboard = guestHomeDashboard(state, today);
+    const visible = [...dashboard.dayView.anyTime, ...dashboard.dayView.timeline];
+
+    expect(visible.map((order) => order.id)).toContain(orderId);
+    expect(visible.find((order) => order.id === orderId)?.status).toBe("cancelled");
+  });
+
+  it("does not cap the day view to the five rows visible on mobile", () => {
+    let state = createGuestState("bakery");
+    const today = istDateString();
+
+    for (let index = 0; index < 7; index += 1) {
+      const res = addGuestOrder(state, {
+        customerName: `Customer ${index}`,
+        neededBy: today,
+        lines: [
+          {
+            itemName: "Bread",
+            quantity: "1",
+            unitPrice: "100.00",
+            unitLabel: "loaf",
+          },
+        ],
+      });
+      state = res.state;
+    }
+
+    const dashboard = guestHomeDashboard(state, today);
+    expect(
+      dashboard.dayView.anyTime.length + dashboard.dayView.timeline.length,
+    ).toBe(7);
+  });
+
   it("computes the 5 KPI cells accurately including cash left", () => {
     let state = createGuestState("bakery");
     const today = istDateString();

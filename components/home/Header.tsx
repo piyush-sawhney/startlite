@@ -28,7 +28,7 @@ export function HomeHeader({
   const showPower = pillState === "guest" || pillState === "expired";
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b border-line bg-canvas/90 px-1 py-2 backdrop-blur-md">
+    <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b border-line bg-white/95 px-4 py-2 backdrop-blur-md lg:px-8">
       <div className="flex min-w-0 items-center gap-2">
         {onEditLogo ? (
           <button
@@ -36,7 +36,7 @@ export function HomeHeader({
             onClick={onEditLogo}
             aria-label="Edit shop logo"
             title="Edit shop logo"
-            className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-accent-soft text-base font-bold text-accent-strong shadow-[0_1px_2px_rgb(20_18_15/0.06)]"
+            className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-accent-soft text-base font-bold text-accent-strong ring-1 ring-accent/25 shadow-[0_1px_2px_rgb(20_18_15/0.06)]"
           >
             {logoUrl ? (
               <img src={logoUrl} alt="" className="h-full w-full object-cover" />
@@ -46,7 +46,7 @@ export function HomeHeader({
           </button>
         ) : (
           <div
-            className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-accent-soft text-base font-bold text-accent-strong shadow-[0_1px_2px_rgb(20_18_15/0.06)]"
+            className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-accent-soft text-base font-bold text-accent-strong ring-1 ring-accent/25 shadow-[0_1px_2px_rgb(20_18_15/0.06)]"
             aria-hidden="true"
           >
             {logoUrl ? (

@@ -1,5 +1,7 @@
 "use client";
 
+import { SheetClose } from "./SheetClose";
+
 import { useEffect, useState } from "react";
 import { Label, inputClass, primaryButton, quietButton } from "@/components/ui";
 
@@ -126,14 +128,12 @@ export function AddCustomerModal({
       aria-labelledby="add-customer-title"
       className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-0 backdrop-blur-sm sm:items-center sm:p-4"
     >
-      <div className="max-h-[92dvh] w-full max-w-[440px] overflow-y-auto rounded-t-2xl border border-line bg-surface p-5 shadow-2xl sm:rounded-2xl">
-        <div className="border-b border-line pb-3">
-          <h2 id="add-customer-title" className="text-lg font-semibold text-ink">
+      <div className="max-h-[92dvh] w-full max-w-[440px] overflow-y-auto rounded-t-2xl border border-line bg-surface p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:pb-5">
+        <div className="flex items-center justify-between gap-2 border-b border-line pb-3">
+          <h2 id="add-customer-title" className="text-title font-bold text-ink">
             Add customer
           </h2>
-          <p className="mt-0.5 text-xs text-ink-muted">
-            A name and a WhatsApp number is enough to start.
-          </p>
+          <SheetClose onClose={onClose} label="Close Add customer" />
         </div>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
@@ -179,18 +179,15 @@ export function AddCustomerModal({
           </div>
 
           <div>
-            <Label>Identification label</Label>
+            <Label>Label</Label>
             <input
               type="text"
               value={subLabel}
               onChange={(event) => setSubLabel(event.target.value)}
               className={inputClass}
-              placeholder="e.g. regular, Sector 4, bride's mother"
+              placeholder="e.g. regular, Sector 4"
               maxLength={60}
             />
-            <p className="mt-1 text-xs text-ink-subtle">
-              How you will recognise this person later.
-            </p>
           </div>
 
           <label className="flex items-center justify-between gap-3 rounded-xl border border-line px-3 py-2.5">

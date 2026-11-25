@@ -34,6 +34,7 @@ import { SaveShopModal } from "./SaveShopModal";
 import { ShareStorefrontModal } from "./ShareStorefrontModal";
 import { LaunchSheet } from "./LaunchSheet";
 import { SessionExpired } from "./SessionExpired";
+import type { PillState } from "./StatePill";
 
 export function HomeDashboard({
   initialData,
@@ -47,6 +48,7 @@ export function HomeDashboard({
   onGuestAddExpense,
   onGuestRenameShop,
   onGuestSelectDay,
+  hasLocalShop = false,
 }: {
   initialData: HomeDashboardData;
   isOwner: boolean;
@@ -67,6 +69,8 @@ export function HomeDashboard({
   onGuestAddExpense?: (data: ExpenseInput) => void;
   onGuestRenameShop?: (name: string) => void;
   onGuestSelectDay?: (day: string) => void;
+  /** Guest-only: a local shop already exists, so skip the first-run sheet. */
+  hasLocalShop?: boolean;
 }) {
   const router = useRouter();
   const [data, setData] = useState<HomeDashboardData>(initialData);
@@ -103,24 +107,31 @@ export function HomeDashboard({
   const [refreshing, setRefreshing] = useState(false);
   const touchStartY = useRef<number | null>(null);
 
+  // Connectivity is shown in the pill and blocks owner writes while offline.
+  const [isOffline, setIsOffline] = useState(false);
+  useEffect(() => {
+    const sync = () => setIsOffline(!navigator.onLine);
+    sync();
+    window.addEventListener("online", sync);
+    window.addEventListener("offline", sync);
+    return () => {
+      window.removeEventListener("online", sync);
+      window.removeEventListener("offline", sync);
+    };
+  }, []);
+
   // A guest's dashboard is derived from local state, so re-sync when it changes.
   useEffect(() => {
     if (!isOwner) setData(initialData);
   }, [initialData, isOwner]);
 
-  // Launch sheet timing check on fresh device
+  // Launch sheet is first-run only: no session, no local shop, no prior flag.
+  // A returning guest with data must never see it, even on an empty day.
   useEffect(() => {
-    if (!isOwner) {
-      const seen = localStorage.getItem("startlite_launch_seen");
-      if (
-        !seen &&
-        data.kpis.todayToCollect.count === 0 &&
-        data.kpis.todayPaid.count === 0
-      ) {
-        setShowLaunchSheet(true);
-      }
-    }
-  }, [isOwner, data]);
+    if (isOwner || hasLocalShop) return;
+    const seen = localStorage.getItem("startlite_launch_seen");
+    if (!seen) setShowLaunchSheet(true);
+  }, [isOwner, hasLocalShop]);
 
   // Toast timer (5s for undo/info)
   useEffect(() => {
@@ -259,6 +270,13 @@ export function HomeDashboard({
     }
   }
 
+  // Owner writes are not queued offline. Tell the merchant why nothing saved.
+  function offlineNotice(): boolean {
+    if (!isOwner || !isOffline) return false;
+    setToast({ message: "You are offline. Saving needs a connection." });
+    return true;
+  }
+
   // Day navigation handler
   async function handleSelectDay(day: string) {
     if (isOwner) {
@@ -271,6 +289,7 @@ export function HomeDashboard({
 
   // Complete action (accepted/in_progress -> ready) with 5-second Undo toast
   async function handleCompleteOrder(order: Pick<IncompleteOrder, "id">) {
+    if (offlineNotice()) return;
     if (isOwner) {
       try {
         const res = await fetch(`/api/v1/merchant/orders/${order.id}`, {
@@ -336,6 +355,7 @@ export function HomeDashboard({
   }
 
   async function handleAcceptQuote(orderId: string) {
+    if (offlineNotice()) return;
     if (isOwner) {
       try {
         const response = await fetch(`/api/v1/merchant/orders/${orderId}`, {
@@ -364,6 +384,7 @@ export function HomeDashboard({
 
   // Reopen a ready order back to accepted (more work was added).
   async function handleReopenOrder(orderId: string) {
+    if (offlineNotice()) return;
     if (isOwner) {
       try {
         const response = await fetch(`/api/v1/merchant/orders/${orderId}`, {
@@ -392,6 +413,7 @@ export function HomeDashboard({
 
   // Cancel an order. Past bills keep their records.
   async function handleCancelOrder(orderId: string) {
+    if (offlineNotice()) return;
     if (isOwner) {
       try {
         const response = await fetch(`/api/v1/merchant/orders/${orderId}`, {
@@ -419,6 +441,7 @@ export function HomeDashboard({
   }
 
   async function handleAcceptRequest(code: string) {
+    if (offlineNotice()) return;
     const response = await fetch(
       `/api/v1/merchant/pending-orders/${code}/accept`,
       { method: "POST" },
@@ -439,6 +462,7 @@ export function HomeDashboard({
     mode: string;
     note?: string;
   }) {
+    if (offlineNotice()) return;
     if (isOwner) {
       const res = await fetch(
         `/api/v1/merchant/orders/${payment.orderId}/payments`,
@@ -471,6 +495,7 @@ export function HomeDashboard({
 
   // Rename the shop from the pen in the header
   async function handleRenameShop(name: string) {
+    if (offlineNotice()) return;
     if (isOwner) {
       const res = await fetch("/api/v1/merchant/business", {
         method: "PATCH",
@@ -492,6 +517,7 @@ export function HomeDashboard({
 
   // Add Customer submit
   async function handleAddCustomerSubmit(customer: CustomerInput) {
+    if (offlineNotice()) return;
     if (isOwner) {
       const res = await fetch("/api/v1/merchant/customers", {
         method: "POST",
@@ -516,6 +542,7 @@ export function HomeDashboard({
 
   // Add Item submit
   async function handleAddItemSubmit(item: ItemInput) {
+    if (offlineNotice()) return;
     if (isOwner) {
       const res = await fetch("/api/v1/merchant/catalog", {
         method: "POST",
@@ -547,6 +574,7 @@ export function HomeDashboard({
 
   // Add Expense submit
   async function handleAddExpenseSubmit(expense: ExpenseInput) {
+    if (offlineNotice()) return;
     if (isOwner) {
       const res = await fetch("/api/v1/merchant/expenses", {
         method: "POST",
@@ -607,7 +635,11 @@ export function HomeDashboard({
     );
   }
 
-  const pillState = isOwner ? "owner" : "guest";
+  const pillState: PillState = isOwner
+    ? isOffline
+      ? "offline"
+      : "owner"
+    : "guest";
 
   // Next upcoming day that has a pending order, used when today is empty.
   const nextOrderDay = data.isToday
@@ -653,6 +685,16 @@ export function HomeDashboard({
         onShare={isOwner ? () => setShowShareSheet(true) : undefined}
       />
 
+      {/* A lapsed pass pauses the storefront but Home keeps working. */}
+      {isOwner && data.isPassExpired ? (
+        <div
+          role="status"
+          className="mt-3 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-sm font-medium text-ink"
+        >
+          Your store is paused. Renew to make it live again.
+        </div>
+      ) : null}
+
       {/* Requests: compact bar on mobile, banner on desktop */}
       {data.requests.count > 0 ? (
         <div className="mt-3">
@@ -688,7 +730,7 @@ export function HomeDashboard({
             {...data.incompleteOrders}
             onOpenOrder={setSelectedOrder}
             onCollect={setCollectOrder}
-            onEdit={(order) => setEditOrder(order)}
+            onEdit={isOwner ? (order) => setEditOrder(order) : undefined}
           />
 
           {/* 4. Day view, in flow below 1200 */}
@@ -716,7 +758,7 @@ export function HomeDashboard({
             onSelectCustomer={handleSelectCustomer}
           />
 
-          <footer className="pt-2 text-center text-[11px] text-ink-subtle">
+          <footer className="pt-2 text-center text-[11px] text-ink-subtle lg:hidden">
             StartLite · v1
           </footer>
         </div>
@@ -875,7 +917,7 @@ export function HomeDashboard({
           aria-labelledby="home-customer-title"
           className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-0 backdrop-blur-sm sm:items-center sm:p-4"
         >
-          <section className="w-full max-w-[420px] rounded-t-2xl border border-line bg-surface p-5 shadow-2xl sm:rounded-2xl">
+          <section className="w-full max-w-[420px] rounded-t-2xl border border-line bg-surface p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:pb-5">
             <h2 id="home-customer-title" className="text-lg font-semibold">
               {selectedCustomer.name}
             </h2>

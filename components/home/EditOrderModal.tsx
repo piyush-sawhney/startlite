@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { primaryButton, quietButton } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import type { IncompleteOrder } from "@/lib/home-types";
+import { SheetClose } from "./SheetClose";
 
 type EditableLine = {
   id: string | null;
@@ -39,21 +40,30 @@ export function EditOrderModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  if (!order) return null;
-
   const [data, setData] = useState<OrderData | null>(null);
   const [lines, setLines] = useState<EditableLine[]>([]);
   const [removedLineIds, setRemovedLineIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const orderId = order?.id;
+
+  // All hooks run on every render, including while `order` is null. The early
+  // return below must stay after the hooks so React never sees a changed hook
+  // count when an order is opened or closed.
   useEffect(() => {
+    if (!orderId) return;
     let cancelled = false;
+    setData(null);
+    setLines([]);
+    setRemovedLineIds([]);
+    setError(null);
     async function load() {
       try {
-        const res = await fetch(`/api/v1/merchant/orders/${order.id}`);
+        const res = await fetch(`/api/v1/merchant/orders/${orderId}`);
         if (!res.ok) throw new Error("Could not load order.");
         const body = await res.json();
+        if (cancelled) return;
         setData(body.data.order);
         setLines(
           (body.data.lines ?? []).map((line: any) => ({
@@ -66,14 +76,18 @@ export function EditOrderModal({
           })),
         );
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not load order.");
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Could not load order.");
+        }
       }
     }
-    load();
+    void load();
     return () => {
       cancelled = true;
     };
-  }, [order.id]);
+  }, [orderId]);
+
+  if (!order) return null;
 
   function addLine() {
     setLines([
@@ -93,8 +107,9 @@ export function EditOrderModal({
     const line = lines[index];
     const next = lines.filter((_, i) => i !== index);
     setLines(next);
-    if (line.id) {
-      setRemovedLineIds((prev) => [...prev, line.id]);
+    const removedId = line?.id;
+    if (removedId) {
+      setRemovedLineIds((prev) => [...prev, removedId]);
     }
   }
 
@@ -113,7 +128,7 @@ export function EditOrderModal({
   }
 
   async function save() {
-    if (!data) return;
+    if (!data || !orderId) return;
     setError(null);
     setBusy(true);
 
@@ -137,7 +152,7 @@ export function EditOrderModal({
     }
 
     try {
-      const res = await fetch(`/api/v1/merchant/orders/${order.id}`, {
+      const res = await fetch(`/api/v1/merchant/orders/${orderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -185,21 +200,15 @@ export function EditOrderModal({
       aria-labelledby="home-edit-order-title"
       className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-0 backdrop-blur-sm sm:items-center sm:p-4"
     >
-      <section className="max-h-[92dvh] w-full max-w-[520px] overflow-y-auto rounded-t-2xl border border-line bg-surface p-5 shadow-2xl sm:rounded-2xl">
+      <section className="max-h-[92dvh] w-full max-w-[520px] overflow-y-auto rounded-t-2xl border border-line bg-surface p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:pb-5">
         <div className="flex items-start justify-between gap-3 border-b border-line pb-3">
           <div className="min-w-0">
-            <h2 id="home-edit-order-title" className="truncate text-lg font-semibold">
+            <h2 id="home-edit-order-title" className="truncate text-title font-bold">
               Edit order
             </h2>
-            <p className="text-xs text-ink-muted">{data.code}</p>
+            <p className="text-caption text-ink-muted">{data.code}</p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className={quietButton("min-h-11")}
-          >
-            Close
-          </button>
+          <SheetClose onClose={onClose} label="Close Edit order" />
         </div>
 
         {error ? (

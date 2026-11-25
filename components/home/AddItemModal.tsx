@@ -1,5 +1,7 @@
 "use client";
 
+import { SheetClose } from "./SheetClose";
+
 import { useEffect, useState } from "react";
 import { ImagePlus, Plus, Trash2 } from "lucide-react";
 import { Label, inputClass, primaryButton, quietButton } from "@/components/ui";
@@ -182,14 +184,12 @@ export function AddItemModal({
       aria-labelledby="add-item-title"
       className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-0 backdrop-blur-sm sm:items-center sm:p-4"
     >
-      <div className="max-h-[92dvh] w-full max-w-[460px] overflow-y-auto rounded-t-2xl border border-line bg-surface p-5 shadow-2xl sm:rounded-2xl">
-        <div className="border-b border-line pb-3">
-          <h2 id="add-item-title" className="text-lg font-semibold text-ink">
+      <div className="max-h-[92dvh] w-full max-w-[460px] overflow-y-auto rounded-t-2xl border border-line bg-surface p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:pb-5">
+        <div className="flex items-center justify-between gap-2 border-b border-line pb-3">
+          <h2 id="add-item-title" className="text-title font-bold text-ink">
             Add item
           </h2>
-          <p className="mt-0.5 text-xs text-ink-muted">
-            A product, a dish, or a service. Variants are optional.
-          </p>
+          <SheetClose onClose={onClose} label="Close Add item" />
         </div>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-5">
