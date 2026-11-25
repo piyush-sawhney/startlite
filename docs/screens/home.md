@@ -19,8 +19,8 @@ An order stays in the queue until work is ready and payment is complete:
 
 | Kind | Meaning | Group |
 |---|---|---|
-| Work is not ready | Includes quotes and open work, even if fully paid | **To finish** |
-| Work is ready, payment incomplete | Work is done. Money is still due. | **Ready to collect** |
+| Work is not ready | `under_review`, `waiting_client`, `accepted`, `in_progress`, even if fully paid | **To finish** |
+| Work is ready, payment incomplete | `ready`. Work is done. Money is still due. | **Ready to collect** |
 
 **To finish** always comes first. Within each group, scheduled orders sort by
 required date and slot (if available), earliest first. Orders without a slot sort by oldest
@@ -78,7 +78,7 @@ bar. There is no back button on Home.
 │ ‹  Sat, 21-Nov-2026  ›  Go to today  ▤  │  day view
 │                                    │
 │ ANY TIME                           │
-│  · Ramesh · 2 items · ₹900 · Open  │
+│  · Ramesh · 2 items · ₹900 · Accepted │
 │ 10:00  Meena · Facial · ₹650       │
 │ 11:30  Sana · Bridal · ₹8,000      │
 │ 12:00  ┈ Asha · Bridal · ₹450      │
@@ -154,7 +154,7 @@ the day view moves into the main column, after the queue.
 | Navigation | Bottom tabs | Left rail 200 px | Left rail 240 px |
 | Request bar | Bar under header | Bar under header | Header pill plus panel |
 | Quick actions | 2 × 2 grid | One row of 4 | One row of 4 |
-| Incomplete orders | In flow; list scrolls in the card | In flow | In flow |
+| Pending orders | In flow; list scrolls in the card | In flow | In flow |
 | Day view | In flow | In flow | Right column, sticky |
 | Metrics | 2 columns, Cash left spans both | 2 columns, Cash left spans both | 2 columns, Cash left spans both |
 | Customers | In flow | In flow | In flow |
@@ -180,6 +180,9 @@ Zones appear in this order on every width.
   expired session only. It opens the same save sheet as the pill. The
   accessible name is `Sign in to save this shop`. It is never shown to a signed-in
   owner, who has nothing to sign in to.
+- A share button, 32 × 32, for a signed-in owner only. It opens the **Share
+  storefront** sheet with the store link, a copy action, and a WhatsApp share
+  action. The accessible name is `Share storefront`.
 - The header never hides on scroll. It never carries a search field or a gear.
 
 ```
@@ -226,13 +229,14 @@ panel on desktop. Back or Escape closes it and returns to the unchanged Home.
 This is a cross-day work queue. It does not change when the selected calendar
 day changes.
 
-- Include every `quote` and `open_tab`, plus every `ready` order with a positive
-  balance. Exclude `settled` and `cancelled`.
-- `settled` means both work is ready and the balance is paid. A fully paid
-  `quote` or `open_tab` remains here until work is marked ready.
+- Include every `under_review`, `waiting_client`, `accepted`, and `in_progress`
+  order, plus every `ready` order with a positive balance. Exclude `completed`,
+  `declined`, and `cancelled`.
+- `completed` means both work is ready and the balance is paid. A fully paid
+  `accepted` or `in_progress` order remains here until work is marked ready.
 - Show up to 10 orders. The list scrolls inside the card when needed. The Orders
   tab remains the place for the full order list.
-- Group `quote` and `open_tab` under **To finish**, before **Ready to collect**.
+- Group the open statuses under **To finish**, before **Ready to collect**.
 - In each group, scheduled orders sort by effective needed date and slot,
   earliest first. Use the confirmed date and slot for accepted orders, and the
   requested date and time for quotes. Orders without a slot follow, oldest
@@ -422,21 +426,36 @@ One sheet for a counter sale and for a booked order. Both write the same order
 row, so there is one form and one code path. The UI never says `Add order`. The
 screen has two tabs: **New sale** and **Record payment**.
 
+This is the most comprehensive modal on Home. It must let the merchant complete
+a sale without leaving it, even when the customer or item does not exist yet.
+
 | Step | Content |
 |---|---|
-| Who | Existing customer search, or `Add new customer` inline |
-| What | Existing item, then variant, then sub-variant, then quantity. Or `Add new item` inline |
-| When | `Now` for a walk-in, or `Later` with a date and a time |
-| Payment | Amount received now with mode Cash, UPI, or Card, or `Due later` |
+| Who | Searchable customer list by name or phone. Selecting one shows their pending due. Or `Add new customer` inline (name, country code, phone, label, optional address) |
+| What | Searchable item list by name. Each item expands to variant, sub-variant, quantity, and line note. Or `Add new item` inline (name, price, unit, category, photo, variants). A `Quick amount` toggle records a lump sum with no item list |
+| When | `Now` for a walk-in, or `Later` with a date and a time. `Later` can be marked as an estimate |
+| Payment | `Full`, `Partial` (amount received now), or `Due later`, with mode Cash, UPI, Card, Bank, or Other |
+
+Rules:
+
+- The item search filters as the merchant types. An empty result offers
+  `Add new item` with the typed name prefilled.
+- The customer search filters by name or phone. A typed phone that matches an
+  existing customer offers to use that customer instead of creating a duplicate.
+- Adding a customer or item inline saves it to the shop and selects it in the
+  sale, so the merchant never loses the cart.
+- The sheet shows a live total, paid, due, and the status it will save as.
+- One overlay at a time. Opening `Add new item` or `Add new customer` replaces
+  the sale sheet and returns to it with the new record selected.
 
 Resulting status:
 
 | When | Payment | Status |
 |---|---|---|
-| Now | Full | `settled` |
+| Now | Full | `completed` |
 | Now | Partial or none | `ready` |
-| Later | Any | `open_tab` |
-| Later, marked as an estimate | Any | `quote` |
+| Later | Any | `accepted` |
+| Later, marked as an estimate | Any | `waiting_client` |
 
 `Add sale` is also the way to record a payment against an existing order: pick
 the order, then `Log payment`. That path is the same payment form the **Collect**
@@ -515,6 +534,30 @@ This is the answer to the merchant who changes phones and keeps typing without
 realising they are not signed in: the pill is always on screen, and one tap
 explains the consequence.
 
+### Share storefront
+
+A signed-in owner taps the share button in the header to open the **Share
+storefront** sheet. It is the permanent, always-available way to grab the store
+link without leaving Home.
+
+```
+┌────────────────────────────────────┐
+│  Share storefront                  │
+│                                    │
+│  startlite.in/b/anitas-bakes       │
+│  [ Copy link ]                     │
+│                                    │
+│  [ Share on WhatsApp ]             │
+│  [ Close ]                         │
+└────────────────────────────────────┘
+```
+
+- **Copy link** copies the absolute store URL and shows `Copied`.
+- **Share on WhatsApp** opens `wa.me` with a prefilled message and the link.
+- The sheet is owner-only. A guest has no public storefront, so the button is
+  hidden.
+- The link is the same one Settings shows, so there is one source of truth.
+
 ### First write as a guest
 
 After the first successful write on this device, one toast appears:
@@ -551,7 +594,7 @@ Never fall back to an empty guest workspace. Replace the content:
 |---|---|---|
 | Metrics | `orders`, `order_payments`, `expenses` | One aggregate per period, scoped by `business_id` |
 | Day view | `orders`, `pending_orders` | `confirmed_date = $day`, plus `requested_date = $day` for ghosts |
-| Incomplete orders | `orders` | `quote`, `open_tab`, or `ready` with positive balance; all dates; count and sum before limiting visible rows to 10 |
+| Pending orders | `orders` | `under_review`, `waiting_client`, `accepted`, `in_progress`, or `ready` with positive balance; all dates; count and sum before limiting visible rows to 10 |
 | Customers | `customers` | Pending above zero, `pending DESC`, limit 5 |
 | Request bar | `pending_orders` | Count and `MIN(created_at)` |
 
@@ -575,7 +618,7 @@ same labels and the same order. No shape changes between adapters.
 | Tap `Go to today` | Return to today |
 | Tap the calendar button | Month sheet, then a day |
 | Tap an order row | Order-details overlay |
-| Tap **Review** | Quote opens in order-details overlay |
+| Tap **Review** | Order opens in order-details overlay |
 | Tap **Mark ready** | Order-details overlay opens with the ready action |
 | Tap a ghost card or Review in the request bar | Requests overlay |
 | Tap **Collect** | Payment overlay, due prefilled |
@@ -588,6 +631,7 @@ same labels and the same order. No shape changes between adapters.
 | Tap the state pill, guest | Save overlay |
 | Tap the pen beside the shop name | Edit shop name overlay |
 | Tap the power button, guest | Save overlay |
+| Tap the share button, owner | Share storefront sheet |
 | Pull to refresh, signed in | Refetch the screen |
 | Pull to refresh, guest | No-op, no spinner |
 
@@ -614,7 +658,7 @@ Back:
 | Empty day | `Nothing for this day.` plus `Add sale` |
 | No requests | Request bar hidden |
 | No dues | `No dues.` |
-| No incomplete orders | `No incomplete orders.` plus `Add sale` |
+| No pending orders | `No pending orders.` plus `Add sale` |
 | Offline, signed in | Pill `Offline`, last data stays, writes show `You are offline. Saving needs a connection.` |
 | Offline, guest | Everything works. Pill stays `Not saved` |
 | Session expired | Sign-in state |
@@ -656,6 +700,10 @@ The skeleton uses the final heights, so nothing shifts when data arrives.
 | Pill, expired | `Sign in` |
 | Header action, pen | `Edit shop name` |
 | Header action, power | `Sign in to save this shop` |
+| Header action, share | `Share storefront` |
+| Share sheet title | `Share storefront` |
+| Share sheet copy | `Copy link` / `Copied` |
+| Share sheet WhatsApp | `Share on WhatsApp` |
 | Edit name title | `Shop name` |
 | Edit name hint | `Buyers see this name on every bill.` |
 | Edit name save | `Save name` |
@@ -759,10 +807,13 @@ The skeleton uses the final heights, so nothing shifts when data arrives.
    to take all action.
 
 
-5. improve the modals. Like add sale should have by default searchable items to
-   add, if item not present ability to add item (similar to add item modal),
+5. ~~improve the modals. Like add sale should have by default searchable items
+   to add, if item not present ability to add item (similar to add item modal),
    chose from customer or add customer (similar to add customer). This should be
-   the most comprehensive modal.
+   the most comprehensive modal.~~
+   Done — Add sale is now a comprehensive sheet with searchable items and
+   customers, inline add-new for both, Now/Later with date and time, and
+   Full/Partial/Due-later payment with mode.
 
 6. ~~There should be a way to edit orders by the merchant.~~ Done — edit sheet
    added to Home with customer details, needed-by date/time, items
@@ -770,10 +821,13 @@ The skeleton uses the final heights, so nothing shifts when data arrives.
    fields. Keyboard shortcuts (T = today, N = add sale, 1-6 = tabs, Escape =
    close overlay) added for desktop.
 
-7. Statuses -> Under Review, Waiting for Client Confirm, Accepted, Declined,
-   Pending Payment, Completed (For which order is also done and payment is also
-   received), give me more suggestions, for each business type and how can we
-   make these generic. 
+7. ~~Statuses -> Under Review, Waiting for Client Confirm, Accepted, Declined,
+   Pending Payment, Completed, give me more suggestions, for each business type
+   and how can we make these generic.~~
+   Done — see [ADR-037](../decisions.md#adr-037-generic-order-status-funnel).
+   The generic funnel is `under_review`, `waiting_client`, `accepted`,
+   `in_progress`, `ready`, `completed`, `declined`, `cancelled`. It names the
+   state of the work, not the trade, so every pack maps onto it. 
 
 8. ~~Day view should show all orders of the day irrespective of the status.~~
    Done — day view is now a scrollable commitment list showing all orders for
@@ -782,4 +836,7 @@ The skeleton uses the final heights, so nothing shifts when data arrives.
 
 9. Way to update logo for the merchant in signed in state, round or reactangle logo, need discussion. 
 
-10. A permanent way that remains on the screen always, either in menu or simile to review notification , a way to quickly share the storefront. 
+10. ~~A permanent way that remains on the screen always, either in menu or
+    similar to review notification, a way to quickly share the storefront.~~
+    Done — share button in the header (owner only) opens a Share storefront
+    sheet with copy link and WhatsApp share.

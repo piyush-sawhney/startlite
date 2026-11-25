@@ -18,6 +18,7 @@ import {
   whatsappLink,
 } from "@/lib/bill";
 import { formatPaise, fromPaise, multiplyPaise, toPaise } from "@/lib/paise";
+import { isCancelled, isClosed, isCompleted } from "@/lib/order-status";
 import {
   addGuestOrder,
   addGuestPayment,
@@ -48,8 +49,8 @@ export function GuestSalesList({ state, go }: GuestViewProps) {
     const search = query.trim().toLowerCase();
     return guestOrdersNewestFirst(state).filter((order) => {
       const totals = guestOrderTotals(order);
-      if (filter === "pending" && totals.status !== "open_tab") return false;
-      if (filter === "paid" && totals.status !== "settled") return false;
+      if (filter === "pending" && isClosed(totals.status)) return false;
+      if (filter === "paid" && !isCompleted(totals.status)) return false;
       if (!search) return true;
       return [order.customerName, order.customerPhone, order.code]
         .filter(Boolean)
@@ -350,7 +351,7 @@ export function GuestNewSale({
   const dueOrders = state.orders
     .filter((order) => {
       const totals = guestOrderTotals(order);
-      return order.status !== "cancelled" && totals.duePaise > 0;
+      return !isCancelled(order.status) && totals.duePaise > 0;
     })
     .sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
@@ -374,10 +375,10 @@ export function GuestNewSale({
   const previewStatus: GuestOrder["status"] =
     when === "later"
       ? estimate
-        ? "quote"
-        : "open_tab"
+        ? "waiting_client"
+        : "accepted"
       : duePaise === 0 && totalPaise > 0
-        ? "settled"
+        ? "completed"
         : "ready";
 
   function addOption(option: SellableOption) {
@@ -1277,7 +1278,7 @@ export function GuestSaleDetail({
         </p>
       </div>
 
-      {totals.duePaise > 0 && order.status !== "cancelled" ? (
+      {totals.duePaise > 0 && !isCancelled(order.status) ? (
         <div className="mt-4">
           {!showPayment ? (
             <div className="grid grid-cols-2 gap-2">
@@ -1420,7 +1421,7 @@ export function GuestSaleDetail({
         </div>
       ) : null}
 
-      {order.status !== "cancelled" ? (
+      {!isCancelled(order.status) ? (
         <div className="mt-6">
           {confirming ? (
             <div className="rounded-md border border-line bg-surface p-3">

@@ -1,3 +1,5 @@
+import type { OrderStatus } from "./order-status";
+
 export type HomeKpi = {
   label: string;
   amount: string; // Indian format, e.g. "₹4,250.00"
@@ -24,7 +26,7 @@ export type DayOrderItem = {
   itemsSummary: string; // e.g. "Facial" or "2 items"
   total: string;
   due: string;
-  status: "quote" | "open_tab" | "ready" | "settled" | "cancelled";
+  status: OrderStatus;
   timeSlot?: string | null; // e.g. "10:00", "11:30"
   neededBy: string; // YYYY-MM-DD
   isGhost?: boolean;
@@ -40,7 +42,7 @@ export type IncompleteOrder = {
   total: string;
   due: string;
   duePaise?: number;
-  status: "quote" | "open_tab" | "ready";
+  status: OrderStatus;
   neededBy: string;
   timeSlot?: string | null;
   createdAt: string;

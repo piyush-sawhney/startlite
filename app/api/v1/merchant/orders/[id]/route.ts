@@ -5,6 +5,7 @@ import { orderItems, orders } from "@/db/schema";
 import { apiData, apiError, readJson } from "@/lib/api";
 import { requireApiBusiness } from "@/lib/api-auth";
 import { dec } from "@/lib/money";
+import { canTransition } from "@/lib/order-status";
 
 const lineSchema = z.object({
   id: z.string().optional(),
@@ -16,6 +17,18 @@ const lineSchema = z.object({
 });
 
 const editSchema = z.object({
+  status: z
+    .enum([
+      "under_review",
+      "waiting_client",
+      "accepted",
+      "in_progress",
+      "ready",
+      "completed",
+      "declined",
+      "cancelled",
+    ])
+    .optional(),
   customerName: z.string().max(80).nullable().optional(),
   customerPhone: z.string().max(20).nullable().optional(),
   neededBy: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -105,6 +118,33 @@ export async function PATCH(
     updatedAt: new Date(),
   };
 
+  // Status transition, validated against the funnel in lib/order-status.ts.
+  if (data.status !== undefined && data.status !== order.status) {
+    if (!canTransition(order.status, data.status)) {
+      return apiError(
+        "CONFLICT",
+        `An order that is ${order.status} cannot move to ${data.status}.`,
+      );
+    }
+    if (
+      data.status === "completed" &&
+      dec(order.paidTotal).plus(order.tdsTotal).lessThan(order.grandTotal)
+    ) {
+      return apiError(
+        "CONFLICT",
+        "Log the balance before you mark it completed.",
+      );
+    }
+    // Marking a fully paid order ready completes it in one step.
+    updateSet.status =
+      data.status === "ready" &&
+      dec(order.paidTotal)
+        .plus(order.tdsTotal)
+        .greaterThanOrEqualTo(order.grandTotal)
+        ? "completed"
+        : data.status;
+  }
+
   if (data.customerName !== undefined) updateSet.customerName = data.customerName;
   if (data.customerPhone !== undefined) updateSet.customerPhone = data.customerPhone;
   if (data.neededBy !== undefined) updateSet.neededBy = data.neededBy;
@@ -182,7 +222,7 @@ export async function PATCH(
       .set({
         revenueSubtotal: revenueSubtotal.toFixed(2),
         grandTotal: revenueSubtotal
-          .plus(dec(order.adjustmentAmount ?? "0"))
+          .plus(dec(data.adjustmentAmount ?? order.adjustmentAmount ?? "0"))
           .toFixed(2),
         updatedAt: new Date(),
       })

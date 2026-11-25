@@ -4,6 +4,7 @@ import { OpeningDueForm } from "@/components/OpeningDueForm";
 import { Card, PageHeader, StatusPill } from "@/components/ui";
 import { formatBillDate } from "@/lib/bill";
 import { formatAmount } from "@/lib/money";
+import { isClosed } from "@/lib/order-status";
 import {
   getCustomer,
   getCustomerOrders,
@@ -25,7 +26,7 @@ export default async function CustomerPage({
 
   const orders = await getCustomerOrders(business.id, customer.id);
   const pending = orders
-    .filter((order) => order.status !== "settled" && order.status !== "cancelled")
+    .filter((order) => !isClosed(order.status))
     .reduce((total, order) => total + Number(orderDue(order)), 0)
     .toFixed(2);
 

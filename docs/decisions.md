@@ -56,6 +56,7 @@ Status values: `Accepted`, `Superseded`, `Deferred`.
 | [ADR-034](#adr-034-display-dates-as-dd-mmm-yyyy) | Display dates as DD-MMM-YYYY | Accepted |
 | [ADR-035](#adr-035-development-seed-is-separate-and-guarded) | Development seed is separate and guarded | Accepted |
 | [ADR-036](#adr-036-home-work-queue-and-overlay-actions) | Home work queue and overlay actions | Accepted |
+| [ADR-037](#adr-037-generic-order-status-funnel) | Generic order status funnel | Accepted |
 
 ## ADR-001: Next.js App Router
 
@@ -722,6 +723,86 @@ keep the initials fallback.
   order keep the merchant in Home.
 - The Orders tab remains the place for full order management.
 - The existing media pipeline stores shop logos; guests cannot upload one.
+
+**Status names:** The status names in this entry are updated by
+[ADR-037](#adr-037-generic-order-status-funnel). `settled` is now `completed`,
+`open_tab` is now `accepted`, and `quote` is now `waiting_client`.
+
+## ADR-037: Generic order status funnel
+
+**Context:** The five statuses `quote`, `open_tab`, `ready`, `settled`, and
+`cancelled` were too coarse for the way micro-businesses actually work. A bakery
+needs to know whether a custom order is still being reviewed, waiting on the
+customer, accepted, being baked, or ready. A salon needs an in-service state. A
+retail shop needs a packed state. One `open_tab` hid all of these. The merchant
+also had no way to record that they declined a request, only that they cancelled
+an order.
+
+**Decision:** Replace the five statuses with a generic eight-status funnel. The
+internal keys are stable and the labels are merchant-facing.
+
+| Key | Label | Meaning | Home group |
+|---|---|---|---|
+| `under_review` | Under review | New request, merchant deciding | To finish |
+| `waiting_client` | Waiting for client | Quote or estimate sent, awaiting confirmation | To finish |
+| `accepted` | Accepted | Customer confirmed, work not started | To finish |
+| `in_progress` | In progress | Work started | To finish |
+| `ready` | Ready | Work done, payment due | Ready to collect |
+| `completed` | Completed | Work done and fully paid | Not shown |
+| `declined` | Declined | Merchant cannot fulfil | Not shown |
+| `cancelled` | Cancelled | Order cancelled after acceptance | Not shown |
+
+The funnel is generic because it names the *state of the work*, not the trade.
+Every pack maps onto it:
+
+- **Bakery / food:** under review → waiting for client → accepted → in progress
+  (baking) → ready → completed.
+- **Salon / services:** under review → waiting for client → accepted → in
+  progress (in service) → ready → completed.
+- **Retail / kirana:** under review → accepted → ready (packed) → completed.
+  `waiting_client` and `in_progress` are optional and simply skipped.
+- **Repairs / trades:** under review → waiting for client (quote) → accepted →
+  in progress (in workshop) → ready → completed.
+- **Rentals:** under review → waiting for client → accepted (booked) → ready
+  (handed over) → completed (returned and paid).
+
+A pack never owns a status list. The UI shows the full funnel; the merchant uses
+the states that fit their trade. `in_progress` and `waiting_client` are optional
+steps, not required gates.
+
+**Transitions:**
+
+| From | To |
+|---|---|
+| `under_review` | `waiting_client`, `accepted`, `declined`, `cancelled` |
+| `waiting_client` | `accepted`, `declined`, `cancelled` |
+| `accepted` | `in_progress`, `ready`, `cancelled` |
+| `in_progress` | `ready`, `cancelled` |
+| `ready` | `completed`, `accepted` (reopen), `cancelled` |
+| `completed` | none |
+| `declined` | none |
+| `cancelled` | none |
+
+**Payment rule:** A payment never moves work forward. A fully paid `accepted` or
+`in_progress` order stays in **To finish** until the merchant marks it ready.
+Marking a fully paid order ready moves it straight to `completed`. Marking an
+unpaid order ready moves it to `ready`; its final payment then moves it to
+`completed`. Readiness and payment stay distinct without a second field.
+
+**Consequences:**
+
+- One status module, `lib/order-status.ts`, owns the keys, labels, groups, and
+  transitions. No screen hardcodes a status string.
+- The Home queue groups are **To finish** (`under_review`, `waiting_client`,
+  `accepted`, `in_progress`) and **Ready to collect** (`ready`).
+- `completed`, `declined`, and `cancelled` are closed and never appear in the
+  queue.
+- The storefront request flow still uses `pending_orders`; accepting a request
+  creates an `accepted` order.
+- This is a first-time application, so there is no data migration. The schema
+  default becomes `accepted`.
+- The Orders tab filters map `pending` to the open statuses and `paid` to
+  `completed`.
 
 ## Superseded specification sections
 

@@ -86,7 +86,8 @@ export function IncompleteOrders({
             const actionLabel =
               order.status === "ready"
                 ? "Collect"
-                : order.status === "quote"
+                : order.status === "under_review" ||
+                    order.status === "waiting_client"
                   ? "Review"
                   : "Mark ready";
 

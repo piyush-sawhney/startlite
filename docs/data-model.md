@@ -409,7 +409,7 @@ activation.
 | Line total | Postgres generated column, so the database and the server agree |
 | Order totals | Recomputed inside one transaction after every item or payment change |
 | Deposit and reimbursement | Included in `grand_total`, excluded from revenue |
-| Settlement | `paid_total + tds_total >= grand_total` moves the order to `settled` |
+| Settlement | `paid_total + tds_total >= grand_total` moves a `ready` order to `completed` |
 | Subscription | Store the total charged for one period. The price is out of scope for these docs. |
 | Display | `Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' })` |
 
@@ -495,17 +495,28 @@ Rules:
 
 ## Order lifecycle
 
+See [ADR-037](decisions.md#adr-037-generic-order-status-funnel) for the decision.
+
 ```mermaid
 stateDiagram-v2
-    [*] --> quote
-    quote --> open_tab : merchant approves
-    quote --> cancelled : buyer declines
-    open_tab --> ready : work complete
-    open_tab --> settled : marked ready and fully paid
-    open_tab --> cancelled : cancelled
-    ready --> settled : fully paid
-    ready --> open_tab : more work added
-    settled --> [*]
+    [*] --> under_review
+    under_review --> waiting_client : quote sent
+    under_review --> accepted : confirmed
+    under_review --> declined : cannot fulfil
+    waiting_client --> accepted : client confirms
+    waiting_client --> declined : client declines
+    accepted --> in_progress : work starts
+    accepted --> ready : work complete
+    in_progress --> ready : work complete
+    ready --> completed : fully paid
+    ready --> accepted : more work added
+    under_review --> cancelled
+    waiting_client --> cancelled
+    accepted --> cancelled
+    in_progress --> cancelled
+    ready --> cancelled
+    completed --> [*]
+    declined --> [*]
     cancelled --> [*]
 ```
 
@@ -513,23 +524,32 @@ Allowed edits:
 
 | Status | Add items | Adjust | Log payment | Change status |
 |---|---|---|---|---|
-| `quote` | Yes | Yes | Yes | To `open_tab` or `cancelled` |
-| `open_tab` | Yes | Yes | Yes | To `ready`, `settled` when marked ready and fully paid, or `cancelled` |
-| `ready` | Yes | Yes | Yes | To `settled` when fully paid, or `open_tab` |
-| `settled` | No | No | No | None |
+| `under_review` | Yes | Yes | Yes | To `waiting_client`, `accepted`, `declined`, `cancelled` |
+| `waiting_client` | Yes | Yes | Yes | To `accepted`, `declined`, `cancelled` |
+| `accepted` | Yes | Yes | Yes | To `in_progress`, `ready`, `cancelled` |
+| `in_progress` | Yes | Yes | Yes | To `ready`, `cancelled` |
+| `ready` | Yes | Yes | Yes | To `completed` when fully paid, `accepted`, or `cancelled` |
+| `completed` | No | No | No | None |
+| `declined` | No | No | No | None |
 | `cancelled` | No | No | No | None |
 
-A `quote` is a request. The owner accepts it at the requested time, accepts a
-different time, or cancels. A changed time is a record of an agreement made
-outside the app: the client is notified, and there is no second confirmation.
-`confirmed_source` says which path was taken.
+`under_review` is a new request the merchant is still deciding on.
+`waiting_client` is a quote or estimate sent to the client. `accepted` is a
+confirmed order where work has not started. `in_progress` is work that has
+started. `ready` is work that is done and waiting for payment or collection.
+`completed` is work done and fully paid. `declined` is a request the merchant
+cannot fulfil. `cancelled` is an accepted order that was cancelled.
 
-`settled` means the work is ready and the balance is fully paid. A payment that
-fully pays an `open_tab` does not settle it; it stays open until the owner marks
-the work ready. Marking a fully paid `open_tab` as ready moves it directly to
-`settled`. Marking an unpaid `open_tab` as ready moves it to `ready`; its final
-payment then moves it to `settled`. This keeps readiness and payment distinct
-without a second status field.
+A changed time is a record of an agreement made outside the app: the client is
+notified, and there is no second confirmation. `confirmed_source` says which path
+was taken.
+
+`completed` means the work is ready and the balance is fully paid. A payment that
+fully pays an `accepted` or `in_progress` order does not complete it; it stays in
+**To finish** until the owner marks the work ready. Marking a fully paid order as
+ready moves it directly to `completed`. Marking an unpaid order as ready moves it
+to `ready`; its final payment then moves it to `completed`. This keeps readiness
+and payment distinct without a second status field.
 
 ## Pending order lifecycle
 

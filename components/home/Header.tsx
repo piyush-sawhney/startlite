@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Power } from "lucide-react";
+import { Pencil, Power, Share2 } from "lucide-react";
 import { StatePill, type PillState } from "./StatePill";
 
 export function HomeHeader({
@@ -12,6 +12,7 @@ export function HomeHeader({
   onEditName,
   onEditLogo,
   onSignIn,
+  onShare,
 }: {
   shopName: string;
   logoUrl?: string | null;
@@ -21,6 +22,7 @@ export function HomeHeader({
   onEditName?: () => void;
   onEditLogo?: () => void;
   onSignIn?: () => void;
+  onShare?: () => void;
 }) {
   const initial = shopName.trim().charAt(0).toUpperCase() || "S";
   const showPower = pillState === "guest" || pillState === "expired";
@@ -86,6 +88,17 @@ export function HomeHeader({
       </div>
 
       <div className="flex shrink-0 items-center gap-1">
+        {onShare ? (
+          <button
+            type="button"
+            onClick={onShare}
+            aria-label="Share storefront"
+            title="Share storefront"
+            className="relative grid h-9 w-9 place-items-center rounded-lg text-ink-muted transition after:absolute after:-inset-1 after:content-[''] hover:bg-muted hover:text-ink active:bg-muted"
+          >
+            <Share2 className="h-4 w-4" aria-hidden="true" />
+          </button>
+        ) : null}
         <StatePill state={pillState} onGuestSave={onGuestSave} />
         {showPower && onSignIn ? (
           <button

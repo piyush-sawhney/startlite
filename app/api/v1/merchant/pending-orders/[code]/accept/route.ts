@@ -103,7 +103,7 @@ export async function POST(
         businessId: auth.business.id,
         customerId,
         orderCode: newOrderCode(),
-        status: "open_tab",
+        status: "accepted",
         source: "whatsapp_store",
         customerName: locked.buyerName,
         customerPhone: phone,

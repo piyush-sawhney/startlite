@@ -50,10 +50,10 @@ describe("guest store", () => {
     expect(totals.totalPaise).toBe(19000);
     expect(totals.paidPaise).toBe(10000);
     expect(totals.duePaise).toBe(9000);
-    expect(totals.status).toBe("open_tab");
+    expect(totals.status).toBe("accepted");
   });
 
-  it("settles a ready sale when the due is paid", () => {
+  it("completes a ready sale when the due is paid", () => {
     const state = createGuestState("food");
     const created = addGuestOrder(state, {
       customerName: "Meena",
@@ -69,7 +69,7 @@ describe("guest store", () => {
     const ready = setGuestOrderStatus(created.state, created.orderId, "ready");
     const paid = addGuestPayment(ready, created.orderId, "120.00", "upi");
     const order = paid.orders[0];
-    expect(guestOrderTotals(order).status).toBe("settled");
+    expect(guestOrderTotals(order).status).toBe("completed");
     expect(guestSummary(paid).pendingPaise).toBe(0);
     expect(guestSummary(paid).receivedTodayPaise).toBe(12000);
   });

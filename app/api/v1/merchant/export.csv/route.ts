@@ -9,6 +9,7 @@ import {
 } from "@/db/schema";
 import { requireApiBusiness } from "@/lib/api-auth";
 import { dec } from "@/lib/money";
+import { isClosed } from "@/lib/order-status";
 
 function cell(value: unknown): string {
   const text = value === null || value === undefined ? "" : String(value);
@@ -53,7 +54,7 @@ export async function GET(request: Request) {
   const orderById = new Map(orderRows.map((order) => [order.id, order]));
   const pendingByCustomer = new Map<string, ReturnType<typeof dec>>();
   for (const order of orderRows) {
-    if (order.status === "settled" || order.status === "cancelled") continue;
+    if (isClosed(order.status)) continue;
     if (!order.customerId) continue;
     const due = dec(order.grandTotal)
       .minus(order.paidTotal)

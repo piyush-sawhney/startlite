@@ -72,7 +72,7 @@ Each business has a storefront at `/b/<handle>`, for example
 | Variants | 2 items | The first and the custom item have two options |
 | Extra | 1 | On the first item, for example Eggless or Home delivery |
 | Customers | 5 | One has no phone, to test the no-phone identity rule |
-| Orders | 7 | 2 settled, 2 ready, 1 open tab, 1 quote, 1 cancelled |
+| Orders | 7 | 2 completed, 2 ready, 1 accepted, 1 waiting for client, 1 cancelled |
 | Payments | 4 | Full, 30% advance, 40% advance, full |
 | Expenses | 4 | Today, yesterday, 3 days ago, 10 days ago |
 | Requests | 1 | A pending storefront request for today |
@@ -80,7 +80,7 @@ Each business has a storefront at `/b/<handle>`, for example
 The order mix fills every Home zone:
 
 - **Ready to collect** has two orders, one from today and one older.
-- **In progress** has a quote and an open tab.
+- **To finish** has a waiting-for-client order and an accepted order.
 - **Day view** has two orders today with time slots.
 - **Customer dues** has four customers with a balance.
 - **Requests** has one pending request.

@@ -87,10 +87,13 @@ One verb, one object. Never a sentence.
 
 | Status | Shown as | Meaning |
 |---|---|---|
-| `quote` | Quote | Not accepted yet |
-| `open_tab` | Open | Work is running |
-| `ready` | Completed | Work is done, money is not |
-| `settled` | Paid | Money is in |
+| `under_review` | Under review | New request, merchant deciding |
+| `waiting_client` | Waiting for client | Quote sent, awaiting confirmation |
+| `accepted` | Accepted | Confirmed, work not started |
+| `in_progress` | In progress | Work has started |
+| `ready` | Ready | Work is done, money is not |
+| `completed` | Completed | Work is done and money is in |
+| `declined` | Declined | Merchant cannot fulfil |
 | `cancelled` | Cancelled | Closed with no money |
 | Pending order | New | Waiting for the merchant |
 

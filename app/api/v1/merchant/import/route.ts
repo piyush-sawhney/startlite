@@ -53,7 +53,18 @@ const orderSchema = z.object({
   note: z.string().max(500).nullable().default(null),
   neededBy: dateText,
   createdAt: isoText,
-  status: z.enum(["open_tab", "settled", "cancelled"]).default("open_tab"),
+  status: z
+    .enum([
+      "under_review",
+      "waiting_client",
+      "accepted",
+      "in_progress",
+      "ready",
+      "completed",
+      "declined",
+      "cancelled",
+    ])
+    .default("accepted"),
   lines: z.array(lineSchema).min(1).max(50),
   payments: z.array(paymentSchema).max(50).default([]),
 });

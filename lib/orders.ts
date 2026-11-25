@@ -54,7 +54,7 @@ export async function createOrder(
     return { ok: false, message: "Paid is more than the total." };
   }
 
-  const settled = dec(paid).plus(tds).greaterThanOrEqualTo(revenueSubtotal);
+  const completed = dec(paid).plus(tds).greaterThanOrEqualTo(revenueSubtotal);
 
   return db.transaction(async (tx) => {
     const cleanPhone = input.customerPhone?.replace(/\D/g, "").slice(-10) || null;
@@ -103,7 +103,7 @@ export async function createOrder(
     }
 
     const status =
-      input.status ?? (settled ? "settled" : "open_tab");
+      input.status ?? (completed ? "completed" : "accepted");
 
     const [order] = await tx
       .insert(orders)

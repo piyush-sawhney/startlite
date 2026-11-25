@@ -5,6 +5,7 @@ import { customers, orders } from "@/db/schema";
 import { apiData, apiError, readJson } from "@/lib/api";
 import { requireApiBusiness } from "@/lib/api-auth";
 import { dec } from "@/lib/money";
+import { isClosed } from "@/lib/order-status";
 import { orderDue } from "@/lib/queries";
 
 export async function GET(request: Request) {
@@ -33,7 +34,7 @@ export async function GET(request: Request) {
       (orderCountByCustomer.get(order.customerId) ?? 0) + 1,
     );
 
-    if (order.status !== "settled" && order.status !== "cancelled") {
+    if (!isClosed(order.status)) {
       const current = dec(pendingByCustomer.get(order.customerId) ?? "0.00");
       const due = orderDue(order);
       pendingByCustomer.set(order.customerId, current.plus(due).toFixed(2));

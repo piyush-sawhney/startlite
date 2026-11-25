@@ -174,10 +174,16 @@ export const inputClass =
 
 export function StatusPill({ status }: { status: string }) {
   const map: Record<string, { label: string; className: string }> = {
-    quote: { label: "Quote", className: "bg-muted text-ink-muted" },
-    open_tab: { label: "Open", className: "bg-accent-soft text-accent-strong" },
+    under_review: { label: "Under review", className: "bg-muted text-ink-muted" },
+    waiting_client: {
+      label: "Waiting for client",
+      className: "bg-info/10 text-info",
+    },
+    accepted: { label: "Accepted", className: "bg-accent-soft text-accent-strong" },
+    in_progress: { label: "In progress", className: "bg-accent-soft text-accent-strong" },
     ready: { label: "Ready", className: "bg-warning/10 text-warning" },
-    settled: { label: "Paid", className: "bg-success/10 text-success" },
+    completed: { label: "Completed", className: "bg-success/10 text-success" },
+    declined: { label: "Declined", className: "bg-danger/10 text-danger" },
     cancelled: { label: "Cancelled", className: "bg-danger/10 text-danger" },
   };
   const entry = map[status] ?? { label: status, className: "bg-muted text-ink-muted" };

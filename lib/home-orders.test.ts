@@ -17,7 +17,7 @@ function order(
     total: "₹10.00",
     due: "₹10.00",
     duePaise: 1000,
-    status: "open_tab",
+    status: "accepted",
     neededBy: "2026-11-24",
     timeSlot: null,
     createdAt: "2026-11-23T10:00:00.000Z",

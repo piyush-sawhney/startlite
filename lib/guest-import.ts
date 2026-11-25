@@ -179,11 +179,11 @@ export async function importGuestData(
     }
 
     const status =
-      order.status === "cancelled"
-        ? "cancelled"
+      order.status === "cancelled" || order.status === "declined"
+        ? order.status
         : dec(paid).greaterThanOrEqualTo(total)
-          ? "settled"
-          : "open_tab";
+          ? "completed"
+          : "accepted";
 
     const [created] = await tx
       .insert(orders)

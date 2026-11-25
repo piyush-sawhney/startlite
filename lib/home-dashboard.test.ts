@@ -69,7 +69,7 @@ describe("Home dashboard incomplete orders", () => {
       customerName: "Sana",
       customerPhone: "9876543212",
       neededBy: today,
-      status: "open_tab",
+      status: "accepted",
       paidAmount: "8000.00",
       lines: [
         {

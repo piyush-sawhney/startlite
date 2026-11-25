@@ -5,6 +5,7 @@ import { useState } from "react";
 import { CheckCircle2, MessageCircle } from "lucide-react";
 import { inputClass, Label, primaryButton, quietButton } from "@/components/ui";
 import { compileOrderReady, compilePaymentReceived, whatsappLink } from "@/lib/bill";
+import { isClosed, isReady } from "@/lib/order-status";
 
 export function OrderActions({
   orderId,
@@ -35,7 +36,7 @@ export function OrderActions({
   const [showPayment, setShowPayment] = useState(false);
   const [lastPayment, setLastPayment] = useState<{ amount: string; mode: string } | null>(null);
 
-  const closed = status === "settled" || status === "cancelled";
+  const closed = isClosed(status);
 
   async function logPayment(event: React.FormEvent) {
     event.preventDefault();
@@ -227,7 +228,7 @@ export function OrderActions({
 
       {!closed ? (
         <div className="flex flex-wrap gap-2">
-          {status !== "ready" ? (
+          {!isReady(status) ? (
             <button
               className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-warning/40 bg-warning/10 px-3 text-sm font-semibold text-warning transition hover:bg-warning/20"
               disabled={busy}
@@ -239,16 +240,16 @@ export function OrderActions({
             <button
               className={quietButton("flex-1")}
               disabled={busy}
-              onClick={() => changeStatus("open_tab")}
+              onClick={() => changeStatus("accepted")}
             >
               Reopen
             </button>
           )}
-          {status === "quote" ? (
+          {status === "under_review" || status === "waiting_client" ? (
             <button
               className={quietButton("flex-1")}
               disabled={busy}
-              onClick={() => changeStatus("open_tab")}
+              onClick={() => changeStatus("accepted")}
             >
               Accept quote
             </button>

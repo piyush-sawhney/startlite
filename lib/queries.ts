@@ -15,6 +15,14 @@ import {
 } from "@/db/schema";
 import { dec, formatAmount, formatCompactAmount } from "./money";
 import { summarizeIncompleteOrders } from "./home-orders";
+import {
+  isCancelled,
+  isClosed,
+  isOpen,
+  isReady,
+  OPEN_STATUSES,
+  type OrderStatus,
+} from "./order-status";
 import type {
   CustomerDue,
   DayOrderItem,
@@ -201,7 +209,7 @@ export async function getMerchantSnapshot(businessId: string) {
 
   const pendingByCustomer = new Map<string, string>();
   for (const order of orderRows) {
-    if (order.status === "settled" || order.status === "cancelled") continue;
+    if (isClosed(order.status)) continue;
     if (!order.customerId) continue;
     const due = dec(order.grandTotal)
       .minus(order.paidTotal)
@@ -213,9 +221,7 @@ export async function getMerchantSnapshot(businessId: string) {
     );
   }
 
-  const openOrders = orderRows.filter(
-    (order) => order.status !== "settled" && order.status !== "cancelled",
-  );
+  const openOrders = orderRows.filter((order) => !isClosed(order.status));
 
   const pendingTotal = openOrders
     .reduce(
@@ -345,7 +351,7 @@ export function cashSummary(
 
   for (const payment of sorted) {
     const order = orderById.get(payment.orderId);
-    if (!order || order.status === "cancelled") continue;
+    if (!order || isCancelled(order.status)) continue;
 
     const revenue = dec(order.revenueSubtotal);
     const already = allocated.get(order.id) ?? dec(0);
@@ -498,7 +504,7 @@ export async function getHomeDashboard(
       .where(
         and(
           eq(orders.businessId, businessId),
-          inArray(orders.status, ["quote", "open_tab", "ready"]),
+          inArray(orders.status, OPEN_STATUSES),
         ),
       ),
     db
@@ -563,7 +569,7 @@ export async function getHomeDashboard(
   let todayToCollectDue = dec(0);
   let todayToCollectCount = 0;
   for (const order of orderRows) {
-    if (order.status === "settled" || order.status === "cancelled") continue;
+    if (isClosed(order.status)) continue;
     const isTargetToday =
       order.neededBy === todayStr ||
       order.createdAt.getTime() >= todayStart.getTime();
@@ -592,7 +598,7 @@ export async function getHomeDashboard(
   let weekSalesTotal = dec(0);
   let weekSalesCount = 0;
   for (const order of orderRows) {
-    if (order.status === "cancelled") continue;
+    if (isCancelled(order.status)) continue;
     if (order.createdAt.getTime() >= weekStart.getTime()) {
       weekSalesTotal = weekSalesTotal.plus(order.revenueSubtotal);
       weekSalesCount += 1;
@@ -689,7 +695,7 @@ export async function getHomeDashboard(
 
   // 3. Day view for selectedDay
   const dayOrders = orderRows.filter(
-    (order) => order.neededBy === selectedDay && order.status !== "cancelled",
+    (order) => order.neededBy === selectedDay && !isCancelled(order.status),
   );
 
   const anyTime: DayOrderItem[] = [];
@@ -736,29 +742,23 @@ export async function getHomeDashboard(
       itemsSummary: `${Array.isArray(p.lines) ? p.lines.length : 1} items requested`,
       total: formatAmount(p.grandTotal),
       due: formatAmount(p.grandTotal),
-      status: "quote",
+      status: "waiting_client",
       timeSlot: p.timeSlot,
       neededBy: p.neededBy,
       isGhost: true,
     }));
 
-  // 4. All-date incomplete order queue. The API status only becomes settled
+  // 4. All-date incomplete order queue. The API status only becomes completed
   // after work is ready and the full balance has been paid.
   const incompleteOrderRows: IncompleteOrder[] = incompleteRows.flatMap((order) => {
-    if (
-      order.status !== "quote" &&
-      order.status !== "open_tab" &&
-      order.status !== "ready"
-    ) {
-      return [];
-    }
+    if (!isOpen(order.status)) return [];
     const due = dec(order.grandTotal)
       .minus(order.paidTotal)
       .minus(order.tdsTotal)
       .greaterThan(0)
       ? dec(order.grandTotal).minus(order.paidTotal).minus(order.tdsTotal)
       : dec(0);
-    if (order.status === "ready" && !due.greaterThan(0)) return [];
+    if (isReady(order.status) && !due.greaterThan(0)) return [];
 
     return [{
       id: order.id,
@@ -770,7 +770,7 @@ export async function getHomeDashboard(
       total: formatAmount(order.grandTotal),
       due: formatAmount(due),
       duePaise: due.times(100).toNumber(),
-      status: order.status,
+      status: order.status as OrderStatus,
       neededBy: order.neededBy,
       timeSlot: order.timeSlot,
       createdAt: order.createdAt.toISOString(),
@@ -788,7 +788,7 @@ export async function getHomeDashboard(
   // 6. To collect from customers (Top 5 customers with pending balances)
   const customerDuesMap = new Map<string, { due: ReturnType<typeof dec>; lastPaid: Date | null }>();
   for (const order of orderRows) {
-    if (order.status === "settled" || order.status === "cancelled") continue;
+    if (isClosed(order.status)) continue;
     if (!order.customerId) continue;
 
     const due = dec(order.grandTotal)

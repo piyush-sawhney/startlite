@@ -352,7 +352,7 @@ async function seedBusiness(seed: DevBusinessSeed, seedIndex: number) {
     {
       customer: people[0],
       code: "ORD-1001",
-      status: "settled",
+      status: "completed",
       source: "walk_in",
       neededBy: addDaysIst(0),
       timeSlot: "10:00",
@@ -390,7 +390,7 @@ async function seedBusiness(seed: DevBusinessSeed, seedIndex: number) {
     {
       customer: people[2],
       code: "ORD-1003",
-      status: "open_tab",
+      status: "accepted",
       source: "phone",
       neededBy: addDaysIst(1),
       timeSlot: "17:00",
@@ -404,7 +404,7 @@ async function seedBusiness(seed: DevBusinessSeed, seedIndex: number) {
     {
       customer: people[3],
       code: "ORD-1004",
-      status: "quote",
+      status: "waiting_client",
       source: "whatsapp_store",
       neededBy: addDaysIst(2),
       timeSlot: "11:00",
@@ -417,7 +417,7 @@ async function seedBusiness(seed: DevBusinessSeed, seedIndex: number) {
     {
       customer: people[0],
       code: "ORD-1005",
-      status: "settled",
+      status: "completed",
       source: "walk_in",
       neededBy: addDaysIst(-7),
       timeSlot: "15:00",

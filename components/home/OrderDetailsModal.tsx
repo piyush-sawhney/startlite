@@ -74,7 +74,8 @@ export function OrderDetailsModal({
         </dl>
 
         <div className="mt-5 flex flex-wrap gap-2">
-          {order.status === "quote" ? (
+          {order.status === "under_review" ||
+          order.status === "waiting_client" ? (
             <button
               type="button"
               onClick={() => onAccept(order.id)}
@@ -83,7 +84,7 @@ export function OrderDetailsModal({
               Accept
             </button>
           ) : null}
-          {order.status === "open_tab" ? (
+          {order.status === "accepted" || order.status === "in_progress" ? (
             <button
               type="button"
               onClick={() => onMarkReady(order.id)}

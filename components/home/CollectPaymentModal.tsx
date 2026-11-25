@@ -92,8 +92,8 @@ export function CollectPaymentModal({
 
           <div>
             <Label>Payment mode</Label>
-            <div className="grid grid-cols-4 gap-1.5">
-              {(["upi", "cash", "bank", "cheque"] as const).map((m) => (
+            <div className="grid grid-cols-3 gap-1.5">
+              {(["upi", "cash", "card", "bank", "other"] as const).map((m) => (
                 <button
                   key={m}
                   type="button"

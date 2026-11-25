@@ -303,7 +303,7 @@ export const orders = pgTable(
       onDelete: "set null",
     }),
     orderCode: text("order_code").notNull(),
-    status: text("status").notNull().default("open_tab"),
+    status: text("status").notNull().default("accepted"),
     source: text("source").notNull().default("walk_in"),
     customerName: text("customer_name"),
     customerPhone: text("customer_phone"),

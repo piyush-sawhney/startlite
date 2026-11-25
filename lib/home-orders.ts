@@ -1,4 +1,5 @@
 import type { IncompleteOrder } from "./home-types";
+import { isReady } from "./order-status";
 
 const HOME_ORDER_LIMIT = 10;
 
@@ -9,8 +10,8 @@ function hasScheduledTime(timeSlot: string | null | undefined) {
 
 export function sortIncompleteOrders<T extends IncompleteOrder>(orders: T[]) {
   return [...orders].sort((a, b) => {
-    const aReady = a.status === "ready";
-    const bReady = b.status === "ready";
+    const aReady = isReady(a.status);
+    const bReady = isReady(b.status);
     if (aReady !== bReady) return aReady ? 1 : -1;
 
     const aScheduled = hasScheduledTime(a.timeSlot);
@@ -31,7 +32,7 @@ export function sortIncompleteOrders<T extends IncompleteOrder>(orders: T[]) {
 
 export function summarizeIncompleteOrders(orders: IncompleteOrder[]) {
   const sorted = sortIncompleteOrders(orders);
-  const toFinishCount = sorted.filter((order) => order.status !== "ready").length;
+  const toFinishCount = sorted.filter((order) => !isReady(order.status)).length;
   const readyCount = sorted.length - toFinishCount;
   const totalDuePaise = sorted.reduce(
     (total, order) => total + (order.duePaise ?? 0),

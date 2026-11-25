@@ -9,8 +9,8 @@ import type {
 } from "@/lib/home-types";
 import type { PublicItem } from "@/lib/queries";
 import { istDateString } from "@/lib/date";
-import { NewSaleForm } from "@/components/NewSaleForm";
 import { HomeHeader } from "./Header";
+import { AddSaleModal } from "./AddSaleModal";
 import {
   RequestBar,
   RequestDesktopBanner,
@@ -31,6 +31,7 @@ import { CollectPaymentModal } from "./CollectPaymentModal";
 import { EditShopNameModal } from "./EditShopNameModal";
 import { ShopLogoModal } from "./ShopLogoModal";
 import { SaveShopModal } from "./SaveShopModal";
+import { ShareStorefrontModal } from "./ShareStorefrontModal";
 import { LaunchSheet } from "./LaunchSheet";
 import { SessionExpired } from "./SessionExpired";
 
@@ -60,7 +61,7 @@ export function HomeDashboard({
     mode: string,
     note?: string,
   ) => Promise<void>;
-  onGuestStatusChange?: (orderId: string, status: "ready" | "open_tab") => void;
+  onGuestStatusChange?: (orderId: string, status: "ready" | "accepted") => void;
   onGuestAddCustomer?: (data: CustomerInput) => void;
   onGuestAddItem?: (data: ItemInput) => void;
   onGuestAddExpense?: (data: ExpenseInput) => void;
@@ -75,6 +76,7 @@ export function HomeDashboard({
   const [showSaveSheet, setShowSaveSheet] = useState(false);
   const [showEditName, setShowEditName] = useState(false);
   const [showEditLogo, setShowEditLogo] = useState(false);
+  const [showShareSheet, setShowShareSheet] = useState(false);
   const [showAddSale, setShowAddSale] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<HomeOrderPreview | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDue | null>(null);
@@ -157,6 +159,7 @@ export function HomeDashboard({
         if (showSaveSheet) { setShowSaveSheet(false); return; }
         if (showEditName) { setShowEditName(false); return; }
         if (showEditLogo) { setShowEditLogo(false); return; }
+        if (showShareSheet) { setShowShareSheet(false); return; }
         return;
       }
 
@@ -204,6 +207,7 @@ export function HomeDashboard({
     showSaveSheet,
     showEditName,
     showEditLogo,
+    showShareSheet,
   ]);
 
   // Pull-to-refresh handler (owner only; guest is a no-op per spec)
@@ -265,7 +269,7 @@ export function HomeDashboard({
     }
   }
 
-  // Complete action (open_tab -> ready) with 5-second Undo toast
+  // Complete action (accepted/in_progress -> ready) with 5-second Undo toast
   async function handleCompleteOrder(order: Pick<IncompleteOrder, "id">) {
     if (isOwner) {
       try {
@@ -292,7 +296,7 @@ export function HomeDashboard({
                 {
                   method: "PATCH",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ status: "open_tab" }),
+                  body: JSON.stringify({ status: "accepted" }),
                 },
               );
               if (!undoResponse.ok) {
@@ -324,7 +328,7 @@ export function HomeDashboard({
         message: "Marked complete",
         actionLabel: "Undo",
         onAction: () => {
-          onGuestStatusChange?.(order.id, "open_tab");
+          onGuestStatusChange?.(order.id, "accepted");
           setToast(null);
         },
       });
@@ -337,7 +341,7 @@ export function HomeDashboard({
         const response = await fetch(`/api/v1/merchant/orders/${orderId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "open_tab" }),
+          body: JSON.stringify({ status: "accepted" }),
         });
         if (!response.ok) {
           const body = await response.json().catch(() => null);
@@ -352,7 +356,7 @@ export function HomeDashboard({
         return;
       }
     } else {
-      onGuestStatusChange?.(orderId, "open_tab");
+      onGuestStatusChange?.(orderId, "accepted");
     }
     setSelectedOrder(null);
     setToast({ message: "Order accepted" });
@@ -466,6 +470,11 @@ export function HomeDashboard({
           unitLabel: item.unitLabel,
           priceMode: "fixed",
           isAvailable: true,
+          options: (item.variants ?? []).map((variant) => ({
+            name: variant.name,
+            price: variant.price,
+            isAvailable: true,
+          })),
         }),
       });
       if (!res.ok) {
@@ -585,6 +594,7 @@ export function HomeDashboard({
         onEditName={() => setShowEditName(true)}
         onEditLogo={isOwner ? () => setShowEditLogo(true) : undefined}
         onSignIn={() => setShowSaveSheet(true)}
+        onShare={isOwner ? () => setShowShareSheet(true) : undefined}
       />
 
       {/* Requests: compact bar on mobile, banner on desktop */}
@@ -734,6 +744,13 @@ export function HomeDashboard({
         onClose={() => setShowSaveSheet(false)}
       />
 
+      {/* Share storefront (owner only) */}
+      <ShareStorefrontModal
+        handle={data.handle}
+        isOpen={showShareSheet}
+        onClose={() => setShowShareSheet(false)}
+      />
+
       {/* Requests slide-out panel */}
       <RequestsPanel
         requests={data.requests.requests}
@@ -742,38 +759,21 @@ export function HomeDashboard({
         onAccept={handleAcceptRequest}
       />
 
-      {showAddSale && isOwner ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="home-add-sale-title"
-          className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-0 backdrop-blur-sm sm:items-center sm:p-4"
-        >
-          <section className="max-h-[94dvh] w-full max-w-[640px] overflow-y-auto rounded-t-2xl border border-line bg-surface p-5 shadow-2xl sm:rounded-2xl">
-            <div className="mb-4 flex items-center justify-between border-b border-line pb-3">
-              <h2 id="home-add-sale-title" className="text-lg font-semibold">
-                Add sale
-              </h2>
-              <button
-                type="button"
-                onClick={() => setShowAddSale(false)}
-                className="min-h-11 min-w-11 rounded-lg text-ink-muted hover:bg-muted"
-                aria-label="Close Add sale"
-              >
-                ×
-              </button>
-            </div>
-            <NewSaleForm
-              items={saleItems}
-              onComplete={() => {
-                setShowAddSale(false);
-                setToast({ message: "Sale saved" });
-                void refreshDashboard();
-              }}
-            />
-          </section>
-        </div>
-      ) : null}
+      <AddSaleModal
+        isOpen={showAddSale && isOwner}
+        onClose={() => setShowAddSale(false)}
+        initialItems={saleItems}
+        dueOrders={data.incompleteOrders.orders.filter(
+          (order) => (order.duePaise ?? 0) > 0,
+        )}
+        onComplete={(message) => {
+          setShowAddSale(false);
+          setToast({ message: message ?? "Sale saved" });
+          void refreshDashboard();
+        }}
+        onAddItem={handleAddItemSubmit}
+        onAddCustomer={handleAddCustomerSubmit}
+      />
 
       <OrderDetailsModal
         order={selectedOrder}

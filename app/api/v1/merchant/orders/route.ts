@@ -18,6 +18,18 @@ const schema = z.object({
   source: z
     .enum(["walk_in", "repeated", "quote", "manual", "opening"])
     .default("walk_in"),
+  status: z
+    .enum([
+      "under_review",
+      "waiting_client",
+      "accepted",
+      "in_progress",
+      "ready",
+      "completed",
+      "declined",
+      "cancelled",
+    ])
+    .optional(),
   customerName: z.string().max(80).nullable().optional(),
   customerPhone: z.string().max(20).nullable().optional(),
   note: z.string().max(500).nullable().optional(),
@@ -30,7 +42,7 @@ const schema = z.object({
   quickAmount: z.string().optional(),
   paidAmount: z.string().optional(),
   tdsAmount: z.string().optional(),
-  paymentMode: z.enum(["cash", "upi", "bank", "other"]).optional(),
+  paymentMode: z.enum(["cash", "upi", "card", "bank", "other"]).optional(),
 });
 
 export async function POST(request: Request) {
@@ -68,7 +80,7 @@ export async function POST(request: Request) {
 
   const result = await createOrder(auth.business.id, {
     source: body.source,
-    status: body.source === "quote" ? "quote" : undefined,
+    status: body.status ?? (body.source === "quote" ? "waiting_client" : undefined),
     customerName: body.customerName,
     customerPhone: body.customerPhone,
     note: body.note,

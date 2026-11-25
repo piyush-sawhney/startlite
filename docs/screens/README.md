@@ -146,14 +146,18 @@ status.
 
 | Status | Shown as | Home group | Orders tab |
 |---|---|---|---|
-| `quote` | Quote | In progress | Incomplete |
-| `open_tab` | Open | In progress | Incomplete |
-| `ready` | Completed | Ready to collect | Incomplete |
-| `settled` | Paid | Not shown | Paid |
+| `under_review` | Under review | To finish | Incomplete |
+| `waiting_client` | Waiting for client | To finish | Incomplete |
+| `accepted` | Accepted | To finish | Incomplete |
+| `in_progress` | In progress | To finish | Incomplete |
+| `ready` | Ready | Ready to collect | Incomplete |
+| `completed` | Completed | Not shown | Paid |
+| `declined` | Declined | Not shown | All only |
 | `cancelled` | Cancelled | Not shown | All only |
 
-On Home, **Ready to collect** always appears above **In progress**. Money
-waiting outranks work unfinished. The two groups never mix.
+On Home, **To finish** always appears above **Ready to collect**. Work unfinished
+outranks money waiting. The two groups never mix. See
+[ADR-037](../decisions.md#adr-037-generic-order-status-funnel).
 
 ## Writing rules
 

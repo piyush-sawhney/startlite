@@ -5,11 +5,12 @@ import { customers, orderPayments, orders } from "@/db/schema";
 import { apiData, apiError, readJson } from "@/lib/api";
 import { requireApiBusiness } from "@/lib/api-auth";
 import { dec, money } from "@/lib/money";
+import { isClosed, isReady } from "@/lib/order-status";
 
 const schema = z.object({
   amount: z.string(),
   tdsDeducted: z.string().optional(),
-  paymentMode: z.enum(["cash", "upi", "bank", "other"]).default("upi"),
+  paymentMode: z.enum(["cash", "upi", "card", "bank", "other"]).default("upi"),
   note: z.string().max(200).nullable().optional(),
 });
 
@@ -46,7 +47,7 @@ export async function POST(
     if (!order || order.businessId !== auth.business.id) {
       return { error: "NOT_FOUND" as const };
     }
-    if (order.status === "settled" || order.status === "cancelled") {
+    if (isClosed(order.status)) {
       return { error: "CONFLICT" as const };
     }
 
@@ -73,7 +74,7 @@ export async function POST(
       .plus(tdsTotal)
       .greaterThanOrEqualTo(order.grandTotal);
     const status =
-      fullyPaid && order.status === "ready" ? "settled" : order.status;
+      fullyPaid && isReady(order.status) ? "completed" : order.status;
 
     await tx
       .update(orders)

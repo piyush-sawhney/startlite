@@ -5,6 +5,15 @@ import { apiData, apiError, readJson } from "@/lib/api";
 import { requireApiBusiness } from "@/lib/api-auth";
 import { catalogSchema, cleanPrice, writeOptions } from "@/lib/catalog";
 import { getPack } from "@/lib/packs";
+import { getPublicItems } from "@/lib/queries";
+
+export async function GET(request: Request) {
+  const auth = await requireApiBusiness(request);
+  if ("error" in auth) return auth.error;
+
+  const items = await getPublicItems(auth.business.id);
+  return apiData({ items });
+}
 
 export async function POST(request: Request) {
   const auth = await requireApiBusiness(request);

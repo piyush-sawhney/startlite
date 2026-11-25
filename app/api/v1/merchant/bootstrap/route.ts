@@ -16,6 +16,7 @@ import {
   startOfTodayIst,
 } from "@/lib/queries";
 import { storefrontStatus } from "@/lib/shop";
+import { isCancelled, isClosed } from "@/lib/order-status";
 
 export async function GET(request: Request) {
   const auth = await requireApiBusiness(request);
@@ -44,7 +45,7 @@ export async function GET(request: Request) {
   const todaySales = snapshot.orders
     .filter(
       (order) =>
-        order.status !== "cancelled" &&
+        !isCancelled(order.status) &&
         order.createdAt.getTime() >= today.getTime(),
     )
     .reduce((total, order) => total.plus(dec(order.revenueSubtotal)), dec(0));
@@ -54,9 +55,7 @@ export async function GET(request: Request) {
     .reduce((total, payment) => total.plus(dec(payment.amount)), dec(0));
 
   const pendingAmount = snapshot.orders
-    .filter(
-      (order) => order.status !== "settled" && order.status !== "cancelled",
-    )
+    .filter((order) => !isClosed(order.status))
     .reduce((total, order) => total.plus(dec(orderDue(order))), dec(0));
 
   return apiData({

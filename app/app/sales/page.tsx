@@ -9,6 +9,7 @@ import {
 } from "@/components/ui";
 import { formatBillDate } from "@/lib/bill";
 import { formatAmount } from "@/lib/money";
+import { isClosed, isCompleted } from "@/lib/order-status";
 import { getMerchantSnapshot } from "@/lib/queries";
 import { requireBusiness } from "@/lib/session";
 
@@ -34,10 +35,10 @@ export default async function SalesPage({
   const snapshot = await getMerchantSnapshot(business.id);
 
   const rows = snapshot.orders.filter((order) => {
-    if (filter === "pending" && (order.status === "settled" || order.status === "cancelled")) {
+    if (filter === "pending" && isClosed(order.status)) {
       return false;
     }
-    if (filter === "paid" && order.status !== "settled") return false;
+    if (filter === "paid" && !isCompleted(order.status)) return false;
     if (!query) return true;
     return [order.customerName, order.customerPhone, order.orderCode]
       .filter(Boolean)

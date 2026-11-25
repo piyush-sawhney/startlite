@@ -11,6 +11,14 @@
 
 import { formatDayHeading, istDateString, startOfTodayIst, startOfWeekIst } from "./date";
 import { summarizeIncompleteOrders } from "./home-orders";
+import {
+  isCancelled,
+  isClosed,
+  isCompleted,
+  isOrderStatus,
+  isReady,
+  type OrderStatus,
+} from "./order-status";
 import type {
   CustomerDue,
   DayOrderItem,
@@ -29,12 +37,7 @@ import {
 export const GUEST_STORE_KEY = "startlite_guest_v2";
 
 export type GuestPaymentMode = "cash" | "upi" | "card" | "bank" | "other";
-export type GuestOrderStatus =
-  | "quote"
-  | "open_tab"
-  | "ready"
-  | "settled"
-  | "cancelled";
+export type GuestOrderStatus = OrderStatus;
 
 export type GuestShop = {
   name: string;
@@ -451,13 +454,8 @@ function normalizeOrder(value: unknown, now: string): GuestOrder | null {
         .filter((payment): payment is GuestPayment => payment !== null)
     : [];
 
-  const status =
-    raw.status === "cancelled" ||
-    raw.status === "settled" ||
-    raw.status === "ready" ||
-    raw.status === "quote"
-      ? raw.status
-      : "open_tab";
+  const status: GuestOrderStatus =
+    raw.status && isOrderStatus(raw.status) ? raw.status : "accepted";
 
   return {
     id: clampText(raw.id, 80) || newId("order"),
@@ -636,22 +634,18 @@ export function guestOrderTotals(order: GuestOrder): {
   );
   const duePaise = Math.max(0, totalPaise - paidPaise);
   let status: GuestOrderStatus = order.status;
-  if (order.status === "cancelled") {
-    status = "cancelled";
+  if (isCancelled(order.status)) {
+    status = order.status;
   } else if (
-    (order.status === "ready" || order.status === "settled") &&
+    (isReady(order.status) || isCompleted(order.status)) &&
     paidPaise >= totalPaise &&
     totalPaise > 0
   ) {
-    status = "settled";
-  } else if (order.status === "settled" && duePaise > 0) {
+    status = "completed";
+  } else if (isCompleted(order.status) && duePaise > 0) {
     status = "ready";
-  } else if (order.status === "ready") {
-    status = "ready";
-  } else if (order.status === "quote") {
-    status = "quote";
   } else {
-    status = "open_tab";
+    status = order.status;
   }
   return { totalPaise, paidPaise, duePaise, status };
 }
@@ -690,12 +684,12 @@ export function guestSummary(state: GuestState) {
   let monthExpensePaise = 0;
 
   for (const order of state.orders) {
-    if (order.status === "cancelled") continue;
+    if (isCancelled(order.status)) continue;
     const totals = guestOrderTotals(order);
     if (new Date(order.createdAt).getTime() >= todayStart) {
       todaySalesPaise += totals.totalPaise;
     }
-    if (totals.status !== "settled") pendingPaise += totals.duePaise;
+    if (!isCompleted(totals.status)) pendingPaise += totals.duePaise;
     for (const payment of order.payments) {
       if (new Date(payment.paidAt).getTime() >= todayStart) {
         receivedTodayPaise += toPaise(payment.amount);
@@ -765,7 +759,7 @@ export function guestCustomers(state: GuestState): GuestCustomer[] {
   }
 
   for (const order of state.orders) {
-    if (order.status === "cancelled") continue;
+    if (isCancelled(order.status)) continue;
     const key = guestCustomerKey(order);
     if (!key) continue;
     const totals = guestOrderTotals(order);
@@ -787,8 +781,7 @@ export function guestCustomers(state: GuestState): GuestCustomer[] {
 
     entry.name = order.customerName || entry.name;
     entry.phone = order.customerPhone || entry.phone;
-    entry.pendingPaise +=
-      totals.status === "settled" ? 0 : totals.duePaise;
+    entry.pendingPaise += isCompleted(totals.status) ? 0 : totals.duePaise;
     entry.totalPaise += totals.totalPaise;
     entry.orderCount += 1;
     for (const payment of order.payments) {
@@ -878,11 +871,11 @@ export function addGuestOrder(
     code,
     status:
       input.status ??
-      (paidInput >= totalPaise
-        ? "settled"
-        : input.when === "now"
-          ? "ready"
-          : "open_tab"),
+      (input.when === "now"
+        ? paidInput >= totalPaise
+          ? "completed"
+          : "ready"
+        : "accepted"),
     customerId,
     customerName,
     customerPhone,
@@ -923,7 +916,7 @@ export function addGuestPayment(
   mode: GuestPaymentMode,
 ): GuestState {
   const order = state.orders.find((entry) => entry.id === orderId);
-  if (!order || order.status === "cancelled") return state;
+  if (!order || isCancelled(order.status)) return state;
   const totals = guestOrderTotals(order);
   const value = Math.min(Math.max(toPaise(amount), 0), totals.duePaise);
   if (value <= 0) return state;
@@ -936,8 +929,8 @@ export function addGuestPayment(
         ? {
             ...entry,
             status:
-              paidPaise >= totals.totalPaise && entry.status === "ready"
-                ? "settled"
+              paidPaise >= totals.totalPaise && isReady(entry.status)
+                ? "completed"
                 : entry.status,
             payments: [
               ...entry.payments,
@@ -967,7 +960,7 @@ export function setGuestOrderStatus(
             ...order,
             status:
               status === "ready" && guestOrderTotals(order).duePaise === 0
-                ? "settled"
+                ? "completed"
                 : status,
           }
         : order,
@@ -1199,7 +1192,7 @@ export function guestCashSummary(
 ): { receivedPaise: number; spentPaise: number; leftPaise: number } {
   let receivedPaise = 0;
   for (const order of state.orders) {
-    if (order.status === "cancelled") continue;
+    if (isCancelled(order.status)) continue;
     for (const payment of order.payments) {
       if (since === null || new Date(payment.paidAt).getTime() >= since) {
         receivedPaise += toPaise(payment.amount);
@@ -1353,14 +1346,14 @@ export function guestHomeDashboard(
   let weekReceived = 0;
 
   for (const order of state.orders) {
-    if (order.status === "cancelled") continue;
+    if (isCancelled(order.status)) continue;
     const totals = guestOrderTotals(order);
     const orderCreatedAt = new Date(order.createdAt).getTime();
 
     // Today to collect
     const isTargetToday =
       order.neededBy === todayStr || orderCreatedAt >= todayStart;
-    if (isTargetToday && totals.status !== "settled" && totals.duePaise > 0) {
+    if (isTargetToday && !isCompleted(totals.status) && totals.duePaise > 0) {
       todayToCollectDue += totals.duePaise;
       todayToCollectCount += 1;
     }
@@ -1448,7 +1441,7 @@ export function guestHomeDashboard(
 
   // 2. Day view
   const dayOrders = state.orders.filter(
-    (order) => order.neededBy === selectedDay && order.status !== "cancelled",
+    (order) => order.neededBy === selectedDay && !isCancelled(order.status),
   );
 
   const anyTime: DayOrderItem[] = [];
@@ -1480,9 +1473,8 @@ export function guestHomeDashboard(
   const incompleteOrderRows: IncompleteOrder[] = state.orders.flatMap((order) => {
     const totals = guestOrderTotals(order);
     if (
-      totals.status === "cancelled" ||
-      totals.status === "settled" ||
-      (totals.status === "ready" && totals.duePaise === 0)
+      isClosed(totals.status) ||
+      (isReady(totals.status) && totals.duePaise === 0)
     ) {
       return [];
     }
