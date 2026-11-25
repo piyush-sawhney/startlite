@@ -1,4 +1,8 @@
+import { createHash, randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { eq, inArray } from "drizzle-orm";
+import sharp from "sharp";
 import { db } from "@/db";
 import {
   businesses,
@@ -7,6 +11,7 @@ import {
   expenses,
   itemExtras,
   itemOptions,
+  media,
   orderItems,
   orderPayments,
   orders,
@@ -15,13 +20,15 @@ import {
   user,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { addDaysIst, startOfTodayIst } from "@/lib/date";
+import { addDaysIst, istDateString, startOfTodayIst } from "@/lib/date";
 import { dec, money, multiply, sum } from "@/lib/money";
 import { getPack } from "@/lib/packs";
+import { mediaPath } from "@/lib/storage";
 import {
   CUSTOMER_NAMES,
   DEV_BUSINESSES,
   DEV_SEED_PASSWORD,
+  PACK_COLORS,
   PACK_SEED_PROFILES,
   type DevBusinessSeed,
   type PackSeedProfile,
@@ -34,6 +41,100 @@ function atDay(dayOffset: number, hour: number, minute = 0): Date {
   return new Date(
     TODAY.getTime() + dayOffset * 864e5 + (hour * 60 + minute) * 60000,
   );
+}
+
+function dayOf(date: Date): string {
+  return istDateString(date);
+}
+
+function escapeXml(value: string): string {
+  return value.replace(/[<>&"']/g, (char) =>
+    char === "<"
+      ? "&lt;"
+      : char === ">"
+        ? "&gt;"
+        : char === "&"
+          ? "&amp;"
+          : char === '"'
+            ? "&quot;"
+            : "&apos;",
+  );
+}
+
+function initials(name: string): string {
+  return name
+    .replace(/[^a-zA-Z0-9 ]/g, "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0].toUpperCase())
+    .join("");
+}
+
+function logoSvg(name: string, [dark, light]: [string, string]): Buffer {
+  const mark = escapeXml(initials(name) || "SL");
+  return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 640 640">
+    <rect width="640" height="640" rx="140" fill="${light}"/>
+    <circle cx="320" cy="320" r="232" fill="${dark}"/>
+    <text x="320" y="392" text-anchor="middle" font-family="sans-serif" font-size="180" font-weight="700" fill="#FFFFFF">${mark}</text>
+  </svg>`);
+}
+
+function itemSvg(
+  name: string,
+  [dark, light]: [string, string],
+  variant: number,
+): Buffer {
+  const label = escapeXml(initials(name) || "IT");
+  const offset = (variant % 4) * 34;
+  return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 640 640">
+    <rect width="640" height="640" rx="96" fill="${light}"/>
+    <circle cx="${210 + offset}" cy="230" r="150" fill="${dark}" opacity="0.92"/>
+    <rect x="300" y="286" width="240" height="240" rx="70" fill="${dark}" opacity="0.55"/>
+    <text x="320" y="420" text-anchor="middle" font-family="sans-serif" font-size="124" font-weight="700" fill="#FFFFFF">${label}</text>
+  </svg>`);
+}
+
+async function seedImage(
+  businessId: string,
+  kind: "logo" | "item",
+  catalogItemId: string | null,
+  svg: Buffer,
+) {
+  const rendered = await sharp(svg)
+    .webp({ quality: 84 })
+    .toBuffer({ resolveWithObject: true });
+  const base = `${businessId}/${kind}/${randomUUID()}`;
+  const key = `${base}/original.webp`;
+  await mkdir(path.dirname(mediaPath(key)), { recursive: true });
+  await writeFile(mediaPath(key), rendered.data);
+
+  const variants: Record<string, string> = {};
+  for (const width of [320, 640]) {
+    if (width > rendered.info.width) continue;
+    const variantKey = `${base}/${width}.webp`;
+    const data = await sharp(rendered.data).resize({ width }).webp({ quality: 80 }).toBuffer();
+    await writeFile(mediaPath(variantKey), data);
+    variants[String(width)] = variantKey;
+  }
+
+  const [row] = await db
+    .insert(media)
+    .values({
+      businessId,
+      kind,
+      catalogItemId,
+      objectKey: key,
+      variants,
+      mime: "image/webp",
+      width: rendered.info.width,
+      height: rendered.info.height,
+      bytes: rendered.data.byteLength,
+      checksum: createHash("sha256").update(rendered.data).digest("hex"),
+      createdAt: atDay(-29, 9),
+    })
+    .returning();
+  return row.objectKey;
 }
 
 type SeedOption = { id: string; name: string; price: string };
@@ -159,6 +260,20 @@ async function seedItems(
       })),
     )
     .returning();
+
+  const colors = PACK_COLORS[seed.pack] ?? ["#0B6E62", "#E6F4F1"];
+  for (const [index, item] of inserted.entries()) {
+    const imageKey = await seedImage(
+      businessId,
+      "item",
+      item.id,
+      itemSvg(item.name, colors, index),
+    );
+    await db
+      .update(catalogItems)
+      .set({ imageKey })
+      .where(eq(catalogItems.id, item.id));
+  }
 
   // The first item, the trade-specific item and the first extra item carry
   // variants. The first item also gets a second option group and sub-variants.
@@ -445,6 +560,13 @@ async function seedBusiness(seed: DevBusinessSeed, seedIndex: number) {
     })
     .returning();
 
+  await seedImage(
+    business.id,
+    "logo",
+    null,
+    logoSvg(seed.businessName, PACK_COLORS[seed.pack] ?? ["#0B6E62", "#E6F4F1"]),
+  );
+
   const items = await seedItems(business.id, seed, profile);
   const people = await seedCustomers(business.id, seedIndex, profile);
 
@@ -461,113 +583,132 @@ async function seedBusiness(seed: DevBusinessSeed, seedIndex: number) {
       code: "ORD-1001",
       status: "completed",
       source: "walk_in",
-      neededBy: addDaysIst(0),
-      timeSlot: "10:00",
-      createdAt: atDay(0, 9, 15),
+      neededBy: dayOf(atDay(-14, 10, 15)),
+      timeSlot: "10:45",
+      createdAt: atDay(-14, 10, 15),
       lines: [
-        {
-          item: first,
-          optionIndex: 1,
-          quantity: "1",
-          withExtra: true,
-        },
+        { item: first, optionIndex: 1, quantity: "1", withExtra: true },
         { item: second, quantity: "2" },
       ],
       paid: "full",
       paymentMode: "upi",
       billNo: "1",
+      deliveryNote: profile.customerNotes[0],
+    },
+    {
+      customer: people[2],
+      code: "ORD-1002",
+      status: "completed",
+      source: "phone",
+      neededBy: dayOf(atDay(-9, 16, 40)),
+      timeSlot: "18:00",
+      createdAt: atDay(-9, 16, 40),
+      lines: [
+        { item: customItem, optionIndex: 1, quantity: "1" },
+        { item: third, quantity: "1" },
+      ],
+      paid: "full",
+      paymentMode: "cash",
+      billNo: "2",
+      deliveryNote: "Pack it well for gifting",
     },
     {
       customer: people[1],
-      code: "ORD-1002",
+      code: "ORD-1003",
       status: "ready",
       source: "whatsapp_store",
-      neededBy: addDaysIst(0),
+      neededBy: dayOf(atDay(0, 13, 0)),
       timeSlot: "13:00",
-      createdAt: atDay(0, 8, 30),
+      createdAt: atDay(-2, 9, 20),
       lines: [
         { item: third, quantity: "1" },
         { item: customItem, optionIndex: 0, quantity: "1" },
       ],
       paid: { percent: 30 },
       paymentMode: "cash",
-      billNo: "2",
-      deliveryNote: profile.deliveryNote,
-    },
-    {
-      customer: people[2],
-      code: "ORD-1003",
-      status: "accepted",
-      source: "phone",
-      neededBy: addDaysIst(1),
-      timeSlot: "17:00",
-      createdAt: atDay(0, 11),
-      lines: [{ item: first, optionIndex: 0, quantity: "2" }],
-      paid: { percent: 40 },
-      paymentMode: "upi",
       billNo: "3",
-      deliveryNote: profile.customerNotes[1],
+      deliveryNote: profile.deliveryNote,
     },
     {
       customer: people[3],
       code: "ORD-1004",
+      status: "accepted",
+      source: "phone",
+      neededBy: dayOf(atDay(2, 17, 30)),
+      timeSlot: "17:30",
+      createdAt: atDay(-1, 11, 5),
+      lines: [
+        { item: first, optionIndex: 0, quantity: "2" },
+        { item: plainExtraItem, quantity: "1" },
+      ],
+      paid: { percent: 40 },
+      paymentMode: "upi",
+      billNo: "4",
+      deliveryNote: profile.customerNotes[1],
+    },
+    {
+      customer: people[4],
+      code: "ORD-1005",
       status: "waiting_client",
       source: "whatsapp_store",
-      neededBy: addDaysIst(2),
+      neededBy: dayOf(atDay(1, 11, 0)),
       timeSlot: "11:00",
-      createdAt: atDay(0, 12),
+      createdAt: atDay(0, 7, 45),
       lines: [{ item: customItem, quantity: "1" }],
       paid: "none",
       paymentMode: "upi",
       billNo: null,
+      deliveryNote: "Please confirm the price before I pay",
     },
     {
       customer: people[0],
-      code: "ORD-1005",
+      code: "ORD-1006",
       status: "completed",
       source: "walk_in",
-      neededBy: addDaysIst(-7),
-      timeSlot: "15:00",
-      createdAt: atDay(-7, 15),
+      neededBy: dayOf(atDay(-21, 15, 10)),
+      timeSlot: "15:30",
+      createdAt: atDay(-21, 15, 10),
       lines: [{ item: second, quantity: "1" }],
       paid: "full",
-      paymentMode: "cash",
-      billNo: "4",
-    },
-    {
-      customer: people[1],
-      code: "ORD-1006",
-      status: "cancelled",
-      source: "walk_in",
-      neededBy: addDaysIst(-1),
-      timeSlot: "10:00",
-      createdAt: atDay(-1, 10),
-      lines: [{ item: third, quantity: "1" }],
-      paid: "none",
-      paymentMode: "cash",
-      billNo: null,
-    },
-    {
-      customer: people[4],
-      code: "ORD-1007",
-      status: "ready",
-      source: "walk_in",
-      neededBy: addDaysIst(-2),
-      timeSlot: "16:00",
-      createdAt: atDay(-2, 16),
-      lines: [{ item: customItem, quantity: "1" }],
-      paid: "none",
       paymentMode: "cash",
       billNo: "5",
     },
     {
-      customer: people[2],
+      customer: people[1],
+      code: "ORD-1007",
+      status: "cancelled",
+      source: "walk_in",
+      neededBy: dayOf(atDay(-4, 10, 0)),
+      timeSlot: "10:30",
+      createdAt: atDay(-4, 10, 0),
+      lines: [{ item: third, quantity: "1" }],
+      paid: "none",
+      paymentMode: "cash",
+      billNo: null,
+      deliveryNote: "Customer changed the time and did not confirm",
+    },
+    {
+      customer: people[4],
       code: "ORD-1008",
+      status: "ready",
+      source: "walk_in",
+      neededBy: dayOf(atDay(-6, 16, 0)),
+      timeSlot: "16:30",
+      createdAt: atDay(-6, 16, 0),
+      lines: [{ item: customItem, quantity: "1" }],
+      paid: "none",
+      paymentMode: "cash",
+      billNo: "6",
+      deliveryNote: "Call before pickup",
+    },
+    {
+      customer: people[2],
+      code: "ORD-1009",
       status: "under_review",
       source: "whatsapp_store",
-      neededBy: addDaysIst(0),
+      neededBy: dayOf(atDay(1, 9, 30)),
       timeSlot: "09:30",
-      createdAt: atDay(0, 7, 50),
+      createdAt: atDay(0, 8, 10),
       lines: [
         {
           item: first,
@@ -575,7 +716,7 @@ async function seedBusiness(seed: DevBusinessSeed, seedIndex: number) {
           secondOptionIndex: 1,
           extraIndexes: [0, 2],
           quantity: "2",
-          note: "No onion",
+          note: "No onion, extra napkins",
         },
         { item: plainExtraItem, quantity: "3" },
       ],
@@ -586,12 +727,12 @@ async function seedBusiness(seed: DevBusinessSeed, seedIndex: number) {
     },
     {
       customer: people[1],
-      code: "ORD-1009",
+      code: "ORD-1010",
       status: "in_progress",
       source: "phone",
-      neededBy: addDaysIst(-1),
+      neededBy: dayOf(atDay(-3, 14, 0)),
       timeSlot: null,
-      createdAt: atDay(-2, 14),
+      createdAt: atDay(-3, 14, 0),
       lines: [
         { item: first, optionIndex: 1, quantity: "1" },
         { item: second, quantity: "2" },
@@ -599,15 +740,15 @@ async function seedBusiness(seed: DevBusinessSeed, seedIndex: number) {
       ],
       paid: { percent: 50 },
       paymentMode: "upi",
-      billNo: "6",
-      deliveryNote: "Call before delivery",
+      billNo: "7",
+      deliveryNote: "Call when it is packed",
     },
     {
       customer: people[3],
-      code: "ORD-1010",
+      code: "ORD-1011",
       status: "accepted",
       source: "whatsapp_store",
-      neededBy: addDaysIst(3),
+      neededBy: dayOf(atDay(3, 12, 0)),
       timeSlot: "Any time",
       createdAt: atDay(0, 13, 20),
       // Six lines exercise the "+N more" summary on Home cards.
@@ -621,17 +762,17 @@ async function seedBusiness(seed: DevBusinessSeed, seedIndex: number) {
       ],
       paid: { percent: 25 },
       paymentMode: "cash",
-      billNo: "7",
+      billNo: "8",
       deliveryNote: profile.deliveryNote,
     },
     {
       customer: people[0],
-      code: "ORD-1011",
+      code: "ORD-1012",
       status: "declined",
       source: "whatsapp_store",
-      neededBy: addDaysIst(1),
+      neededBy: dayOf(atDay(1, 12, 0)),
       timeSlot: "12:00",
-      createdAt: atDay(0, 10, 5),
+      createdAt: atDay(-1, 12, 30),
       lines: [{ item: customItem, optionIndex: 0, quantity: "1" }],
       paid: "none",
       paymentMode: "upi",
@@ -639,12 +780,12 @@ async function seedBusiness(seed: DevBusinessSeed, seedIndex: number) {
     },
     {
       customer: people[1],
-      code: "ORD-1012",
+      code: "ORD-1013",
       status: "ready",
       source: "walk_in",
-      neededBy: addDaysIst(0),
+      neededBy: dayOf(atDay(0, 18, 0)),
       timeSlot: "18:00",
-      createdAt: atDay(0, 16),
+      createdAt: atDay(-1, 16, 0),
       lines: [
         {
           item: first,
@@ -659,7 +800,7 @@ async function seedBusiness(seed: DevBusinessSeed, seedIndex: number) {
       ],
       paid: { percent: 60 },
       paymentMode: "upi",
-      billNo: "8",
+      billNo: "9",
       deliveryNote: "Gate number 4",
     },
   ];
@@ -814,7 +955,7 @@ export async function seedDevData() {
 
   return {
     businesses: DEV_BUSINESSES.length,
-    ordersPerBusiness: 12,
+    ordersPerBusiness: 13,
     password: DEV_SEED_PASSWORD,
   };
 }

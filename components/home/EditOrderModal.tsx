@@ -2,16 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { primaryButton, quietButton } from "@/components/ui";
-import { cn } from "@/lib/cn";
 import type { IncompleteOrder } from "@/lib/home-types";
+import type { PublicItem } from "@/lib/queries";
 import { SheetClose } from "./SheetClose";
 
 type EditableLine = {
   id: string | null;
+  catalogItemId: string | null;
   itemName: string;
   quantity: string;
   unitPrice: string;
   unitLabel: string | null;
+  optionId: string | null;
+  extras: Array<{
+    id: string;
+    name: string;
+    priceDelta: string;
+    optionId?: string | null;
+  }>;
   note: string | null;
 };
 
@@ -33,10 +41,12 @@ type OrderData = {
 
 export function EditOrderModal({
   order,
+  items = [],
   onClose,
   onSaved,
 }: {
   order: IncompleteOrder | null;
+  items?: PublicItem[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -68,10 +78,13 @@ export function EditOrderModal({
         setLines(
           (body.data.lines ?? []).map((line: any) => ({
             id: line.id,
+            catalogItemId: line.catalogItemId ?? null,
             itemName: line.itemName,
             quantity: line.quantity,
             unitPrice: line.unitPrice,
             unitLabel: line.unitLabel ?? null,
+            optionId: line.optionId ?? null,
+            extras: line.extras ?? [],
             note: line.note ?? null,
           })),
         );
@@ -94,10 +107,13 @@ export function EditOrderModal({
       ...lines,
       {
         id: null,
+        catalogItemId: null,
         itemName: "",
         quantity: "1",
         unitPrice: "0",
         unitLabel: null,
+        optionId: null,
+        extras: [],
         note: null,
       },
     ]);
@@ -165,10 +181,16 @@ export function EditOrderModal({
           adjustmentReason: data.adjustmentReason || null,
           lines: lines.map((line) => ({
             id: line.id ?? undefined,
+            catalogItemId: line.catalogItemId,
             itemName: line.itemName.trim(),
             quantity: line.quantity,
             unitPrice: line.unitPrice,
             unitLabel: line.unitLabel ?? null,
+            optionId: line.optionId,
+            optionName: items
+              .find((item) => item.id === line.catalogItemId)
+              ?.options.find((option) => option.id === line.optionId)?.name ?? null,
+            extras: line.extras,
             note: line.note ?? null,
           })),
           removedLineIds,
@@ -299,9 +321,6 @@ export function EditOrderModal({
                       <span className="grid h-5 w-5 place-items-center rounded-md bg-muted text-caption font-bold text-ink-muted">
                         {index + 1}
                       </span>
-                      <span className="eyebrow text-ink-subtle">
-                        Item {index + 1}
-                      </span>
                     </div>
                     <div className="mb-1 grid grid-cols-[minmax(0,1fr)_58px_78px_54px] gap-2 text-caption font-bold text-ink-muted">
                       <span>Item</span>
@@ -349,6 +368,98 @@ export function EditOrderModal({
                         placeholder="pc"
                       />
                     </div>
+                    {(() => {
+                      const catalogItem = items.find(
+                        (item) => item.id === line.catalogItemId,
+                      );
+                      if (!catalogItem) return null;
+                      const visibleExtras = catalogItem.extras.filter(
+                        (extra) =>
+                          extra.optionId === null || extra.optionId === line.optionId,
+                      );
+                      const rateWith = (
+                        optionId: string | null,
+                        extras: EditableLine["extras"],
+                      ) => {
+                        const option = catalogItem.options.find(
+                          (entry) => entry.id === optionId,
+                        );
+                        return (
+                          Number(option?.price ?? catalogItem.basePrice) +
+                          extras.reduce((sum, extra) => sum + Number(extra.priceDelta), 0)
+                        ).toFixed(2);
+                      };
+                      return (
+                        <div className="mt-2 space-y-2">
+                          {catalogItem.options.length > 0 ? (
+                            <div>
+                              <label className="mb-1 block text-caption font-semibold text-ink-muted">
+                                Variant
+                              </label>
+                              <select
+                                aria-label={`Item ${index + 1} variant`}
+                                value={line.optionId ?? ""}
+                                onChange={(e) => {
+                                  const optionId = e.target.value || null;
+                                  const extras = line.extras.filter(
+                                    (extra) => extra.optionId === null || extra.optionId === optionId,
+                                  );
+                                  updateLine(index, {
+                                    optionId,
+                                    extras,
+                                    unitPrice: rateWith(optionId, extras),
+                                  });
+                                }}
+                                className="block min-h-9 w-full rounded-md border border-line bg-surface px-2 text-[13px] text-ink focus:border-accent/50 focus:outline-none"
+                              >
+                                <option value="">Standard</option>
+                                {catalogItem.options.map((option) => (
+                                  <option key={option.id} value={option.id}>
+                                    {option.name} · ₹{option.price}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          ) : null}
+                          {visibleExtras.length > 0 ? (
+                            <div>
+                              <p className="mb-1 text-caption font-semibold text-ink-muted">
+                                Add-ons
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {visibleExtras.map((extra) => {
+                                  const selected = line.extras.some(
+                                    (entry) => entry.id === extra.id,
+                                  );
+                                  return (
+                                    <button
+                                      key={extra.id}
+                                      type="button"
+                                      onClick={() => {
+                                        const extras = selected
+                                          ? line.extras.filter((entry) => entry.id !== extra.id)
+                                          : [...line.extras, extra];
+                                        updateLine(index, {
+                                          extras,
+                                          unitPrice: rateWith(line.optionId, extras),
+                                        });
+                                      }}
+                                      className={`rounded-full border px-2.5 py-1 text-caption font-semibold transition ${
+                                        selected
+                                          ? "border-accent bg-accent-soft text-accent-strong"
+                                          : "border-line text-ink-muted hover:bg-muted"
+                                      }`}
+                                    >
+                                      {extra.name} +₹{extra.priceDelta}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })()}
                     <label className="mt-2 block text-caption font-semibold text-ink-muted">
                       Note for item {index + 1}
                     </label>

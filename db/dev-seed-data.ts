@@ -302,6 +302,22 @@ export const PACK_SEED_PROFILES: Record<string, PackSeedProfile> = {
   },
 };
 
+/** Two brand colours per pack, used for seeded logos and item images. */
+export const PACK_COLORS: Record<string, [string, string]> = {
+  food: ["#0B6E62", "#E6F4F1"],
+  bakery: ["#A85A08", "#FFF3E3"],
+  grocery: ["#137A4B", "#E8F6EE"],
+  tailoring: ["#6D3BA8", "#F1EAFB"],
+  salon: ["#B03A73", "#FCE9F2"],
+  tutoring: ["#2E5FA3", "#EAF1FB"],
+  repairs: ["#C0392B", "#FDECEB"],
+  rentals: ["#8A5A0B", "#FBF1DF"],
+  freelance: ["#1F6F8B", "#E5F3F8"],
+  home: ["#0E7C86", "#E4F4F6"],
+  wellness: ["#3F7D3A", "#EAF5E8"],
+  pets: ["#8A4B1E", "#FAEEE3"],
+};
+
 export const CUSTOMER_NAMES = [
   "Aarav Mehta",
   "Diya Sharma",

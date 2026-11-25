@@ -1,9 +1,10 @@
 "use client";
 
-import { Card, SectionLabel } from "@/components/ui";
+import { useState } from "react";
+import { Card } from "@/components/ui";
 import { whatsappLink } from "@/lib/bill";
 import { callLink, smsLink } from "@/lib/contact";
-import { MessageCircle, Phone, Send, Wallet } from "lucide-react";
+import { ChevronDown, MessageCircle, Phone, Send, Wallet } from "lucide-react";
 import type { CustomerDue } from "@/lib/home-types";
 
 const contactClass =
@@ -16,27 +17,37 @@ export function CollectCustomers({
   customers: CustomerDue[];
   onSelectCustomer: (id: string) => void;
 }) {
+  const [collapsed, setCollapsed] = useState(false);
   return (
-    <Card className="p-4">
-      <div className="flex items-center gap-2.5 border-b border-line pb-3">
+    <Card className="overflow-hidden p-0">
+      <button
+        type="button"
+        onClick={() => setCollapsed(!collapsed)}
+        aria-expanded={!collapsed}
+        className="flex w-full items-center gap-2.5 border-b border-line px-3 py-2.5 text-left transition hover:bg-muted/60"
+      >
         <span
           className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-warning-soft text-warning"
           aria-hidden="true"
         >
           <Wallet className="h-4 w-4" />
         </span>
-        <SectionLabel>To collect from customers</SectionLabel>
+        <span className="text-small font-bold text-ink">Customer dues</span>
         {customers.length > 0 ? (
-          <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-[11px] font-bold text-ink-muted">
+          <span className="rounded-full bg-muted px-2 py-0.5 text-caption font-bold text-ink">
             {customers.length}
           </span>
         ) : null}
-      </div>
+        <ChevronDown
+          className={`ml-auto h-4 w-4 text-ink transition ${collapsed ? "-rotate-90" : ""}`}
+          aria-hidden="true"
+        />
+      </button>
 
-      {customers.length === 0 ? (
-        <p className="py-6 text-center text-sm text-ink-muted">No dues.</p>
+      {collapsed ? null : customers.length === 0 ? (
+        <p className="px-3 py-6 text-center text-small text-ink">No dues.</p>
       ) : (
-        <div className="mt-1 divide-y divide-line">
+        <div className="divide-y divide-line">
           {customers.map((c) => {
             // `hasPhone` guards rendering; the fallback keeps the link helpers
             // (which require a string) type-safe without changing runtime data.

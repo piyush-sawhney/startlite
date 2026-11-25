@@ -107,6 +107,15 @@ Rules:
   `Buyer's note`, `Amount due`. Uppercase is reserved for the `eyebrow` utility
   (section labels only). Acronyms and product names keep their caps: `UPI`,
   `SMS`, `WhatsApp`, `StartLite`. Never mix `Add Sale` with `Add sale`.
+- **Punctuation is a system.** A colon joins a label to its value (`Note: “…”`,
+  `Needed by: 22-Nov-2026`, `Paid: ₹400.00`). A middle dot joins equal-level
+  metadata on one line (`Sana · #SL42`, `Paid: ₹400 · Due: ₹600`). Never mix a
+  pipe, a dash, and a colon for the same job.
+- **Weight is a system.** Labels are medium, values are bold, and supporting
+  text is regular. Quoted buyer words are bold so they read as a message, not
+  as chrome. Italics are not used in the merchant app.
+- **Status chips are one component size.** Order status and payment status
+  share padding, radius, and 12px bold text. Only their hue changes.
 - Amounts align right in lists and use a fixed decimal column.
 - The measure is 45 to 75 characters. Never full width on a tablet.
 - One family per script. Do not mix a Latin display font into regional text.
@@ -236,6 +245,9 @@ The component inventory is written with each screen. The shared rules are:
 - Use skeletons that match the final layout. Do not use a generic shimmer block.
 - A destructive action requires a confirm sheet that states the result, not "Are
   you sure?".
+- Lists follow one anatomy: content left, actions right. The content slot is
+  the widest; trailing actions share one group and a consistent 44 px target.
+  Actions never sit on the opposite side from the content they affect.
 - A row that opens a sheet shows a chevron. A row that navigates shows a chevron
   plus a distinct press state.
 - Never place two filled accent buttons in one view.

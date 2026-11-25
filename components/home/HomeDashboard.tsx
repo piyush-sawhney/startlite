@@ -9,15 +9,11 @@ import type {
 } from "@/lib/home-types";
 import type { PublicItem } from "@/lib/queries";
 import { istDateString } from "@/lib/date";
+import { dec, formatAmount } from "@/lib/money";
 import { HomeHeader } from "./Header";
 import { AddSaleModal } from "./AddSaleModal";
-import {
-  RequestBar,
-  RequestDesktopBanner,
-  RequestDesktopPill,
-} from "./RequestBar";
+import { RequestBar, RequestDesktopPill } from "./RequestBar";
 import { RequestsPanel } from "./RequestsPanel";
-import { KpiStrip } from "./KpiStrip";
 import { QuickActions } from "./QuickActions";
 import { DayView } from "./DayView";
 import { IncompleteOrders } from "./IncompleteOrders";
@@ -655,9 +651,24 @@ export function HomeDashboard({
     setEditOrder(queued);
   }
 
+  // A due row leads straight to payment. The customer total is the sum of
+  // their unpaid orders, so prefill from the first order with a balance.
   function handleSelectCustomer(id: string) {
     const customer = data.customerDues.find((entry) => entry.id === id);
-    if (customer) setSelectedCustomer(customer);
+    if (!customer) return;
+    const unpaidOrder = data.incompleteOrders.orders.find(
+      (order) =>
+        order.customerName === customer.name && (order.duePaise ?? 0) > 0,
+    );
+    if (unpaidOrder) {
+      setCollectOrder({
+        id: unpaidOrder.id,
+        customerName: customer.name,
+        due: customer.pending,
+      });
+      return;
+    }
+    setSelectedCustomer(customer);
   }
 
   function handleAddSale() {
@@ -683,6 +694,20 @@ export function HomeDashboard({
       ? "offline"
       : "owner"
     : "guest";
+
+  const pendingWorkOrders = data.incompleteOrders.orders.filter(
+    (order) => order.status !== "ready",
+  );
+  const pendingPaymentOrders = [
+    ...data.incompleteOrders.orders.filter((order) => order.status === "ready"),
+    ...data.completedWithDue.orders,
+  ];
+
+  function dueTotal(orders: IncompleteOrder[]): string {
+    return formatAmount(
+      orders.reduce((sum, order) => sum.plus(dec(order.duePaise ?? 0).div(100)), dec(0)),
+    );
+  }
 
   // Next upcoming day that has a pending order, used when today is empty.
   const nextOrderDay = data.isToday
@@ -748,12 +773,6 @@ export function HomeDashboard({
               onReview={() => setShowRequestsPanel(true)}
             />
           </div>
-          <RequestDesktopBanner
-            count={data.requests.count}
-            oldestAge={data.requests.oldestAge}
-            requests={data.requests.requests}
-            onReview={() => setShowRequestsPanel(true)}
-          />
         </div>
       ) : null}
 
@@ -768,9 +787,27 @@ export function HomeDashboard({
             onAddExpense={() => setShowAddExpenseModal(true)}
           />
 
-          {/* 2. Cross-day queue; independent of the selected calendar day */}
+          {/* 2. Work still to finish. */}
           <IncompleteOrders
-            {...data.incompleteOrders}
+            title="Pending orders"
+            orders={pendingWorkOrders}
+            toFinishCount={pendingWorkOrders.length}
+            readyCount={0}
+            totalDue={dueTotal(pendingWorkOrders)}
+            totalCount={pendingWorkOrders.length}
+            onOpenOrder={setSelectedOrder}
+            onCollect={setCollectOrder}
+            onEdit={isOwner ? (order) => setEditOrder(order) : undefined}
+          />
+
+          {/* 3. Work is done but money is still due. */}
+          <IncompleteOrders
+            title="Completed · payment due"
+            orders={pendingPaymentOrders}
+            toFinishCount={0}
+            readyCount={pendingPaymentOrders.length}
+            totalDue={dueTotal(pendingPaymentOrders)}
+            totalCount={pendingPaymentOrders.length}
             onOpenOrder={setSelectedOrder}
             onCollect={setCollectOrder}
             onEdit={isOwner ? (order) => setEditOrder(order) : undefined}
@@ -792,9 +829,6 @@ export function HomeDashboard({
             />
           </div>
 
-          {/* 5. Metrics */}
-          <KpiStrip kpis={data.kpis} />
-
           {/* 6. Customers with dues */}
           <CollectCustomers
             customers={data.customerDues}
@@ -813,6 +847,7 @@ export function HomeDashboard({
             <div className="flex justify-end">
               <RequestDesktopPill
                 count={data.requests.count}
+                oldestAge={data.requests.oldestAge}
                 onReview={() => setShowRequestsPanel(true)}
               />
             </div>
@@ -968,6 +1003,7 @@ export function HomeDashboard({
 
       <EditOrderModal
         order={editOrder}
+        items={saleItems}
         onClose={() => setEditOrder(null)}
         onSaved={() => {
           setEditOrder(null);

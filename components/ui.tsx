@@ -1,5 +1,10 @@
 import type { ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
+import {
+  PAYMENT_LABELS,
+  type PaymentStatus,
+} from "@/lib/payment-status";
 
 export function primaryButton(extra?: string) {
   return cn(
@@ -12,6 +17,58 @@ export function quietButton(extra?: string) {
   return cn(
     "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 text-body font-medium text-ink transition hover:bg-muted active:bg-muted disabled:opacity-50",
     extra,
+  );
+}
+
+/**
+ * One action shape everywhere: same height, radius, icon slot and label.
+ * Only the hue changes, and the hue matches what the action does.
+ */
+export function RowAction({
+  icon: Icon,
+  label,
+  onClick,
+  tone = "accent",
+}: {
+  icon: LucideIcon;
+  label: string;
+  onClick: () => void;
+  tone?: "accent" | "warning";
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className={cn(
+        "inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-bold transition sm:min-h-9 sm:px-3",
+        tone === "warning"
+          ? "border-warning/30 bg-warning-soft text-warning hover:bg-warning/15"
+          : "border-accent/30 bg-accent-soft text-accent-strong hover:bg-accent/15",
+      )}
+    >
+      <Icon className="h-4 w-4 shrink-0 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
+      <span className="hidden sm:inline">{label}</span>
+    </button>
+  );
+}
+
+/** Payment state is shown beside, never instead of, the work status. */
+export function PaymentPill({ status }: { status: PaymentStatus }) {
+  const tones: Record<PaymentStatus, string> = {
+    paid: "bg-success-soft text-success",
+    partial: "bg-warning-soft text-warning",
+    due: "bg-danger-soft text-danger",
+  };
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center whitespace-nowrap rounded-full px-2 py-1 text-caption font-bold",
+        tones[status],
+      )}
+    >
+      {PAYMENT_LABELS[status]}
+    </span>
   );
 }
 
@@ -171,14 +228,16 @@ export const inputClass =
   "block min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-[15px] text-ink placeholder:text-ink-subtle focus:border-accent/50 focus:outline-none";
 
 export function StatusPill({ status }: { status: string }) {
+  // Work status answers "where is the job?". Payment status is a separate
+  // pill and never reuses these hues for a different meaning.
   const map: Record<string, { label: string; className: string }> = {
-    under_review: { label: "Under review", className: "bg-muted text-ink-muted" },
+    under_review: { label: "Under review", className: "bg-warning-soft text-warning" },
     waiting_client: {
       label: "Waiting for client",
       className: "bg-info-soft text-info",
     },
     accepted: { label: "Accepted", className: "bg-accent-soft text-accent-strong" },
-    in_progress: { label: "In progress", className: "bg-accent-soft text-accent-strong" },
+    in_progress: { label: "In progress", className: "bg-info-soft text-info" },
     ready: { label: "Ready", className: "bg-warning-soft text-warning" },
     completed: { label: "Completed", className: "bg-success-soft text-success" },
     declined: { label: "Declined", className: "bg-danger-soft text-danger" },
@@ -188,7 +247,7 @@ export function StatusPill({ status }: { status: string }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold",
+        "inline-flex items-center whitespace-nowrap rounded-full px-2 py-1 text-caption font-bold",
         entry.className,
       )}
     >

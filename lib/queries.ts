@@ -19,6 +19,7 @@ import { orderSummary } from "./order-summary";
 import {
   isCancelled,
   isClosed,
+  isCompleted,
   isOpen,
   isReady,
   OPEN_STATUSES,
@@ -30,8 +31,6 @@ import type {
   HomeDashboardData,
   IncompleteOrder,
   OrderLinePreview,
-  HomeKpi,
-  PendingRequestItem,
 } from "./home-types";
 
 export type PublicItem = {
@@ -509,6 +508,7 @@ export async function getHomeDashboard(
     orderRows,
     dayRows,
     incompleteRows,
+    completedRows,
     paymentRows,
     expenseRows,
     pendingRows,
@@ -538,6 +538,16 @@ export async function getHomeDashboard(
         and(
           eq(orders.businessId, businessId),
           inArray(orders.status, OPEN_STATUSES),
+        ),
+      ),
+    // Done work with an unpaid balance lives in its own list.
+    db
+      .select()
+      .from(orders)
+      .where(
+        and(
+          eq(orders.businessId, businessId),
+          inArray(orders.status, ["ready", "completed"]),
         ),
       ),
     db
@@ -853,6 +863,38 @@ export async function getHomeDashboard(
     orders: incompleteSummary.orders,
   };
 
+  // Completed work with a balance still due.
+  const completedDueRows: IncompleteOrder[] = completedRows.flatMap((order) => {
+    if (!isReady(order.status) && !isCompleted(order.status)) return [];
+    const due = dec(order.grandTotal)
+      .minus(order.paidTotal)
+      .minus(order.tdsTotal);
+    if (!due.greaterThan(0)) return [];
+    return [{
+      id: order.id,
+      code: order.orderCode,
+      customerName: order.customerName || "Walk-in sale",
+      customerPhone: order.customerPhone || undefined,
+      customerCountryCode: "+91",
+      itemsSummary: getOrderSummary(order.id),
+      total: formatAmount(order.grandTotal),
+      due: formatAmount(due),
+      duePaise: due.times(100).toNumber(),
+      status: order.status as OrderStatus,
+      neededBy: order.neededBy,
+      timeSlot: order.timeSlot,
+      createdAt: order.createdAt.toISOString(),
+      note: order.deliveryNote,
+      lines: getOrderLines(order.id),
+    }];
+  });
+  const completedSummary = summarizeIncompleteOrders(completedDueRows);
+  const completedWithDue: HomeDashboardData["completedWithDue"] = {
+    totalCount: completedSummary.totalCount,
+    totalDue: formatAmount(dec(completedSummary.totalDuePaise).div(100)),
+    orders: completedSummary.orders,
+  };
+
   // 6. To collect from customers (Top 5 customers with pending balances)
   const customerDuesMap = new Map<string, { due: ReturnType<typeof dec>; lastPaid: Date | null }>();
   for (const order of orderRows) {
@@ -914,6 +956,7 @@ export async function getHomeDashboard(
       ghosts,
     },
     incompleteOrders,
+    completedWithDue,
     customerDues: customerDues.slice(0, 5),
   };
 }

@@ -135,7 +135,7 @@ when data arrives.
 | Period | Every number states Today, This week, This month, or All |
 | Week | Monday to Sunday, IST |
 | Count | A muted second line under the amount, for example `7 orders` |
-| Profit | Never shown. The label is Cash left, with the line "This is not profit." |
+| Profit | Never shown. Money summary cards are not on Home |
 | Dates | `21-Nov-2026`. Times are 12-hour with `am` and `pm` |
 | Tabular numerals | Every amount and count |
 
@@ -144,19 +144,19 @@ when data arrives.
 The order status decides where an order appears. The screen never invents a
 status.
 
-| Status | Shown as | Home group | Orders tab |
+| Status | Shown as | Home list | Orders tab |
 |---|---|---|---|
-| `under_review` | Under review | To finish | Incomplete |
-| `waiting_client` | Waiting for client | To finish | Incomplete |
-| `accepted` | Accepted | To finish | Incomplete |
-| `in_progress` | In progress | To finish | Incomplete |
-| `ready` | Ready | Ready to collect | Incomplete |
-| `completed` | Completed | Not shown | Paid |
+| `under_review` | Under review | Pending orders | Incomplete |
+| `waiting_client` | Waiting for client | Pending orders | Incomplete |
+| `accepted` | Accepted | Pending orders | Incomplete |
+| `in_progress` | In progress | Pending orders | Incomplete |
+| `ready` | Ready | Completed · payment due when a balance exists | Incomplete |
+| `completed` | Completed | Completed · payment due when a balance exists | Paid |
 | `declined` | Declined | Not shown | All only |
 | `cancelled` | Cancelled | Not shown | All only |
 
-On Home, **To finish** always appears above **Ready to collect**. Work unfinished
-outranks money waiting. The two groups never mix. See
+On Home, **Pending orders** appears above **Completed · payment due**. Work
+unfinished outranks money waiting. The two lists never mix. See
 [ADR-037](../decisions.md#adr-037-generic-order-status-funnel).
 
 ## Writing rules

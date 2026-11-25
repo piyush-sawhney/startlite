@@ -9,10 +9,23 @@ import { canTransition } from "@/lib/order-status";
 
 const lineSchema = z.object({
   id: z.string().optional(),
+  catalogItemId: z.string().nullable().optional(),
   itemName: z.string().min(1).max(100),
   quantity: z.string().regex(/^\d+(\.\d{1,2})?$/),
   unitPrice: z.string().regex(/^\d+(\.\d{1,2})?$/),
   unitLabel: z.string().max(20).optional().nullable(),
+  optionId: z.string().nullable().optional(),
+  optionName: z.string().nullable().optional(),
+  extras: z
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        priceDelta: z.string(),
+      }),
+    )
+    .max(20)
+    .optional(),
   note: z.string().max(200).nullable().optional(),
 });
 
@@ -80,10 +93,14 @@ export async function GET(
     },
     lines: lines.map((line) => ({
       id: line.id,
+      catalogItemId: line.catalogItemId,
       itemName: line.itemNameSnapshot,
       quantity: line.quantity,
       unitPrice: line.unitPrice,
       unitLabel: line.unitLabelSnapshot,
+      optionId: null,
+      optionName: line.optionSnapshot,
+      extras: line.extrasSnapshot,
       note: line.customerNote,
       lineTotal: line.lineTotal,
     })),
@@ -179,10 +196,13 @@ export async function PATCH(
         await db
           .update(orderItems)
           .set({
+            catalogItemId: line.catalogItemId ?? null,
             itemNameSnapshot: line.itemName,
             quantity: line.quantity,
             unitPrice: line.unitPrice,
             unitLabelSnapshot: line.unitLabel ?? null,
+            optionSnapshot: line.optionName ?? null,
+            extrasSnapshot: line.extras ?? [],
             customerNote: line.note ?? null,
             lineTotal,
           })
@@ -196,10 +216,13 @@ export async function PATCH(
         await db.insert(orderItems).values({
           orderId: order.id,
           businessId: auth.business.id,
+          catalogItemId: line.catalogItemId ?? null,
           itemNameSnapshot: line.itemName,
           quantity: line.quantity,
           unitPrice: line.unitPrice,
           unitLabelSnapshot: line.unitLabel ?? null,
+          optionSnapshot: line.optionName ?? null,
+          extrasSnapshot: line.extras ?? [],
           customerNote: line.note ?? null,
           lineTotal,
         });

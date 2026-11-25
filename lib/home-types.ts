@@ -126,5 +126,11 @@ export type HomeDashboardData = {
     totalCount: number;
     orders: IncompleteOrder[];
   };
+  /** Work is done but money is still outstanding. */
+  completedWithDue: {
+    totalCount: number;
+    totalDue: string;
+    orders: IncompleteOrder[];
+  };
   customerDues: CustomerDue[];
 };

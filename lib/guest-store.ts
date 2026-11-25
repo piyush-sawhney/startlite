@@ -1528,6 +1528,36 @@ export function guestHomeDashboard(
     orders: incompleteSummary.orders,
   };
 
+  // Done work with a balance still due.
+  const completedDueOrders: IncompleteOrder[] = state.orders.flatMap((order) => {
+    const totals = guestOrderTotals(order);
+    if (!isReady(totals.status) && !isCompleted(totals.status)) return [];
+    if (totals.duePaise <= 0) return [];
+    return [{
+      id: order.id,
+      code: order.code,
+      customerName: order.customerName || "Walk-in sale",
+      customerPhone: order.customerPhone || undefined,
+      customerCountryCode: order.customerCountryCode || "+91",
+      itemsSummary: getOrderSummary(order),
+      total: formatPaise(totals.totalPaise),
+      due: formatPaise(totals.duePaise),
+      duePaise: totals.duePaise,
+      status: totals.status,
+      neededBy: order.neededBy,
+      timeSlot: order.timeSlot || null,
+      createdAt: order.createdAt,
+      note: order.note || null,
+      lines: getOrderLines(order),
+    }];
+  });
+  const completedSummary = summarizeIncompleteOrders(completedDueOrders);
+  const completedWithDue: HomeDashboardData["completedWithDue"] = {
+    totalCount: completedSummary.totalCount,
+    totalDue: formatPaise(completedSummary.totalDuePaise),
+    orders: completedSummary.orders,
+  };
+
   // 5. To collect from customers
   const customers = guestCustomers(state)
     .filter((c) => c.pendingPaise > 0)
@@ -1562,6 +1592,7 @@ export function guestHomeDashboard(
       ghosts: [],
     },
     incompleteOrders,
+    completedWithDue,
     customerDues,
   };
 }

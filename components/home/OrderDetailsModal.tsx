@@ -6,8 +6,23 @@ import { formatNeededBy, whatsappLink } from "@/lib/bill";
 import { callLink, smsLink } from "@/lib/contact";
 import { istDateString } from "@/lib/date";
 import type { DayOrderItem, IncompleteOrder } from "@/lib/home-types";
-import { StatusPill, primaryButton, quietButton } from "@/components/ui";
-import { Edit2, MessageCircle, Phone, Send, X } from "lucide-react";
+import {
+  PaymentPill,
+  StatusPill,
+  primaryButton,
+  quietButton,
+} from "@/components/ui";
+import { paymentStatus } from "@/lib/payment-status";
+import {
+  Check,
+  Edit2,
+  MessageCircle,
+  PackageCheck,
+  Phone,
+  Send,
+  Wallet,
+  X,
+} from "lucide-react";
 
 const contactClass =
   "relative grid h-10 w-10 shrink-0 place-items-center rounded-xl transition after:absolute after:-inset-1 after:content-['']";
@@ -192,6 +207,18 @@ export function OrderDetailsModal({
               </dd>
             </div>
             <div className="flex items-center justify-between gap-3 py-2.5">
+              <dt className="text-ink-muted">Work</dt>
+              <dd>
+                <StatusPill status={order.status} />
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 py-2.5">
+              <dt className="text-ink-muted">Payment</dt>
+              <dd>
+                <PaymentPill status={paymentStatus(order.total, order.due)} />
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 py-2.5">
               <dt className="text-ink-muted">Total</dt>
               <dd className="tnum font-semibold text-ink">{order.total}</dd>
             </div>
@@ -258,6 +285,7 @@ export function OrderDetailsModal({
                 onClick={() => onAccept(order.id)}
                 className={primaryButton("w-full min-h-12")}
               >
+                <Check className="h-4 w-4" aria-hidden="true" />
                 Accept request
               </button>
             ) : null}
@@ -267,6 +295,7 @@ export function OrderDetailsModal({
                 onClick={() => onMarkReady(order.id)}
                 className={primaryButton("w-full min-h-12")}
               >
+                <PackageCheck className="h-4 w-4" aria-hidden="true" />
                 Mark ready
               </button>
             ) : null}
@@ -276,6 +305,7 @@ export function OrderDetailsModal({
                 onClick={() => onCollect(order.id)}
                 className={primaryButton("w-full min-h-12")}
               >
+                <Wallet className="h-4 w-4" aria-hidden="true" />
                 Collect payment
               </button>
             ) : null}

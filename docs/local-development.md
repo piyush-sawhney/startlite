@@ -101,12 +101,24 @@ repository.
 ### Development accounts
 
 `db:seed:dev` creates 24 additional accounts, one or two for each category pack.
-Every account uses the same local password. Each shop gets a deliberately rich
-workspace: pack starters plus a trade-specific item and two more items; two
-option groups on the first item; extras scoped to a variant (sub-variants); five
-customers; 12 orders across every status, overdue and undated work, a six-item
-order for the `+N more` summary, and three storefront requests with one, two,
-and three lines. The full account table and the empty-database flow live in
+Every account uses the same local password. Each shop gets a realistic
+workspace:
+
+- A branded round logo and an image for every catalog item. The seed renders
+  SVG artwork with sharp and writes WebP originals and 320 px variants into
+  `MEDIA_ROOT`. It inserts one `media` row per asset.
+- Pack starters plus a trade-specific item and two more items. Two option
+  groups carry different prices. Extras have price deltas, and some extras are
+  scoped to one variant as sub-variants.
+- Five customers with local phone numbers and identification labels.
+- 13 orders placed across the last three weeks. Placement times fall inside
+  business hours. Needed-by dates follow the booking, from same day to three
+  days ahead. One order has a six-line item list for the `+N more` summary.
+  Statuses cover completed, ready, accepted, in progress, under review, waiting
+  for client, declined, and cancelled.
+- Three storefront requests with one, two, and three lines.
+
+The full account table and the empty-database flow live in
 [dev-accounts.md](dev-accounts.md).
 
 ## Try the workspace
