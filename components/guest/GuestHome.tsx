@@ -8,7 +8,6 @@ import {
   addGuestPayment,
   guestHomeDashboard,
   setGuestOrderStatus,
-  updateGuestShop,
   type GuestPaymentMode,
 } from "@/lib/guest-store";
 import { istDateString } from "@/lib/date";
@@ -107,10 +106,6 @@ export function GuestHome({ state, update, go, toast }: GuestViewProps) {
           }),
         );
         toast(`Expense ₹${expense.amount} recorded`);
-      }}
-      onGuestRenameShop={(name) => {
-        update((current) => updateGuestShop(current, { name }));
-        toast("Shop name saved");
       }}
       onGuestSelectDay={(next) => setDay(next)}
       hasLocalShop={hasLocalShop}

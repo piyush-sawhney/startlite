@@ -9,6 +9,8 @@ import {
   type GuestState,
 } from "@/lib/guest-store";
 import { HomeSkeleton } from "@/components/home/HomeSkeleton";
+import { HomeHeader } from "@/components/home/Header";
+import { SaveShopModal } from "@/components/home/SaveShopModal";
 import { GuestHome } from "./GuestHome";
 import { GuestSalesList, GuestNewSale, GuestSaleDetail } from "./GuestSales";
 import { GuestCustomersList, GuestCustomerDetail } from "./GuestCustomers";
@@ -27,6 +29,7 @@ export function GuestApp() {
   const [state, setState] = useState<GuestState | null>(null);
   const [stack, setStack] = useState<GuestRoute[]>([{ kind: "home" }]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [showSaveSheet, setShowSaveSheet] = useState(false);
 
   useEffect(() => {
     setState(loadGuestState());
@@ -177,10 +180,22 @@ export function GuestApp() {
       />
 
       <div className="min-w-0 flex-1">
+        <HomeHeader
+          shopName={state.shop.name}
+          metaLine="Sign in to save this shop"
+          onMetaAction={() => setShowSaveSheet(true)}
+          pillState="guest"
+          onGuestSave={() => setShowSaveSheet(true)}
+        />
         <div className="mx-auto w-full max-w-[640px] px-4 pb-28 pt-6 lg:max-w-6xl lg:px-8 lg:pb-16 lg:pt-8">
           {content}
         </div>
       </div>
+
+      <SaveShopModal
+        isOpen={showSaveSheet}
+        onClose={() => setShowSaveSheet(false)}
+      />
 
       {toastMessage ? (
         <div

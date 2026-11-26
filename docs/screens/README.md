@@ -12,12 +12,12 @@
 | Screen | Route | Tab | File |
 |---|---|---|---|
 | Home | `/` | Home | [home.md](home.md) |
-| Orders | `/orders` | Orders | Not written |
-| Customers | `/customers` | Customers | Not written |
+| Orders | `/orders` | Orders | [orders.md](orders.md) |
+| Customers | `/customers` | Customers | [customers.md](customers.md) |
 | Items | `/items` | Items | Not written |
-| Expenses | `/expenses` | Expenses | Not written |
+| Expenses | `/expenses` | Expenses | [expenses.md](expenses.md) |
 | Settings | `/settings` | Settings | Not written |
-| Add sale | `/sales/new` | Home | [home.md](home.md#add-sale) |
+| Add sale | `/orders/new` | Home | [home.md](home.md#add-sale) |
 | Add customer | overlay | Home | [home.md](home.md#add-customer) |
 | Add item | overlay | Home | [home.md](home.md#add-item) |
 | Add expense | overlay | Home | [home.md](home.md#add-expense) |
@@ -58,7 +58,9 @@ Every merchant screen uses the same shell. The shell is specified once, here.
 | 1024 and above | Collapsible left rail, 68 px collapsed by default, 240 px expanded | Main column plus a 360 px right column |
 
 The storefront keeps its own shell at `max-width: 460px`. The admin keeps
-`max-width: 1200px`.
+`max-width: 1200px`. Report pages use the main column only. The 360 px right
+column stays empty on Orders, Customers, and Expenses. See
+[ADR-040](../decisions.md#adr-040-shared-report-pages).
 
 ### Tabs
 
@@ -94,13 +96,16 @@ See [ADR-039](../decisions.md#adr-039-collapsible-sidebar-and-desktop-width).
 52 px below 768 px, 56 px from 768 px, 64 px from 1024 px. Sticky and one row.
 It holds the shop logo or initial (round, 40 px), the shop name, the edit icon,
 an inline meta label, the state pill, an `Open storefront` button, and a Share
-button labelled `Share your store instantly` for an owner. The store handle is
+button labeled `Share your store instantly` for an owner. The store handle is
 not in the header. From 1024 px the meta label shows the quarterly pass or
 3-month trial date in full, with no truncation or ellipsis; the shop name is the
 only element that can shrink. The long labels on the two action buttons appear
-from 1280 px. There is no search and no gear; Store settings is a rail item. See
-[ADR-038](../decisions.md#adr-038-home-header-context-and-dues-collection) and
-[ADR-039](../decisions.md#adr-039-collapsible-sidebar-and-desktop-width).
+from 1280 px. There is no search and no gear; Store settings is a rail item.
+The header and its edit logo, edit name, and Share actions live in the shared
+shell, so every page shows the same header. See
+[ADR-038](../decisions.md#adr-038-home-header-context-and-dues-collection),
+[ADR-039](../decisions.md#adr-039-collapsible-sidebar-and-desktop-width), and
+[ADR-041](../decisions.md#adr-041-top-level-report-routes).
 
 ### State pill
 
@@ -141,6 +146,36 @@ or sign-out action. It is never the loudest element on the screen.
 
 Skeletons match the final layout. No spinners for local actions. No layout shift
 when data arrives.
+
+## Report list anatomy
+
+Orders, Customers, and Expenses use one page shell. The sections appear in this
+order. Each screen doc states its own content and empty rules.
+
+1. **Page header.** Title, `{count} {noun} · {period}`, and at most one filled
+   action. The count and period are caption text.
+2. **Summary strip.** Up to four metric tiles. A tile has an eyebrow label, a
+   `figure` amount or count, and a caption that states the period. On mobile the
+   tiles form a two-column grid. From 768 px they sit in one row. No tile shows
+   a chart or an animated number.
+3. **Filters.** One labeled search field and the pills named by the screen doc.
+   Pills use `aria-pressed`. All filter state lives in the URL so a view can be
+   refreshed or shared. The bar is hidden when the shop has no records.
+4. **List card.** The header follows the one-row anatomy from
+   [home.md](#type-and-control-scale): `{title}:`, `Total {count}`, an optional
+   total amount, the sort control, and the collapse chevron. Rows sit in a
+   divided list. The header shows no second-level label.
+
+A row has three slots. Content sits on the left and is the widest slot. One
+amount column sits on the right and uses the `figure` utility. Actions share one
+trailing group with 44 px targets. The primary line is `text-small` bold. The
+secondary and caption lines are `text-caption` in muted ink. Status and payment
+pills share one size and always pair a word with a color. A row never uses a
+full-width status tint.
+
+An empty list states one sentence and one action. A loading skeleton uses the
+final header, tile, filter, and row heights. Data replaces it in place. See
+[ADR-040](../decisions.md#adr-040-shared-report-pages).
 
 ## Number rules
 

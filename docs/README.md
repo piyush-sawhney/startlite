@@ -6,7 +6,7 @@ StartLite is a WhatsApp storefront and a cash-flow ledger for Indian
 micro-businesses. The app works before login. Login saves and syncs. A buyer
 orders without an account. StartLite never holds buyer money.
 
-**Status:** v1 in progress. **Last updated:** 2026-11-21.
+**Status:** v1 in progress. **Last updated:** 2026-11-26.
 
 ## Document map
 
@@ -28,7 +28,9 @@ orders without an account. StartLite never holds buyer money.
 | [decisions.md](decisions.md) | Why each choice was made, and what it replaced | Changing a decision |
 | [screens/README.md](screens/README.md) | Screen specifications, shell, breakpoints, and states | Designing or implementing UI screens |
 
-Screen specifications are documented in [screens/](screens/README.md), starting with [screens/home.md](screens/home.md).
+Screen specifications live in [screens/](screens/README.md):
+[home](screens/home.md), [orders](screens/orders.md),
+[customers](screens/customers.md), and [expenses](screens/expenses.md).
 
 ## Reading order
 

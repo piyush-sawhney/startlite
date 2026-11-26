@@ -872,6 +872,70 @@ their full labels from 1280 px and use icons below it.
   accessible icons only when collapsed. Sign out is no exception.
 - Guest and owner rails differ only in their footer actions.
 
+## ADR-040: Shared report pages
+
+**Context:** Orders, Customers, and Expenses were three separate server pages
+with three separate guest copies. Their lists used different rows, dates, and
+filters. The screen docs did not exist. Adding a filter meant changing the
+owner page and the guest page.
+
+**Decision:** Each report uses one page component with two adapters. The owner
+adapter reads Postgres in `lib/queries.ts`. The guest adapter reads
+`lib/guest-store.ts`. Both return the same typed shape from
+`lib/report-types.ts`. The page has four zones in a fixed order: page header,
+summary strip, filters, and list card. One shared row anatomy covers all three
+reports. Filters and sort live in the URL. Summary metrics are allowed on report
+pages. Home stays free of money summary cards. Report pages use the main column
+only and leave the 360 px right column empty.
+
+The merchant expense table has no `paid_for` column. The report does not show a
+paid-for line for either visitor until that column exists. Guest data keeps the
+local value.
+
+**Consequences:**
+
+- A filter or row change is made once in the shared component.
+- Guest and owner reports keep the same layout and copy.
+- Reports stay inside the number rules and the no-charts guardrail.
+- Each report is specified at 360 px, 768 px, and 1200 px in its screen doc.
+- Adding `paid_for` later updates the schema, data model, form, and report doc in
+  one change.
+
+## ADR-041: Top-level report routes
+
+**Context:** The screen index named `/orders`, `/customers`, and `/expenses`.
+The code served those reports from `/app/sales`, `/app/customers`, and
+`/app/more/expenses`. The rail labeled `/app/sales` as Orders. Links from Home
+pointed at the old paths.
+
+**Decision:** Move the reports and their detail views to the documented paths.
+Keep `/app` as the Home workspace and `/app/catalog` as Items. Store settings
+stays at `/app/more/settings`.
+
+| Old route | New route |
+|---|---|
+| `/app/sales` | `/orders` |
+| `/app/sales/new` | `/orders/new` |
+| `/app/sales/{id}` | `/orders/{id}` |
+| `/app/sales/{id}/bill` | `/orders/{id}/bill` |
+| `/app/customers` | `/customers` |
+| `/app/customers/{id}` | `/customers/{id}` |
+| `/app/more/expenses` | `/expenses` |
+
+Every old route returns a 308 redirect to its new route. The rail, bottom tabs,
+Home bill links, and Home's View all dues link use the new paths. The merchant
+shell is shared by both route trees through one shell component.
+
+**Consequences:**
+
+- Existing bookmarks and links keep working.
+- Each screen has one documented path.
+- The redirect table is the only place that names old paths.
+- The header and its edit logo, edit name, and Share actions live in the shared
+  shell. Every owner page shows the same header. The guest workspace renders the
+  same header with the sign-in prompt instead of owner actions.
+- Guest views are unchanged. They still route inside the local workspace.
+
 ## Superseded specification sections
 
 The archived document is at

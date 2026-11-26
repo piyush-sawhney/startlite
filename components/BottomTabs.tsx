@@ -283,7 +283,7 @@ export function BottomTabs({ noun }: { noun: string }) {
   const items = [
     { href: "/app", label: "Home", icon: HomeIcon, exact: true },
     { href: "/app/sales", label: "Sales", icon: SalesIcon },
-    { href: "/app/customers", label: "Customers", icon: CustomersIcon },
+    { href: "/customers", label: "Customers", icon: CustomersIcon },
     { href: "/app/catalog", label: noun, icon: CatalogIcon },
     { href: "/app/more", label: "More", icon: MoreIcon },
   ];
@@ -340,7 +340,7 @@ export function MerchantNav({
     badge?: number;
   }> = [
     { href: "/app", label: "Home", Icon: HomeIcon, exact: true },
-    { href: "/app/customers", label: "Customers", Icon: CustomersIcon },
+    { href: "/customers", label: "Customers", Icon: CustomersIcon },
     { href: "/app/sales", label: "Orders", Icon: SalesIcon, badge: pendingCount },
     { href: "/app/catalog", label: "Items", Icon: CatalogIcon },
     { href: "/app/more/settings", label: "Store settings", Icon: SettingsIcon },

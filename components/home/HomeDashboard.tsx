@@ -10,7 +10,6 @@ import type {
 import type { PublicItem } from "@/lib/queries";
 import { istDateString } from "@/lib/date";
 import { dec, formatAmount } from "@/lib/money";
-import { HomeHeader } from "./Header";
 import { AddSaleModal } from "./AddSaleModal";
 import { RequestBar, RequestDesktopPill } from "./RequestBar";
 import { RequestsPanel } from "./RequestsPanel";
@@ -24,13 +23,8 @@ import { AddCustomerModal, type CustomerInput } from "./AddCustomerModal";
 import { AddItemModal, type ItemInput } from "./AddItemModal";
 import { AddExpenseModal, type ExpenseInput } from "./AddExpenseModal";
 import { CollectPaymentModal } from "./CollectPaymentModal";
-import { EditShopNameModal } from "./EditShopNameModal";
-import { ShopLogoModal } from "./ShopLogoModal";
-import { SaveShopModal } from "./SaveShopModal";
-import { ShareStorefrontModal } from "./ShareStorefrontModal";
 import { LaunchSheet } from "./LaunchSheet";
 import { SessionExpired } from "./SessionExpired";
-import type { PillState } from "./StatePill";
 
 export function HomeDashboard({
   initialData,
@@ -42,7 +36,6 @@ export function HomeDashboard({
   onGuestAddCustomer,
   onGuestAddItem,
   onGuestAddExpense,
-  onGuestRenameShop,
   onGuestSelectDay,
   hasLocalShop = false,
 }: {
@@ -63,7 +56,6 @@ export function HomeDashboard({
   onGuestAddCustomer?: (data: CustomerInput) => void;
   onGuestAddItem?: (data: ItemInput) => void;
   onGuestAddExpense?: (data: ExpenseInput) => void;
-  onGuestRenameShop?: (name: string) => void;
   onGuestSelectDay?: (day: string) => void;
   /** Guest-only: a local shop already exists, so skip the first-run sheet. */
   hasLocalShop?: boolean;
@@ -73,10 +65,6 @@ export function HomeDashboard({
   const [showLaunchSheet, setShowLaunchSheet] = useState(false);
   const [isSessionExpired, setIsSessionExpired] = useState(false);
   const [showRequestsPanel, setShowRequestsPanel] = useState(false);
-  const [showSaveSheet, setShowSaveSheet] = useState(false);
-  const [showEditName, setShowEditName] = useState(false);
-  const [showEditLogo, setShowEditLogo] = useState(false);
-  const [showShareSheet, setShowShareSheet] = useState(false);
   const [showAddSale, setShowAddSale] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<HomeOrderPreview | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDue | null>(null);
@@ -163,10 +151,6 @@ export function HomeDashboard({
         if (selectedCustomer) { setSelectedCustomer(null); return; }
         if (collectOrder) { setCollectOrder(null); return; }
         if (showRequestsPanel) { setShowRequestsPanel(false); return; }
-        if (showSaveSheet) { setShowSaveSheet(false); return; }
-        if (showEditName) { setShowEditName(false); return; }
-        if (showEditLogo) { setShowEditLogo(false); return; }
-        if (showShareSheet) { setShowShareSheet(false); return; }
         return;
       }
 
@@ -186,7 +170,7 @@ export function HomeDashboard({
         const tabRoutes = [
           "/app",
           "/app/sales",
-          "/app/customers",
+          "/customers",
           "/app/catalog",
           "/app/more/expenses",
           "/app/more/settings",
@@ -211,10 +195,6 @@ export function HomeDashboard({
     selectedCustomer,
     collectOrder,
     showRequestsPanel,
-    showSaveSheet,
-    showEditName,
-    showEditLogo,
-    showShareSheet,
   ]);
 
   // Pull-to-refresh handler (owner only; guest is a no-op per spec)
@@ -489,28 +469,6 @@ export function HomeDashboard({
     setToast({ message: "Payment recorded" });
   }
 
-  // Rename the shop from the pen in the header
-  async function handleRenameShop(name: string) {
-    if (offlineNotice()) return;
-    if (isOwner) {
-      const res = await fetch("/api/v1/merchant/business", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessName: name }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(body?.error?.message ?? "Could not save the name.");
-      }
-      router.refresh();
-      await refreshDashboard();
-    } else {
-      onGuestRenameShop?.(name);
-    }
-    setData((prev) => ({ ...prev, shopName: name }));
-    setToast({ message: "Shop name saved" });
-  }
-
   // Add Customer submit
   async function handleAddCustomerSubmit(customer: CustomerInput) {
     if (offlineNotice()) return;
@@ -689,12 +647,6 @@ export function HomeDashboard({
     );
   }
 
-  const pillState: PillState = isOwner
-    ? isOffline
-      ? "offline"
-      : "owner"
-    : "guest";
-
   // The two adapters keep these lists disjoint: work to finish, then work
   // that is done with a balance. Ready orders live only in payment due.
   const pendingWorkOrders = data.incompleteOrders.orders;
@@ -736,27 +688,6 @@ export function HomeDashboard({
           }}
         />
       ) : null}
-
-      {/* Header */}
-      <HomeHeader
-        shopName={data.shopName}
-        logoUrl={data.shopLogoUrl}
-        metaLine={
-          isOwner
-            ? data.passStatus?.label
-            : "Sign in to save this shop"
-        }
-        metaTone={isOwner ? data.passStatus?.tone : undefined}
-        onMetaAction={isOwner ? undefined : () => setShowSaveSheet(true)}
-        storefrontHref={
-          isOwner && data.handle ? `/b/${data.handle}` : undefined
-        }
-        pillState={pillState}
-        onGuestSave={() => setShowSaveSheet(true)}
-        onEditName={() => setShowEditName(true)}
-        onEditLogo={isOwner ? () => setShowEditLogo(true) : undefined}
-        onShare={isOwner ? () => setShowShareSheet(true) : undefined}
-      />
 
       {/* A lapsed pass pauses the storefront but Home keeps working. */}
       {isOwner && data.isPassExpired ? (
@@ -837,7 +768,7 @@ export function HomeDashboard({
             onSelectCustomer={handleSelectCustomer}
             onViewAll={
               isOwner
-                ? () => router.push("/app/customers")
+                ? () => router.push("/customers")
                 : () => onGuestAction?.("customer")
             }
           />
@@ -902,36 +833,6 @@ export function HomeDashboard({
         isOpen={Boolean(collectOrder)}
         onClose={() => setCollectOrder(null)}
         onSubmit={handleCollectSubmit}
-      />
-
-      {/* Rename shop */}
-      <EditShopNameModal
-        isOpen={showEditName}
-        initialName={data.shopName}
-        onClose={() => setShowEditName(false)}
-        onSubmit={handleRenameShop}
-      />
-
-      <ShopLogoModal
-        isOpen={showEditLogo}
-        initialUrl={data.shopLogoUrl ?? null}
-        onClose={() => setShowEditLogo(false)}
-        onUpdated={(shopLogoUrl) =>
-          setData((prev) => ({ ...prev, shopLogoUrl }))
-        }
-      />
-
-      {/* Save or sign in */}
-      <SaveShopModal
-        isOpen={showSaveSheet}
-        onClose={() => setShowSaveSheet(false)}
-      />
-
-      {/* Share storefront (owner only) */}
-      <ShareStorefrontModal
-        handle={data.handle}
-        isOpen={showShareSheet}
-        onClose={() => setShowShareSheet(false)}
       />
 
       {/* Requests slide-out panel */}

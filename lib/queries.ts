@@ -34,6 +34,12 @@ import type {
   IncompleteOrder,
   OrderLinePreview,
 } from "./home-types";
+import type {
+  CustomerReportRow,
+  CustomersFilters,
+  CustomersReportData,
+  ReportTile,
+} from "./report-types";
 
 export type PublicItem = {
   id: string;
@@ -268,6 +274,198 @@ export async function getMerchantSnapshot(businessId: string) {
     itemCounts,
     pendingByCustomer,
     pendingTotal,
+  };
+}
+
+/** The light header payload used by report pages. */
+export async function getMerchantHeaderContext(businessId: string) {
+  const [business] = await db
+    .select({
+      businessName: businesses.businessName,
+      handle: businesses.handle,
+      passExpiresAt: businesses.passExpiresAt,
+      trialEndsAt: businesses.trialEndsAt,
+    })
+    .from(businesses)
+    .where(eq(businesses.id, businessId))
+    .limit(1);
+
+  if (!business) throw new Error("Business not found");
+
+  const [logo] = await db
+    .select({ objectKey: media.objectKey })
+    .from(media)
+    .where(and(eq(media.businessId, businessId), eq(media.kind, "logo")))
+    .orderBy(desc(media.createdAt))
+    .limit(1);
+
+  return {
+    shopName: business.businessName,
+    shopLogoUrl: logo ? `/media/${logo.objectKey}` : null,
+    handle: business.handle,
+    passStatus: getPassStatus(
+      business.passExpiresAt,
+      business.trialEndsAt,
+    ),
+  };
+}
+
+/**
+ * The owner adapter for the Customers report. It merges customer records with
+ * buyers found in orders and totals every open balance. See ADR-040.
+ */
+export async function getCustomersReport(
+  businessId: string,
+  filters: CustomersFilters,
+): Promise<CustomersReportData> {
+  const [customerRows, orderRows] = await Promise.all([
+    db.select().from(customers).where(eq(customers.businessId, businessId)),
+    db
+      .select({
+        customerId: orders.customerId,
+        customerName: orders.customerName,
+        customerPhone: orders.customerPhone,
+        status: orders.status,
+        grandTotal: orders.grandTotal,
+        paidTotal: orders.paidTotal,
+        tdsTotal: orders.tdsTotal,
+      })
+      .from(orders)
+      .where(eq(orders.businessId, businessId)),
+  ]);
+
+  type Entry = {
+    id: string;
+    name: string;
+    phone?: string;
+    subLabel?: string;
+    orderCount: number;
+    lastPaid: Date | null;
+    created: Date;
+    totalBilled: ReturnType<typeof dec>;
+    paid: ReturnType<typeof dec>;
+    pending: ReturnType<typeof dec>;
+    linked: boolean;
+  };
+
+  const byKey = new Map<string, Entry>();
+  for (const customer of customerRows) {
+    byKey.set(`id:${customer.id}`, {
+      id: customer.id,
+      name: customer.name,
+      phone: customer.phone || undefined,
+      subLabel: customer.subLabel || undefined,
+      orderCount: 0,
+      lastPaid: customer.lastPaidAt,
+      created: customer.createdAt,
+      totalBilled: dec(0),
+      paid: dec(0),
+      pending: dec(0),
+      linked: true,
+    });
+  }
+
+  for (const order of orderRows) {
+    const key = order.customerId
+      ? `id:${order.customerId}`
+      : order.customerPhone
+        ? `phone:${order.customerPhone}`
+        : order.customerName
+          ? `name:${order.customerName.trim().toLowerCase()}`
+          : null;
+    if (!key) continue;
+
+    const entry = byKey.get(key) ?? {
+      id: key,
+      name: order.customerName?.trim() || "Buyer",
+      phone: order.customerPhone || undefined,
+      orderCount: 0,
+      lastPaid: null,
+      created: new Date(0),
+      totalBilled: dec(0),
+      paid: dec(0),
+      pending: dec(0),
+      linked: false,
+    };
+    entry.name = entry.name || order.customerName?.trim() || "Buyer";
+    entry.phone = entry.phone || order.customerPhone || undefined;
+    entry.orderCount += 1;
+    if (!isClosed(order.status)) {
+      const total = dec(order.grandTotal);
+      const paid = dec(order.paidTotal);
+      const due = total.minus(paid).minus(dec(order.tdsTotal));
+      entry.totalBilled = entry.totalBilled.plus(total);
+      entry.paid = entry.paid.plus(paid);
+      if (due.greaterThan(0)) entry.pending = entry.pending.plus(due);
+    }
+    byKey.set(key, entry);
+  }
+
+  const all = [...byKey.values()];
+  const withDues = all.filter((entry) => entry.pending.greaterThan(0));
+  const pendingTotal = all.reduce(
+    (total, entry) => total.plus(entry.pending),
+    dec(0),
+  );
+
+  const query = filters.query.trim().toLowerCase().replace(/\D/g, "");
+  const text = filters.query.trim().toLowerCase();
+  let rows = filters.withDues ? withDues : all;
+  if (text) {
+    rows = rows.filter((entry) => {
+      const nameHit = entry.name.toLowerCase().includes(text);
+      const phoneHit = query.length > 0 &&
+        (entry.phone ?? "").replace(/\D/g, "").includes(query);
+      return nameHit || phoneHit;
+    });
+  }
+
+  const sorted = [...rows].sort((a, b) => {
+    if (filters.sort === "name") return a.name.localeCompare(b.name);
+    if (filters.sort === "recent") {
+      return b.created.getTime() - a.created.getTime();
+    }
+    if (a.pending.equals(b.pending)) return a.name.localeCompare(b.name);
+    return a.pending.greaterThan(b.pending) ? -1 : 1;
+  });
+
+  const mapped: CustomerReportRow[] = sorted.map((entry) => ({
+    id: entry.id,
+    name: entry.name,
+    phone: entry.phone,
+    subLabel: entry.subLabel,
+    orderCount: entry.orderCount,
+    lastPaidDate: entry.lastPaid ? istDateString(entry.lastPaid) : null,
+    createdDate: entry.created.getTime() > 0 ? istDateString(entry.created) : "",
+    totalBilled: formatAmount(entry.totalBilled),
+    paid: formatAmount(entry.paid),
+    pending: formatAmount(entry.pending),
+    hasDues: entry.pending.greaterThan(0),
+    linked: entry.linked,
+  }));
+
+  const tiles: ReportTile[] = [
+    { label: "Customers", value: String(all.length), period: "All" },
+    {
+      label: "With dues",
+      value: String(withDues.length),
+      period: "All",
+      tone: "warning",
+    },
+    {
+      label: "Pending",
+      value: formatAmount(pendingTotal),
+      period: "All",
+      tone: "warning",
+    },
+  ];
+
+  return {
+    tiles,
+    totalCount: all.length,
+    withDuesCount: withDues.length,
+    pendingTotal: formatAmount(pendingTotal),
+    rows: mapped,
   };
 }
 
