@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactElement } from "react";
+import { useEffect, useState } from "react";
+import type { ReactElement, ReactNode } from "react";
+import { ChevronsLeft, ChevronsRight } from "lucide-react";
+import { SignOutButton, SignOutIconButton } from "@/components/SignOutButton";
 import { cn } from "@/lib/cn";
 
 type IconProps = { active: boolean };
@@ -101,59 +104,138 @@ export type NavItem = {
   badge?: number;
 };
 
-function BrandMark({ label, sub }: { label: string; sub?: string }) {
+function BrandMark({
+  label,
+  sub,
+  expanded,
+  logoUrl,
+}: {
+  label: string;
+  sub?: string;
+  expanded: boolean;
+  logoUrl?: string | null;
+}) {
+  const initial = label.trim().charAt(0).toUpperCase() || "S";
   return (
     <div className="flex items-center gap-2.5">
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-accent text-[13px] font-black text-white">
-        SL
-      </span>
-      <div className="min-w-0">
-        <p className="truncate text-sm font-semibold tracking-tight">{label}</p>
-        {sub ? (
-          <p className="truncate text-[11px] text-ink-subtle">{sub}</p>
-        ) : null}
-      </div>
+      {logoUrl ? (
+        <img
+          src={logoUrl}
+          alt=""
+          className="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-accent/25"
+        />
+      ) : (
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent-soft text-small font-bold text-accent-strong ring-1 ring-accent/25">
+          {initial}
+        </span>
+      )}
+      {expanded ? (
+        <div className="min-w-0">
+          <p className="truncate text-small font-semibold">{label}</p>
+          {sub ? <p className="truncate text-micro text-ink-subtle">{sub}</p> : null}
+        </div>
+      ) : null}
     </div>
   );
 }
 
+const NAV_EXPANDED_KEY = "startlite_nav_expanded";
+
 /**
- * Desktop-only left navigation. Hidden below `lg`, where the bottom tab bar
- * takes over instead.
+ * Desktop-only left navigation. Collapsed by default so the wide workspace is
+ * used for work, not chrome. The toggle expands it to show labels; the choice
+ * persists for the next visit.
  */
 export function NavRail({
   brand,
   brandSub,
+  logoUrl,
   items,
   footer,
+  collapsedFooter,
 }: {
   brand: string;
   brandSub?: string;
+  logoUrl?: string | null;
   items: NavItem[];
-  footer?: React.ReactNode;
+  footer?: ReactNode;
+  collapsedFooter?: ReactNode;
 }) {
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    setExpanded(localStorage.getItem(NAV_EXPANDED_KEY) === "true");
+  }, []);
+
+  function toggle() {
+    setExpanded((current) => {
+      localStorage.setItem(NAV_EXPANDED_KEY, String(!current));
+      return !current;
+    });
+  }
+
   return (
-    <aside className="sticky top-0 hidden h-dvh w-[248px] shrink-0 flex-col border-r border-line bg-surface/80 px-3 py-5 backdrop-blur lg:flex">
-      <div className="px-2">
-        <BrandMark label={brand} sub={brandSub} />
+    <aside
+      className={cn(
+        "sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-line bg-surface/80 py-5 backdrop-blur transition-[width] duration-200 lg:flex",
+        expanded ? "w-[240px] px-3" : "w-[68px] px-2",
+      )}
+    >
+      <div
+        className={cn(
+          "flex items-center",
+          expanded ? "justify-between px-1" : "flex-col justify-center gap-2",
+        )}
+      >
+        <BrandMark
+          label={brand}
+          sub={brandSub}
+          expanded={expanded}
+          logoUrl={logoUrl}
+        />
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={expanded}
+          aria-controls="main-nav"
+          aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
+          title={expanded ? "Collapse sidebar" : "Expand sidebar"}
+          className="relative grid h-11 w-11 shrink-0 place-items-center rounded-xl text-ink-muted transition after:absolute after:-inset-1 after:content-[''] hover:bg-muted hover:text-accent-strong"
+        >
+          {expanded ? (
+            <ChevronsLeft className="h-5 w-5" aria-hidden="true" />
+          ) : (
+            <ChevronsRight className="h-5 w-5" aria-hidden="true" />
+          )}
+        </button>
       </div>
 
-      <nav className="mt-6 flex flex-col gap-0.5" aria-label="Main">
+      <nav id="main-nav" className="mt-6 flex flex-col gap-1" aria-label="Main">
         {items.map((item) => {
           const Icon = item.Icon;
           const inner = (
-            <span className="flex w-full items-center gap-2.5">
+            <span
+              className={cn(
+                "flex w-full items-center",
+                expanded ? "gap-2.5" : "justify-center",
+              )}
+            >
               <Icon active={item.active} />
-              <span className="flex-1 truncate text-left">{item.label}</span>
-              {item.badge && item.badge > 0 ? (
-                <span className="tnum rounded-full bg-warning/15 px-1.5 py-0.5 text-[10px] font-bold text-warning">
-                  {item.badge}
-                </span>
+              {expanded ? (
+                <>
+                  <span className="flex-1 truncate text-left">{item.label}</span>
+                  {item.badge && item.badge > 0 ? (
+                    <span className="tnum rounded-full bg-warning/15 px-1.5 py-0.5 text-micro font-bold text-warning">
+                      {item.badge}
+                    </span>
+                  ) : null}
+                </>
               ) : null}
             </span>
           );
           const className = cn(
-            "flex min-h-10 items-center rounded-xl px-2.5 text-sm transition",
+            "relative flex min-h-11 items-center rounded-xl text-small transition after:absolute after:-inset-1 after:content-['']",
+            expanded ? "px-2.5" : "justify-center",
             item.active
               ? "bg-accent-soft font-semibold text-accent-strong"
               : "font-medium text-ink-muted hover:bg-muted hover:text-ink",
@@ -164,6 +246,8 @@ export function NavRail({
               key={item.key}
               href={item.href}
               aria-current={item.active ? "page" : undefined}
+              aria-label={expanded ? undefined : item.label}
+              title={expanded ? undefined : item.label}
               className={className}
             >
               {inner}
@@ -174,6 +258,8 @@ export function NavRail({
               type="button"
               onClick={item.onClick}
               aria-current={item.active ? "page" : undefined}
+              aria-label={expanded ? undefined : item.label}
+              title={expanded ? undefined : item.label}
               className={className}
             >
               {inner}
@@ -182,7 +268,11 @@ export function NavRail({
         })}
       </nav>
 
-      {footer ? <div className="mt-auto space-y-3 px-2">{footer}</div> : null}
+      {footer || collapsedFooter ? (
+        <div className="mt-auto space-y-3">
+          {expanded ? footer : collapsedFooter}
+        </div>
+      ) : null}
     </aside>
   );
 }
@@ -215,7 +305,7 @@ export function BottomTabs({ noun }: { noun: string }) {
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex min-h-16 flex-col items-center justify-center gap-1 text-[11px] leading-4",
+                "flex min-h-16 flex-col items-center justify-center gap-1 text-micro leading-4",
                 active ? "font-semibold text-accent" : "font-medium text-ink-muted",
               )}
             >
@@ -230,13 +320,13 @@ export function BottomTabs({ noun }: { noun: string }) {
 }
 
 export function MerchantNav({
-  noun,
   businessName,
+  logoUrl,
   storeHref,
   pendingCount,
 }: {
-  noun: string;
   businessName: string;
+  logoUrl?: string | null;
   storeHref: string;
   pendingCount: number;
 }) {
@@ -250,16 +340,17 @@ export function MerchantNav({
     badge?: number;
   }> = [
     { href: "/app", label: "Home", Icon: HomeIcon, exact: true },
-    { href: "/app/sales", label: "Sales", Icon: SalesIcon, badge: pendingCount },
     { href: "/app/customers", label: "Customers", Icon: CustomersIcon },
-    { href: "/app/catalog", label: noun, Icon: CatalogIcon },
-    { href: "/app/more", label: "More", Icon: MoreIcon },
+    { href: "/app/sales", label: "Orders", Icon: SalesIcon, badge: pendingCount },
+    { href: "/app/catalog", label: "Items", Icon: CatalogIcon },
+    { href: "/app/more/settings", label: "Store settings", Icon: SettingsIcon },
   ];
 
   return (
     <NavRail
       brand={businessName}
       brandSub="StartLite shop"
+      logoUrl={logoUrl}
       items={entries.map((entry) => ({
         key: entry.href,
         label: entry.label,
@@ -276,17 +367,29 @@ export function MerchantNav({
             href={storeHref}
             target="_blank"
             rel="noreferrer"
-            className="flex min-h-10 items-center justify-center gap-2 rounded-xl border border-line bg-surface text-[13px] font-semibold text-ink transition hover:bg-muted"
+            className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-line bg-surface text-small font-semibold text-ink transition hover:bg-muted"
           >
-            View store ↗
+            Open storefront
           </Link>
-          <p className="text-center text-[11px] leading-4 text-ink-subtle">
-            Saved on this account
-          </p>
-          <p className="text-center text-[11px] leading-4 text-ink-subtle">
-            StartLite · v1
-          </p>
+          <SignOutButton />
         </>
+      }
+      collapsedFooter={
+        <div className="flex flex-col items-center gap-3">
+          <Link
+            href={storeHref}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Open storefront"
+            title="Open storefront"
+            className="grid h-11 w-11 place-items-center rounded-xl text-ink-muted transition hover:bg-muted hover:text-accent-strong"
+          >
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" {...stroke(false)}>
+              <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
+            </svg>
+          </Link>
+          <SignOutIconButton />
+        </div>
       }
     />
   );

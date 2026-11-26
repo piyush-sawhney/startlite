@@ -234,7 +234,7 @@ export function EditOrderModal({
         </div>
 
         {error ? (
-          <p className="mt-4 rounded-md bg-danger/10 px-3 py-2 text-sm text-danger" aria-live="polite">
+          <p className="mt-4 rounded-md bg-danger/10 px-3 py-2 text-small text-danger" aria-live="polite">
             {error}
           </p>
         ) : null}
@@ -243,11 +243,11 @@ export function EditOrderModal({
           {/* Customer */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-ink-muted mb-1">
+              <label className="block text-caption font-semibold text-ink-muted mb-1">
                 Customer name
               </label>
               <input
-                className="block min-h-10 w-full rounded-md border border-line bg-surface px-3 text-[14px] text-ink focus:border-accent/50 focus:outline-none"
+                className="block min-h-10 w-full rounded-md border border-line bg-surface px-3 text-small text-ink focus:border-accent/50 focus:outline-none"
                 value={data.customerName ?? ""}
                 onChange={(e) =>
                   setData((d) => d ? { ...d, customerName: e.target.value } : d)
@@ -256,11 +256,11 @@ export function EditOrderModal({
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-ink-muted mb-1">
+              <label className="block text-caption font-semibold text-ink-muted mb-1">
                 Phone
               </label>
                 <input
-                className="block min-h-10 w-full rounded-md border border-line bg-surface px-3 text-[14px] text-ink focus:border-accent/50 focus:outline-none"
+                className="block min-h-10 w-full rounded-md border border-line bg-surface px-3 text-small text-ink focus:border-accent/50 focus:outline-none"
                 inputMode="tel"
                 value={data.customerPhone ?? ""}
                 onChange={(e) =>
@@ -274,11 +274,11 @@ export function EditOrderModal({
           {/* Dates */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-ink-muted mb-1">
+              <label className="block text-caption font-semibold text-ink-muted mb-1">
                 Needed by
               </label>
               <input
-                className="block min-h-10 w-full rounded-md border border-line bg-surface px-3 text-[14px] text-ink focus:border-accent/50 focus:outline-none"
+                className="block min-h-10 w-full rounded-md border border-line bg-surface px-3 text-small text-ink focus:border-accent/50 focus:outline-none"
                 type="date"
                 value={data.neededBy}
                 onChange={(e) =>
@@ -287,11 +287,11 @@ export function EditOrderModal({
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-ink-muted mb-1">
+              <label className="block text-caption font-semibold text-ink-muted mb-1">
                 Time slot
               </label>
               <input
-                className="block min-h-10 w-full rounded-md border border-line bg-surface px-3 text-[14px] text-ink focus:border-accent/50 focus:outline-none"
+                className="block min-h-10 w-full rounded-md border border-line bg-surface px-3 text-small text-ink focus:border-accent/50 focus:outline-none"
                 value={data.timeSlot ?? ""}
                 onChange={(e) =>
                   setData((d) => d ? { ...d, timeSlot: e.target.value } : d)
@@ -303,12 +303,12 @@ export function EditOrderModal({
 
           {/* Items */}
           <div>
-            <label className="block text-xs font-semibold text-ink-muted mb-2">
+            <label className="block text-caption font-semibold text-ink-muted mb-2">
               Items
             </label>
             <div className="space-y-2">
               {lines.length === 0 ? (
-                <p className="rounded-md border border-dashed border-line px-3 py-4 text-sm text-ink-muted">
+                <p className="rounded-md border border-dashed border-line px-3 py-4 text-small text-ink-muted">
                   No items yet.
                 </p>
               ) : (
@@ -331,7 +331,7 @@ export function EditOrderModal({
                     <div className="grid grid-cols-[minmax(0,1fr)_58px_78px_54px] gap-2">
                       <input
                         aria-label={`Item ${index + 1} name`}
-                        className="block min-h-9 w-full rounded-md border border-line bg-surface px-2.5 text-[13px] text-ink focus:border-accent/50 focus:outline-none"
+                        className="block min-h-9 w-full rounded-md border border-line bg-surface px-2.5 text-caption text-ink focus:border-accent/50 focus:outline-none"
                         value={line.itemName}
                         onChange={(e) =>
                           updateLine(index, { itemName: e.target.value })
@@ -340,7 +340,7 @@ export function EditOrderModal({
                       />
                       <input
                         aria-label={`Item ${index + 1} quantity`}
-                        className="figure block min-h-9 w-full rounded-md border border-line bg-surface px-2 text-[13px] text-ink focus:border-accent/50 focus:outline-none"
+                        className="figure block min-h-9 w-full rounded-md border border-line bg-surface px-2 text-caption text-ink focus:border-accent/50 focus:outline-none"
                         inputMode="decimal"
                         value={line.quantity}
                         onChange={(e) =>
@@ -350,7 +350,7 @@ export function EditOrderModal({
                       />
                       <input
                         aria-label={`Item ${index + 1} rate`}
-                        className="figure block min-h-9 w-full rounded-md border border-line bg-surface px-2 text-[13px] text-ink focus:border-accent/50 focus:outline-none"
+                        className="figure block min-h-9 w-full rounded-md border border-line bg-surface px-2 text-caption text-ink focus:border-accent/50 focus:outline-none"
                         inputMode="decimal"
                         value={line.unitPrice}
                         onChange={(e) =>
@@ -360,7 +360,7 @@ export function EditOrderModal({
                       />
                       <input
                         aria-label={`Item ${index + 1} unit`}
-                        className="block min-h-9 w-full rounded-md border border-line bg-surface px-2 text-[13px] text-ink focus:border-accent/50 focus:outline-none"
+                        className="block min-h-9 w-full rounded-md border border-line bg-surface px-2 text-caption text-ink focus:border-accent/50 focus:outline-none"
                         value={line.unitLabel ?? ""}
                         onChange={(e) =>
                           updateLine(index, { unitLabel: e.target.value })
@@ -410,7 +410,7 @@ export function EditOrderModal({
                                     unitPrice: rateWith(optionId, extras),
                                   });
                                 }}
-                                className="block min-h-9 w-full rounded-md border border-line bg-surface px-2 text-[13px] text-ink focus:border-accent/50 focus:outline-none"
+                                className="block min-h-9 w-full rounded-md border border-line bg-surface px-2 text-caption text-ink focus:border-accent/50 focus:outline-none"
                               >
                                 <option value="">Standard</option>
                                 {catalogItem.options.map((option) => (
@@ -464,7 +464,7 @@ export function EditOrderModal({
                       Note for item {index + 1}
                     </label>
                     <input
-                      className="mt-1 block min-h-9 w-full rounded-md border border-line bg-surface px-2.5 text-[13px] text-ink focus:border-accent/50 focus:outline-none"
+                      className="mt-1 block min-h-9 w-full rounded-md border border-line bg-surface px-2.5 text-caption text-ink focus:border-accent/50 focus:outline-none"
                       value={line.note ?? ""}
                       onChange={(e) =>
                         updateLine(index, { note: e.target.value })
@@ -474,7 +474,7 @@ export function EditOrderModal({
                     <button
                       type="button"
                       onClick={() => removeLine(index)}
-                      className="mt-2 text-xs font-semibold text-danger"
+                      className="mt-2 text-caption font-semibold text-danger"
                     >
                       Remove item
                     </button>
@@ -485,7 +485,7 @@ export function EditOrderModal({
             <button
               type="button"
               onClick={addLine}
-              className="text-xs font-medium text-accent hover:underline mt-2"
+              className="text-caption font-medium text-accent hover:underline mt-2"
             >
               + Add item
             </button>
@@ -494,11 +494,11 @@ export function EditOrderModal({
           {/* Adjustment */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-ink-muted mb-1">
+              <label className="block text-caption font-semibold text-ink-muted mb-1">
                 Adjustment (discount)
               </label>
               <input
-                className="block min-h-10 w-full rounded-md border border-line bg-surface px-3 text-[14px] text-ink focus:border-accent/50 focus:outline-none"
+                className="block min-h-10 w-full rounded-md border border-line bg-surface px-3 text-small text-ink focus:border-accent/50 focus:outline-none"
                 inputMode="decimal"
                 value={data.adjustmentAmount}
                 onChange={(e) =>
@@ -508,11 +508,11 @@ export function EditOrderModal({
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-ink-muted mb-1">
+              <label className="block text-caption font-semibold text-ink-muted mb-1">
                 Reason
               </label>
               <input
-                className="block min-h-10 w-full rounded-md border border-line bg-surface px-3 text-[14px] text-ink focus:border-accent/50 focus:outline-none"
+                className="block min-h-10 w-full rounded-md border border-line bg-surface px-3 text-small text-ink focus:border-accent/50 focus:outline-none"
                 value={data.adjustmentReason ?? ""}
                 onChange={(e) =>
                   setData((d) => d ? { ...d, adjustmentReason: e.target.value } : d)
@@ -524,11 +524,11 @@ export function EditOrderModal({
 
           {/* Delivery note */}
           <div>
-            <label className="block text-xs font-semibold text-ink-muted mb-1">
+            <label className="block text-caption font-semibold text-ink-muted mb-1">
               Delivery note
             </label>
             <textarea
-              className="block min-h-10 w-full rounded-md border border-line bg-surface px-3 py-2 text-[14px] text-ink focus:border-accent/50 focus:outline-none"
+              className="block min-h-10 w-full rounded-md border border-line bg-surface px-3 py-2 text-small text-ink focus:border-accent/50 focus:outline-none"
               value={data.deliveryNote ?? ""}
               onChange={(e) =>
                 setData((d) => d ? { ...d, deliveryNote: e.target.value } : d)
@@ -538,7 +538,7 @@ export function EditOrderModal({
           </div>
 
           <div className="flex items-center justify-between rounded-md bg-muted px-3 py-2.5">
-            <span className="text-sm text-ink-muted">Order total</span>
+            <span className="text-small text-ink-muted">Order total</span>
             <span className="tnum text-lg font-semibold text-ink">
               ₹{(totalLinesPaise() / 100).toFixed(2)}
             </span>

@@ -108,7 +108,7 @@ export function CollectPaymentModal({
                   key={id}
                   type="button"
                   onClick={() => setMode(id)}
-                  className={`min-h-11 rounded-xl border text-xs font-bold transition ${
+                  className={`min-h-11 rounded-xl border text-caption font-bold transition ${
                     mode === id
                       ? "border-accent bg-accent-soft text-accent-strong"
                       : "border-line bg-surface text-ink-muted hover:bg-muted"
@@ -131,7 +131,7 @@ export function CollectPaymentModal({
             />
           </div>
 
-          {error ? <p className="text-xs text-danger">{error}</p> : null}
+          {error ? <p className="text-caption text-danger">{error}</p> : null}
 
           <div className="mt-6 flex gap-2">
             <button

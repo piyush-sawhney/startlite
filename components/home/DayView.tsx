@@ -94,7 +94,7 @@ export function DayView({
           }
         }}
         className={cn(
-          "flex cursor-pointer items-center justify-between gap-2 rounded-lg border-l-2 px-2.5 py-2 text-small transition hover:bg-muted/50",
+          "flex cursor-pointer items-center justify-between gap-2 rounded-xl border-l-2 px-2.5 py-2 text-small transition hover:bg-muted/50",
           isGhost ? "border-l-warning bg-warning-soft/40" : "border-l-accent/50",
         )}
       >
@@ -140,7 +140,7 @@ export function DayView({
           >
             <ChevronLeft className="h-5 w-5" aria-hidden="true" />
           </button>
-          <span className="flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap text-xs font-bold text-ink sm:min-w-[100px] sm:text-sm">
+          <span className="flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap text-small font-bold text-ink sm:min-w-[100px]">
             <CalendarDays className="h-4 w-4 shrink-0 text-accent-strong" aria-hidden="true" />
             {label}
           </span>
@@ -156,7 +156,7 @@ export function DayView({
 
         <div className="flex items-center gap-1">
           {hasOrders ? (
-            <span className="hidden rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-ink-muted sm:inline-flex">
+            <span className="hidden rounded-full bg-muted px-2 py-0.5 text-caption font-semibold text-ink-muted sm:inline-flex">
               {commitmentCount} {commitmentCount === 1 ? "commitment" : "commitments"}
             </span>
           ) : null}
@@ -165,7 +165,7 @@ export function DayView({
               type="button"
               onClick={goToday}
               aria-label="Go to today"
-              className="min-h-11 whitespace-nowrap rounded-lg px-1 text-[11px] font-bold text-accent-strong transition hover:bg-accent-soft sm:px-2 sm:text-xs"
+              className="min-h-11 whitespace-nowrap rounded-lg px-1 text-caption font-bold text-accent-strong transition hover:bg-accent-soft sm:px-2"
             >
               Go to today
             </button>
@@ -191,7 +191,7 @@ export function DayView({
                       setShowDatePicker(false);
                     }
                   }}
-                  className="rounded-lg border border-line p-1 text-sm text-ink"
+                  className="rounded-lg border border-line p-1 text-small text-ink"
                 />
               </div>
             ) : null}
@@ -217,7 +217,7 @@ export function DayView({
           <div className="py-8 text-center">
             {showNextOrder && nextOrderDay ? (
               <>
-                <p className="text-sm text-ink-muted">
+                <p className="text-small text-ink-muted">
                   Nothing for today. Next order{" "}
                   <span className="font-semibold text-ink">
                     {relativeDayLabel(nextOrderDay)}
@@ -227,18 +227,18 @@ export function DayView({
                 <button
                   type="button"
                   onClick={() => onSelectDay(nextOrderDay)}
-                  className="mt-2 text-sm font-bold text-accent-strong hover:underline"
+                  className="mt-2 text-small font-bold text-accent-strong hover:underline"
                 >
                   Go to {relativeDayLabel(nextOrderDay)}
                 </button>
               </>
             ) : (
               <>
-                <p className="text-sm text-ink-muted">Nothing for this day.</p>
+                <p className="text-small text-ink-muted">Nothing for this day.</p>
                 <button
                   type="button"
                   onClick={onNewOrder}
-                  className="mt-2 text-sm font-bold text-accent-strong hover:underline"
+                  className="mt-2 text-small font-bold text-accent-strong hover:underline"
                 >
                   Add sale
                 </button>
@@ -249,7 +249,7 @@ export function DayView({
           <div className="mt-3 space-y-3">
             {anyTimeWithGhosts.length > 0 ? (
               <div>
-                <p className="mb-1.5 text-xs font-bold uppercase tracking-[0.08em] text-ink-muted">
+                <p className="mb-1.5 eyebrow text-ink-muted">
                   Any time
                 </p>
                 <div className="space-y-1.5">

@@ -728,6 +728,13 @@ export type GuestCustomer = {
   lastPaidAt: string | null;
   subLabel: string;
   address: GuestCustomerAddress | null;
+  orderDues: Array<{
+    id: string;
+    code: string;
+    duePaise: number;
+    status: GuestOrderStatus;
+    neededBy: string;
+  }>;
 };
 
 export function guestCustomerKey(order: GuestOrder): string | null {
@@ -757,6 +764,7 @@ export function guestCustomers(state: GuestState): GuestCustomer[] {
       lastPaidAt: null,
       subLabel: record.subLabel,
       address: record.address,
+      orderDues: [],
     });
   }
 
@@ -779,11 +787,21 @@ export function guestCustomers(state: GuestState): GuestCustomer[] {
         lastPaidAt: null,
         subLabel: "",
         address: null,
+        orderDues: [],
       } satisfies GuestCustomer);
 
     entry.name = order.customerName || entry.name;
     entry.phone = order.customerPhone || entry.phone;
     entry.pendingPaise += isCompleted(totals.status) ? 0 : totals.duePaise;
+    if (!isCompleted(totals.status) && totals.duePaise > 0) {
+      entry.orderDues.push({
+        id: order.id,
+        code: order.code,
+        duePaise: totals.duePaise,
+        status: totals.status,
+        neededBy: order.neededBy,
+      });
+    }
     entry.totalPaise += totals.totalPaise;
     entry.orderCount += 1;
     for (const payment of order.payments) {
@@ -1494,10 +1512,8 @@ export function guestHomeDashboard(
   // 4. Cross-day queue; fully paid work remains until its ready status is set.
   const incompleteOrderRows: IncompleteOrder[] = state.orders.flatMap((order) => {
     const totals = guestOrderTotals(order);
-    if (
-      isClosed(totals.status) ||
-      (isReady(totals.status) && totals.duePaise === 0)
-    ) {
+    // Ready work belongs to the payment-due list, not the work queue.
+    if (isClosed(totals.status) || isReady(totals.status)) {
       return [];
     }
 
@@ -1570,7 +1586,18 @@ export function guestHomeDashboard(
     countryCode: c.countryCode || "+91",
     pending: formatPaise(c.pendingPaise),
     lastPaidDate: c.lastPaidAt ? c.lastPaidAt.slice(0, 10) : null,
+    orderDues: c.orderDues.map((order) => ({
+      id: order.id,
+      code: order.code,
+      due: formatPaise(order.duePaise),
+      status: order.status,
+      neededBy: order.neededBy,
+    })),
   }));
+  const customerDuesSummary = {
+    count: customers.length,
+    total: formatPaise(customers.reduce((sum, c) => sum + c.pendingPaise, 0)),
+  };
 
   return {
     shopName: state.shop.name,
@@ -1594,5 +1621,6 @@ export function guestHomeDashboard(
     incompleteOrders,
     completedWithDue,
     customerDues,
+    customerDuesSummary,
   };
 }

@@ -695,13 +695,10 @@ export function HomeDashboard({
       : "owner"
     : "guest";
 
-  const pendingWorkOrders = data.incompleteOrders.orders.filter(
-    (order) => order.status !== "ready",
-  );
-  const pendingPaymentOrders = [
-    ...data.incompleteOrders.orders.filter((order) => order.status === "ready"),
-    ...data.completedWithDue.orders,
-  ];
+  // The two adapters keep these lists disjoint: work to finish, then work
+  // that is done with a balance. Ready orders live only in payment due.
+  const pendingWorkOrders = data.incompleteOrders.orders;
+  const pendingPaymentOrders = data.completedWithDue.orders;
 
   function dueTotal(orders: IncompleteOrder[]): string {
     return formatAmount(
@@ -726,7 +723,7 @@ export function HomeDashboard({
       style={{ touchAction: isOwner ? "pan-y" : "auto" }}
     >
       {refreshing && isOwner ? (
-        <div className="absolute top-0 left-0 right-0 flex items-center justify-center py-2 text-xs text-ink-muted border-b border-line bg-surface z-50">
+        <div className="absolute top-0 left-0 right-0 flex items-center justify-center py-2 text-caption text-ink-muted border-b border-line bg-surface z-50">
           Refreshing…
         </div>
       ) : null}
@@ -744,12 +741,20 @@ export function HomeDashboard({
       <HomeHeader
         shopName={data.shopName}
         logoUrl={data.shopLogoUrl}
-        handle={data.handle}
+        metaLine={
+          isOwner
+            ? data.passStatus?.label
+            : "Sign in to save this shop"
+        }
+        metaTone={isOwner ? data.passStatus?.tone : undefined}
+        onMetaAction={isOwner ? undefined : () => setShowSaveSheet(true)}
+        storefrontHref={
+          isOwner && data.handle ? `/b/${data.handle}` : undefined
+        }
         pillState={pillState}
         onGuestSave={() => setShowSaveSheet(true)}
         onEditName={() => setShowEditName(true)}
         onEditLogo={isOwner ? () => setShowEditLogo(true) : undefined}
-        onSignIn={() => setShowSaveSheet(true)}
         onShare={isOwner ? () => setShowShareSheet(true) : undefined}
       />
 
@@ -757,7 +762,7 @@ export function HomeDashboard({
       {isOwner && data.isPassExpired ? (
         <div
           role="status"
-          className="mt-3 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-sm font-medium text-ink"
+          className="mt-3 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-small font-medium text-ink"
         >
           Your store is paused. Renew to make it live again.
         </div>
@@ -791,8 +796,6 @@ export function HomeDashboard({
           <IncompleteOrders
             title="Pending orders"
             orders={pendingWorkOrders}
-            toFinishCount={pendingWorkOrders.length}
-            readyCount={0}
             totalDue={dueTotal(pendingWorkOrders)}
             totalCount={pendingWorkOrders.length}
             onOpenOrder={setSelectedOrder}
@@ -804,8 +807,6 @@ export function HomeDashboard({
           <IncompleteOrders
             title="Completed · payment due"
             orders={pendingPaymentOrders}
-            toFinishCount={0}
-            readyCount={pendingPaymentOrders.length}
             totalDue={dueTotal(pendingPaymentOrders)}
             totalCount={pendingPaymentOrders.length}
             onOpenOrder={setSelectedOrder}
@@ -832,10 +833,16 @@ export function HomeDashboard({
           {/* 6. Customers with dues */}
           <CollectCustomers
             customers={data.customerDues}
+            summary={data.customerDuesSummary}
             onSelectCustomer={handleSelectCustomer}
+            onViewAll={
+              isOwner
+                ? () => router.push("/app/customers")
+                : () => onGuestAction?.("customer")
+            }
           />
 
-          <footer className="pt-2 text-center text-[11px] text-ink-subtle lg:hidden">
+          <footer className="pt-2 text-center text-micro text-ink-subtle lg:hidden">
             StartLite · v1
           </footer>
         </div>
@@ -1020,14 +1027,14 @@ export function HomeDashboard({
           className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-0 backdrop-blur-sm sm:items-center sm:p-4"
         >
           <section className="w-full max-w-[420px] rounded-t-2xl border border-line bg-surface p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:pb-5">
-            <h2 id="home-customer-title" className="text-lg font-semibold">
+            <h2 id="home-customer-title" className="text-body font-bold text-ink">
               {selectedCustomer.name}
             </h2>
-            <p className="mt-2 text-sm text-ink-muted">
+            <p className="mt-2 text-small text-ink-muted">
               Pending {selectedCustomer.pending}
             </p>
             {selectedCustomer.lastPaidDate ? (
-              <p className="mt-1 text-xs text-ink-subtle">
+              <p className="mt-1 text-caption text-ink-subtle">
                 Last paid {selectedCustomer.lastPaidDate}
               </p>
             ) : null}
@@ -1046,7 +1053,7 @@ export function HomeDashboard({
       {toast ? (
         <div
           role="status"
-          className="fixed inset-x-4 bottom-24 z-50 mx-auto flex max-w-[400px] items-center justify-between rounded-xl bg-ink px-4 py-3 text-sm font-medium text-white shadow-xl lg:bottom-8 lg:left-[280px] lg:right-8 lg:mx-0 lg:max-w-none"
+          className="fixed inset-x-4 bottom-24 z-50 mx-auto flex max-w-[400px] items-center justify-between rounded-xl bg-ink px-4 py-3 text-small font-medium text-white shadow-xl lg:bottom-8 lg:left-[280px] lg:right-8 lg:mx-0 lg:max-w-none"
         >
           <span>{toast.message}</span>
           {toast.actionLabel && toast.onAction ? (

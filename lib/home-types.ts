@@ -1,3 +1,4 @@
+import type { PassStatus } from "./pass-status";
 import type { OrderStatus } from "./order-status";
 
 export type HomeKpi = {
@@ -67,6 +68,15 @@ export type IncompleteOrder = {
   lines?: OrderLinePreview[];
 };
 
+/** One unpaid order behind a customer's pending total. */
+export type CustomerDueOrder = {
+  id: string;
+  code: string;
+  due: string;
+  status: OrderStatus;
+  neededBy: string;
+};
+
 export type CustomerDue = {
   id: string;
   name: string;
@@ -74,6 +84,7 @@ export type CustomerDue = {
   countryCode?: string;
   pending: string;
   lastPaidDate: string | null;
+  orderDues: CustomerDueOrder[];
 };
 
 export type PendingRequestItem = {
@@ -109,6 +120,8 @@ export type HomeDashboardData = {
   handle: string;
   isOwner: boolean;
   isPassExpired?: boolean;
+  /** Owner-only pass or trial status for the header, with its expiry tone. */
+  passStatus?: PassStatus;
   selectedDay: string; // YYYY-MM-DD
   selectedDayLabel: string; // e.g. "Sat, 21 Nov"
   isToday: boolean;
@@ -133,4 +146,6 @@ export type HomeDashboardData = {
     orders: IncompleteOrder[];
   };
   customerDues: CustomerDue[];
+  /** Count and total across all dues, before the top-five row limit. */
+  customerDuesSummary: { count: number; total: string };
 };

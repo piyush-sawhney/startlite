@@ -103,7 +103,7 @@ export function OrderDetailsModal({
             <h2 id="home-order-title" className="truncate text-lg font-bold text-ink">
               {order.customerName}
             </h2>
-            <p className="text-xs text-ink-muted">{order.code}</p>
+            <p className="text-caption text-ink-muted">{order.code}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <StatusPill status={order.status} />
@@ -192,7 +192,7 @@ export function OrderDetailsModal({
           ) : null}
 
           {/* Every fact carries its own label: order date, needed date, money. */}
-          <dl className="divide-y divide-line rounded-xl border border-line px-3.5 text-sm">
+          <dl className="divide-y divide-line rounded-xl border border-line px-3.5 text-small">
             {placed ? (
               <div className="flex items-center justify-between gap-3 py-2.5">
                 <dt className="text-ink-muted">Placed</dt>
@@ -348,7 +348,10 @@ export function OrderDetailsModal({
 
           {confirmingCancel && onCancelOrder ? (
             <div className="rounded-xl border border-danger/30 bg-danger-soft p-3">
-              <p className="text-sm font-semibold text-ink">Cancel this order?</p>
+              <p className="text-small font-semibold text-ink">Cancel this order?</p>
+              <p className="mt-1 text-caption text-ink-muted">
+                Any payment on it will not count as received.
+              </p>
               <div className="mt-2 flex gap-2">
                 <button
                   type="button"

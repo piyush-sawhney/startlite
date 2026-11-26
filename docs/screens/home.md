@@ -68,16 +68,28 @@ cards from 1024 px. Mobile scrolls the page.
 
 | Zone | Below 768 px | 768 to 1023 px | 1024 px and above |
 |---|---|---|---|
-| Navigation | Bottom tabs | Left rail, 200 px | Left rail, 240 px |
-| Header | 52 px | 56 px | 56 px |
+| Navigation | Bottom tabs | Bottom tabs | Collapsible rail, 68 px collapsed or 240 px expanded |
+| Header | 52 px | 56 px | 64 px |
 | Review bar | Bar under header | Bar under header | Toolbar above day view |
 | Quick actions | Two by two grid | One row of four | One row of four |
 | Order lists | Page flow, collapsible | Page flow, collapsible | Independent scrolls |
 | Day view | Page flow | Page flow | Sticky right column |
 | Customer dues | Page flow, collapsible | Page flow, collapsible | Page flow, collapsible |
 
-Each list has one collapsible header. The header carries the title, count, total
-due, and a chevron. No list has a second-level header.
+### Type and control scale
+
+Page-level labels, metadata, and compact buttons use `text-small` (14 px);
+captions and count badges use `text-caption` (12 px); the footer uses
+`text-micro` (11 px). Form sheet buttons keep `text-body` (16 px). Icons carry
+no ad-hoc pixel sizes: use the token utilities. Buttons use the 12 px radius,
+icon chips use 8 px, and cards use 16 px. Every icon-only control has a 44 px
+hit area, including the chevron in a list header and the sort control.
+
+Each list has one collapsible header on a single row. In order it carries the
+title, `Total {count}`, `Total due: {amount}`, the sort control, and the
+collapse chevron. No list has a second-level header. All three cards use one
+shared list header: title in body strong, metadata in caption, and totals in the
+`figure` utility. Labels are sentence case; no ad-hoc font sizes.
 
 ## Header
 
@@ -85,12 +97,22 @@ due, and a chevron. No list has a second-level header.
   `accent-soft`. An owner can tap it to change the logo.
 - The shop name is one line. It truncates with an ellipsis. A pen button opens
   **Shop name**. The accessible name is `Edit shop name`.
-- The handle appears from 768 px.
+- The header is one row. The store handle is not shown here.
+- A meta label sits inline after the name from 768 px. An owner sees
+  `Quarterly pass until`, `Quarterly pass ends`, or `Quarterly pass expired`
+  with the date. Before activation the same words use `3-month trial`. The label
+  is 14 px and semi-bold. It is green above 30 days left, amber from 1 to 30
+  days, and red on expiry; the word and date carry the meaning. A guest or an
+  expired session sees `Sign in to save this shop` as a button that opens the
+  save sheet. The label truncates with an ellipsis. Below 768 px it is hidden;
+  the expiry stays available in Settings.
 - The state pill sits on the right. An owner sees `Saved`. A guest sees
   `Not saved`. An offline owner sees `Offline`. An expired session sees `Sign in`.
-- A power button appears for a guest and an expired session. It opens the save
-  sheet. An owner sees a share button instead.
-- The header stays visible on scroll. It has no search field and no gear.
+- An owner sees an `Open storefront` button that opens `/b/{handle}` in a new
+  tab, and a Share button with the text `Share your store instantly`. A guest
+  has neither; the pill and the meta label open the save sheet.
+- The header stays visible on scroll. It is 64 px from 1024 px. It has no search
+  field and no gear. See [ADR-038](../decisions.md#adr-038-home-header-context-and-dues-collection).
 
 ## Review bar
 
@@ -198,18 +220,23 @@ is empty, the view also points to the nearest day with an order.
 ## Customer dues
 
 This list shows the five customers with the highest pending amounts. It has one
-collapsible header with a count. A row shows the name, pending amount, and last
-payment date. Rows with a phone number show WhatsApp, SMS, and Call shortcuts.
-Targets are at least 44 px.
+collapsible header with a count and the total across **all** customers with a
+positive pending amount. The total uses the `To collect` label. A row shows the
+name, pending amount, and last payment date. Under the name it names the unpaid
+orders behind the total: `#{code} · {amount} due · {date}`, up to two lines, then
+`+N more orders`. Amounts in those lines use tabular digits. Rows with a phone
+number show WhatsApp, SMS, and Call shortcuts. A labelled `Collect` action opens
+the payment sheet with that customer's unpaid order. Targets are at least 44 px.
+A quiet `View all dues` link leads to the Customers tab.
 
-Tapping a customer row opens the payment sheet with that customer's unpaid order.
 The Customers tab remains the place for full customer management. An empty list
-shows `No dues.`
+shows `No dues.` When there are no dues, the total is hidden. See
+[ADR-038](../decisions.md#adr-038-home-header-context-and-dues-collection).
 
 ## Footer
 
-`StartLite · v1` sits at the end of the page on mobile and at the end of the rail
-on desktop.
+`StartLite · v1` sits at the end of the page on mobile. The desktop rail has no
+footer caption; it ends with the sign-in or sign-out action.
 
 ## Sheets
 
@@ -335,6 +362,7 @@ The layout is the same. These signals differ.
 | Element | Guest | Owner |
 |---|---|---|
 | State pill | `Not saved` | `Saved` |
+| Header meta label | `Sign in to save this shop` | `Quarterly pass until` or `3-month trial until` plus date |
 | Review bar | Hidden | Shown when requests wait |
 | Storefront request rows | None | Shown in the day view |
 | Data source | `localStorage` `startlite_guest_v2` | Postgres through RLS |
@@ -346,10 +374,10 @@ on this phone. Sign in to keep it safe.` It is never a modal.
 
 | Zone | Source | Shape |
 |---|---|---|
-| Pending orders | `orders` | Open work states, all dates, count and sum before the ten row limit |
-| Completed with due | `orders` | `ready` or `completed`, positive balance |
+| Pending orders | `orders` | `under_review`, `waiting_client`, `accepted`, `in_progress`; all dates, count and sum before the ten row limit. Ready orders are not here. |
+| Completed with due | `orders` | `ready` or `completed`, positive balance. Ready orders appear only here. |
 | Day view | `orders`, `pending_orders` | All statuses for the selected day, no cap |
-| Customer dues | `customers`, `orders` | Positive pending, highest first, limit five |
+| Customer dues | `customers`, `orders` | Positive pending across open orders, highest first, limit five. Each row carries the contributing order code, balance, status, and needed date. |
 | Review bar | `pending_orders` | Count and oldest creation time |
 
 The guest adapter computes the same shapes from local arrays. Labels and order
@@ -364,6 +392,8 @@ match the owner adapter.
 | Tap WhatsApp, SMS, or Call | Opens the external app link |
 | Tap Edit | Opens the edit sheet |
 | Tap a customer due | Opens the payment sheet with the unpaid order prefilled |
+| Tap Collect on a due row | Opens the payment sheet with the unpaid order prefilled |
+| Tap View all dues | Opens the Customers tab |
 | Tap Review in the bar | Opens the Requests sheet |
 | Tap a request | Opens the order sheet for that request |
 | Tap `Go to today` | Selects today |
@@ -405,7 +435,10 @@ The skeleton uses final heights. Data replaces it in place.
 | Element | Text |
 |---|---|
 | State pill | `Saved`, `Not saved`, `Offline`, `Sign in` |
-| Header actions | `Edit shop name`, `Share storefront`, `Sign in to save this shop` |
+| Header actions | `Edit shop name`, `Share your store instantly` |
+| Header meta label | `Quarterly pass until {date}`, `Quarterly pass ends {date}`, `Quarterly pass expired {date}`, the same three with `3-month trial`, `Sign in to save this shop` |
+| List header | `{title}:`, `Total {count}`, `Total due: {amount}` |
+| Customer dues | `Customer dues`, `To collect`, `Collect`, `View all dues`, `No dues.`, `#{code} · {amount} due · {date}`, `+N more orders` |
 | Review bar | `{n} requests · oldest {age}` and `Review` |
 | Quick actions | `Add sale`, `Add customer`, `Add item`, `Add expense` |
 | Order list titles | `Pending orders`, `Completed · payment due`, `Customer dues` |
@@ -416,7 +449,7 @@ The skeleton uses final heights. Data replaces it in place.
 | Empty day | `Nothing for this day.` |
 | Day group | `Any time` |
 | Sheet actions | `Accept request`, `Mark ready`, `Collect payment`, `Save sale` |
-| Cancel confirm | `Cancel this order?`, `Yes, cancel`, `Keep it` |
+| Cancel confirm | `Cancel this order?`, `Any payment on it will not count as received.`, `Yes, cancel`, `Keep it` |
 | Launch | `Your shop`, `Sign in, or start fresh on this phone.` |
 | Guest toast | `Saved on this phone. Sign in to keep it safe.` |
 

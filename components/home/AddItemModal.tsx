@@ -260,7 +260,7 @@ export function AddItemModal({
                     <ImagePlus className="h-5 w-5" aria-hidden="true" />
                   </div>
                 )}
-                <label className="cursor-pointer text-sm font-semibold text-accent">
+                <label className="cursor-pointer text-small font-semibold text-accent">
                   {photo ? "Change photo" : "Add photo"}
                   <input
                     type="file"
@@ -273,7 +273,7 @@ export function AddItemModal({
                   <button
                     type="button"
                     onClick={() => setPhoto(null)}
-                    className="text-xs text-ink-subtle"
+                    className="text-caption text-ink-subtle"
                   >
                     Remove
                   </button>
@@ -294,7 +294,7 @@ export function AddItemModal({
                 className={inputClass}
                 placeholder="0.00"
               />
-              <p className="mt-1 text-xs text-ink-subtle">
+              <p className="mt-1 text-caption text-ink-subtle">
                 Leave at 0 if every variant has its own price.
               </p>
             </div>
@@ -305,7 +305,7 @@ export function AddItemModal({
                 className="rounded-xl border border-line bg-canvas/40 p-3"
               >
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-ink-subtle">
+                  <p className="eyebrow text-ink-subtle">
                     Variant {index + 1}
                   </p>
                   <button
@@ -401,7 +401,7 @@ export function AddItemModal({
                 <button
                   type="button"
                   onClick={() => addSubVariant(variant.key)}
-                  className="mt-2 text-xs font-semibold text-accent"
+                  className="mt-2 text-caption font-semibold text-accent"
                 >
                   + Sub-variant
                 </button>
@@ -411,7 +411,7 @@ export function AddItemModal({
             <button
               type="button"
               onClick={addVariant}
-              className="flex min-h-10 items-center gap-1 text-sm font-semibold text-accent"
+              className="flex min-h-10 items-center gap-1 text-small font-semibold text-accent"
             >
               <Plus className="h-4 w-4" aria-hidden="true" />
               Add variant
@@ -421,7 +421,7 @@ export function AddItemModal({
           {/* Availability */}
           <div className="space-y-3 border-t border-line pt-4">
             <label className="flex items-center justify-between gap-3">
-              <span className="text-sm font-medium text-ink">
+              <span className="text-small font-medium text-ink">
                 Only available in a time slot
               </span>
               <input
@@ -456,7 +456,7 @@ export function AddItemModal({
           </div>
 
           {error ? (
-            <p className="text-xs text-danger" aria-live="polite">
+            <p className="text-caption text-danger" aria-live="polite">
               {error}
             </p>
           ) : null}

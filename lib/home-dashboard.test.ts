@@ -5,12 +5,13 @@ import {
   addGuestPayment,
   createGuestState,
   guestHomeDashboard,
+  guestSummary,
   setGuestOrderStatus,
 } from "./guest-store";
 import { istDateString } from "./date";
 
 describe("Home dashboard incomplete orders", () => {
-  it("shows cross-day work before ready orders that still need payment", () => {
+  it("splits unfinished work from work with payment due", () => {
     let state = createGuestState("bakery");
     const today = istDateString();
     const yesterday = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
@@ -52,10 +53,13 @@ describe("Home dashboard incomplete orders", () => {
     const dashboard = guestHomeDashboard(state, today);
 
     expect(dashboard.incompleteOrders.toFinishCount).toBe(1);
-    expect(dashboard.incompleteOrders.readyCount).toBe(1);
-    expect(dashboard.incompleteOrders.totalDue).toBe("₹1,550.00");
+    expect(dashboard.incompleteOrders.readyCount).toBe(0);
+    expect(dashboard.incompleteOrders.totalDue).toBe("₹900.00");
+    expect(dashboard.completedWithDue.totalDue).toBe("₹650.00");
     expect(dashboard.incompleteOrders.orders.map((order) => order.customerName)).toEqual([
       "Ramesh",
+    ]);
+    expect(dashboard.completedWithDue.orders.map((order) => order.customerName)).toEqual([
       "Meena",
     ]);
     expect(dashboard.incompleteOrders.orders[0].neededBy).toBe(yesterday);
@@ -114,12 +118,14 @@ describe("Home dashboard incomplete orders", () => {
     state = setGuestOrderStatus(state, orderId, "ready");
 
     let dashboard = guestHomeDashboard(state, today);
-    expect(dashboard.incompleteOrders.readyCount).toBe(1);
+    expect(dashboard.completedWithDue.totalCount).toBe(1);
+    expect(dashboard.completedWithDue.totalDue).toBe("₹1,200.00");
 
     state = addGuestPayment(state, orderId, "1200.00", "upi");
     dashboard = guestHomeDashboard(state, today);
 
-    expect(dashboard.incompleteOrders.totalCount).toBe(0);
+    expect(dashboard.completedWithDue.totalCount).toBe(0);
+    expect(dashboard.customerDuesSummary.total).toBe("₹0.00");
   });
 
   it("keeps every order needed today in the day view, whatever its status", () => {
@@ -147,6 +153,34 @@ describe("Home dashboard incomplete orders", () => {
 
     expect(visible.map((order) => order.id)).toContain(orderId);
     expect(visible.find((order) => order.id === orderId)?.status).toBe("cancelled");
+  });
+
+  it("stops counting a payment once its order is cancelled", () => {
+    let state = createGuestState("bakery");
+    const today = istDateString();
+
+    const res = addGuestOrder(state, {
+      customerName: "Cancel after payment",
+      neededBy: today,
+      lines: [
+        {
+          itemName: "Cake",
+          quantity: "1",
+          unitPrice: "500.00",
+          unitLabel: "kg",
+        },
+      ],
+    });
+    state = res.state;
+    const orderId = state.orders[0].id;
+    state = addGuestPayment(state, orderId, "200.00", "upi");
+
+    expect(guestSummary(state).receivedTodayPaise).toBe(20_000);
+
+    state = setGuestOrderStatus(state, orderId, "cancelled");
+    const summary = guestSummary(state);
+    expect(summary.receivedTodayPaise).toBe(0);
+    expect(summary.pendingPaise).toBe(0);
   });
 
   it("does not cap the day view to the five rows visible on mobile", () => {
@@ -216,5 +250,111 @@ describe("Home dashboard incomplete orders", () => {
     // This week cash left: 200 - 150 = 50
     expect(dashboard.kpis.thisWeekCashLeft.amount).toBe("₹50.00");
     expect(dashboard.kpis.thisWeekCashLeft.hint).toBe("Received − expenses · not profit");
+  });
+});
+
+describe("Home dashboard customer dues", () => {
+  it("totals every due before limiting the rows to five", () => {
+    let state = createGuestState("bakery");
+    const today = istDateString();
+
+    for (let n = 1; n <= 6; n += 1) {
+      const result = addGuestOrder(state, {
+        customerName: `Customer ${n}`,
+        customerPhone: `900000000${n}`,
+        neededBy: today,
+        lines: [
+          {
+            itemName: "Cake",
+            quantity: "1",
+            unitPrice: `${n * 100}.00`,
+            unitLabel: "box",
+          },
+        ],
+      });
+      state = result.state;
+    }
+
+    const dashboard = guestHomeDashboard(state, today);
+
+    expect(dashboard.customerDuesSummary).toEqual({
+      count: 6,
+      total: "₹2,100.00",
+    });
+    expect(dashboard.customerDues.map((c) => c.name)).toEqual([
+      "Customer 6",
+      "Customer 5",
+      "Customer 4",
+      "Customer 3",
+      "Customer 2",
+    ]);
+  });
+});
+
+describe("Home dashboard payment buckets", () => {
+  it("counts each unpaid order once and keeps work apart from payment due", () => {
+    let state = createGuestState("bakery");
+    const today = istDateString();
+
+    const work = addGuestOrder(state, {
+      customerName: "Ramesh",
+      customerPhone: "9000000011",
+      neededBy: today,
+      lines: [
+        {
+          itemName: "Bread",
+          quantity: "1",
+          unitPrice: "300.00",
+          unitLabel: "loaf",
+        },
+      ],
+    });
+    state = work.state;
+    const workId = state.orders[0].id;
+
+    const ready = addGuestOrder(state, {
+      customerName: "Meena",
+      customerPhone: "9000000012",
+      neededBy: today,
+      lines: [
+        {
+          itemName: "Cake",
+          quantity: "1",
+          unitPrice: "200.00",
+          unitLabel: "box",
+        },
+      ],
+    });
+    state = ready.state;
+    const readyId = state.orders[0].id;
+    state = setGuestOrderStatus(state, readyId, "ready");
+
+    let dashboard = guestHomeDashboard(state, today);
+    expect(dashboard.incompleteOrders.orders.map((o) => o.id)).toEqual([workId]);
+    expect(dashboard.completedWithDue.orders.map((o) => o.id)).toEqual([readyId]);
+    expect(dashboard.incompleteOrders.totalDue).toBe("₹300.00");
+    expect(dashboard.completedWithDue.totalDue).toBe("₹200.00");
+    expect(dashboard.customerDuesSummary).toEqual({
+      count: 2,
+      total: "₹500.00",
+    });
+
+    state = addGuestPayment(state, workId, "50.00", "upi");
+    dashboard = guestHomeDashboard(state, today);
+    expect(dashboard.incompleteOrders.totalDue).toBe("₹250.00");
+    expect(dashboard.customerDuesSummary.total).toBe("₹450.00");
+
+    const ramesh = dashboard.customerDues.find((c) => c.name === "Ramesh");
+    expect(ramesh?.orderDues).toEqual([
+      {
+        id: workId,
+        code: expect.any(String),
+        due: "₹250.00",
+        status: "accepted",
+        neededBy: today,
+      },
+    ]);
+    const meena = dashboard.customerDues.find((c) => c.name === "Meena");
+    expect(meena?.orderDues[0].status).toBe("ready");
   });
 });

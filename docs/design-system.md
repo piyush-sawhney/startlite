@@ -175,13 +175,13 @@ Sheets use `e3` and a backdrop of `ink` at 32% opacity.
 |---|---|
 | Design range | 320 px to 1440 px wide. Mobile first, desktop capable. |
 | Storefront width | `max-width: 460px`, centered |
-| Merchant app width | One column below 768 px. Left rail from 768 px, main plus a 360 px right column from 1200 px. |
+| Merchant app width | One column below 1024 px. Collapsible left rail from 1024 px, main plus a 360 px right column from 1200 px. |
 | Workspace width | Same shell as the merchant app. Guest and owner share it. |
 | Admin width | `max-width: 1200px` |
 | Page gutter | 16 px below 768 px, 24 px from 768 px |
 | Tap target | 44 px minimum, 48 px preferred, 8 px gap |
 | Bottom tab bar | 64 px plus safe area, six items |
-| Left rail | 200 px from 768 px, 240 px from 1200 px |
+| Left rail | 68 px collapsed by default from 1024 px, 240 px expanded |
 | Right column | 360 px from 1200 px, sticky, scrolls on its own |
 | Sticky action | Sits above the tab bar, never overlaps it |
 | Safe area | Respect `env(safe-area-inset-*)` on every fixed element |
@@ -219,8 +219,9 @@ Rules:
 - No tab is ever named Galla, Bikri, Khata, or Samaan.
 - The active tab uses `accent` and weight 600.
 - The bar never hides on scroll.
-- Below 768 px the six items share one bottom bar. From 768 px they become a
-  left rail; the bar is hidden.
+- Below 1024 px the six items share one bottom bar. From 1024 px a five-item
+  collapsible left rail takes over; the bar is hidden. See
+  [ADR-039](decisions.md#adr-039-collapsible-sidebar-and-desktop-width).
 - The workspace and the owner app use the same six tabs. A tab switch keeps the
   current data and never reloads the page.
 

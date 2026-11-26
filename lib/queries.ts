@@ -14,6 +14,7 @@ import {
   pendingOrders,
 } from "@/db/schema";
 import { dec, formatAmount, formatCompactAmount } from "./money";
+import { getPassStatus } from "./pass-status";
 import { hasScheduledTime, summarizeIncompleteOrders } from "./home-orders";
 import { orderSummary } from "./order-summary";
 import {
@@ -22,11 +23,12 @@ import {
   isCompleted,
   isOpen,
   isReady,
-  OPEN_STATUSES,
+  TO_FINISH_STATUSES,
   type OrderStatus,
 } from "./order-status";
 import type {
   CustomerDue,
+  CustomerDueOrder,
   DayOrderItem,
   HomeDashboardData,
   IncompleteOrder,
@@ -492,6 +494,11 @@ export async function getHomeDashboard(
         business.trialEndsAt &&
         business.trialEndsAt.getTime() < now.getTime()),
   );
+  const passStatus = getPassStatus(
+    business.passExpiresAt,
+    business.trialEndsAt,
+    now,
+  );
 
   const todayStr = istDateString();
   const selectedDay =
@@ -537,7 +544,7 @@ export async function getHomeDashboard(
       .where(
         and(
           eq(orders.businessId, businessId),
-          inArray(orders.status, OPEN_STATUSES),
+          inArray(orders.status, TO_FINISH_STATUSES),
         ),
       ),
     // Done work with an unpaid balance lives in its own list.
@@ -662,10 +669,15 @@ export async function getHomeDashboard(
     }
   }
 
-  // Today's payments
+  // Today's payments. A cancelled order is closed with no money, so its
+  // payment records stay in history but never count as received.
   let todayPaidTotal = dec(0);
   const ordersPaidToday = new Set<string>();
+  const cancelledIds = new Set(
+    orderRows.filter((order) => isCancelled(order.status)).map((order) => order.id),
+  );
   for (const p of paymentRows) {
+    if (cancelledIds.has(p.orderId)) continue;
     if (p.paidAt.getTime() >= todayStart.getTime()) {
       todayPaidTotal = todayPaidTotal.plus(p.amount);
       ordersPaidToday.add(p.orderId);
@@ -896,7 +908,10 @@ export async function getHomeDashboard(
   };
 
   // 6. To collect from customers (Top 5 customers with pending balances)
-  const customerDuesMap = new Map<string, { due: ReturnType<typeof dec>; lastPaid: Date | null }>();
+  const customerDuesMap = new Map<
+    string,
+    { due: ReturnType<typeof dec>; orderDues: CustomerDueOrder[] }
+  >();
   for (const order of orderRows) {
     if (isClosed(order.status)) continue;
     if (!order.customerId) continue;
@@ -908,19 +923,26 @@ export async function getHomeDashboard(
 
     const existing = customerDuesMap.get(order.customerId) ?? {
       due: dec(0),
-      lastPaid: null,
+      orderDues: [],
     };
-    customerDuesMap.set(order.customerId, {
-      due: existing.due.plus(due),
-      lastPaid: existing.lastPaid,
+    existing.due = existing.due.plus(due);
+    existing.orderDues.push({
+      id: order.id,
+      code: order.orderCode,
+      due: formatAmount(due),
+      status: order.status as OrderStatus,
+      neededBy: order.neededBy,
     });
+    customerDuesMap.set(order.customerId, existing);
   }
 
-  // Associate customer details
+  // Associate customer details and total every due before the row limit.
   const customerDues: CustomerDue[] = [];
+  let customerDuesTotal = dec(0);
   for (const c of customerRows) {
     const entry = customerDuesMap.get(c.id);
     if (entry && entry.due.greaterThan(0)) {
+      customerDuesTotal = customerDuesTotal.plus(entry.due);
       customerDues.push({
         id: c.id,
         name: c.name,
@@ -928,15 +950,17 @@ export async function getHomeDashboard(
         countryCode: "+91",
         pending: formatAmount(entry.due),
         lastPaidDate: c.lastPaidAt ? istDateString(c.lastPaidAt) : null,
+        orderDues: entry.orderDues,
       });
     }
   }
 
-  // Sort by highest pending amount
+  // Sort by the exact balance, not the formatted label.
   customerDues.sort((a, b) => {
-    const aNum = Number(a.pending.replace(/[^0-9.]/g, ""));
-    const bNum = Number(b.pending.replace(/[^0-9.]/g, ""));
-    return bNum - aNum;
+    const aDue = customerDuesMap.get(a.id)?.due ?? dec(0);
+    const bDue = customerDuesMap.get(b.id)?.due ?? dec(0);
+    if (aDue.equals(bDue)) return a.name.localeCompare(b.name);
+    return aDue.greaterThan(bDue) ? -1 : 1;
   });
 
   return {
@@ -945,6 +969,7 @@ export async function getHomeDashboard(
     handle: business.handle,
     isOwner: true,
     isPassExpired,
+    passStatus,
     selectedDay,
     selectedDayLabel,
     isToday,
@@ -958,5 +983,9 @@ export async function getHomeDashboard(
     incompleteOrders,
     completedWithDue,
     customerDues: customerDues.slice(0, 5),
+    customerDuesSummary: {
+      count: customerDues.length,
+      total: formatAmount(customerDuesTotal),
+    },
   };
 }

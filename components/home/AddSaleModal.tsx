@@ -451,7 +451,7 @@ export function AddSaleModal({
               setError(null);
             }}
             className={cn(
-              "min-h-10 rounded-[9px] text-sm font-medium",
+              "min-h-10 rounded-[9px] text-small font-medium",
               tab === "sale" ? "bg-surface shadow-sm" : "text-ink-muted",
             )}
           >
@@ -464,7 +464,7 @@ export function AddSaleModal({
               setError(null);
             }}
             className={cn(
-              "min-h-10 rounded-[9px] text-sm font-medium",
+              "min-h-10 rounded-[9px] text-small font-medium",
               tab === "payment" ? "bg-surface shadow-sm" : "text-ink-muted",
             )}
           >
@@ -474,7 +474,7 @@ export function AddSaleModal({
 
         {error ? (
           <p
-            className="mb-3 rounded-md bg-danger/10 px-3 py-2 text-sm text-danger"
+            className="mb-3 rounded-md bg-danger/10 px-3 py-2 text-small text-danger"
             aria-live="polite"
           >
             {error}
@@ -507,7 +507,7 @@ export function AddSaleModal({
             </div>
 
             {payOrder ? (
-              <div className="rounded-md bg-muted px-3 py-2 text-sm">
+              <div className="rounded-md bg-muted px-3 py-2 text-small">
                 Due {formatPaise(payDuePaise)}
               </div>
             ) : null}
@@ -552,15 +552,15 @@ export function AddSaleModal({
           <form onSubmit={submitSale} className="space-y-4">
             {/* Who */}
             <section className="space-y-3 rounded-2xl border border-line bg-surface p-4">
-              <h3 className="text-sm font-bold text-ink">Customer</h3>
+              <h3 className="text-small font-bold text-ink">Customer</h3>
 
               {selectedCustomer ? (
                 <div className="flex items-center justify-between gap-3 rounded-md bg-accent-soft px-3 py-2">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">
+                    <p className="truncate text-small font-medium">
                       {selectedCustomer.name}
                     </p>
-                    <p className="text-xs text-ink-muted">
+                    <p className="text-caption text-ink-muted">
                       {selectedCustomer.phone || "No phone"}
                       {Number(selectedCustomer.pendingTotal) > 0
                         ? ` · ₹${selectedCustomer.pendingTotal} due`
@@ -570,7 +570,7 @@ export function AddSaleModal({
                   <button
                     type="button"
                     onClick={() => setSelectedCustomer(null)}
-                    className="shrink-0 text-xs font-semibold text-accent"
+                    className="shrink-0 text-caption font-semibold text-accent"
                   >
                     Change
                   </button>
@@ -593,16 +593,16 @@ export function AddSaleModal({
                             setSelectedCustomer(entry);
                             setCustomerQuery("");
                           }}
-                          className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm"
+                          className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-small"
                         >
                           <span className="min-w-0">
                             <span className="block truncate">{entry.name}</span>
-                            <span className="block text-xs text-ink-muted">
+                            <span className="block text-caption text-ink-muted">
                               {entry.phone || "No phone"}
                             </span>
                           </span>
                           {Number(entry.pendingTotal) > 0 ? (
-                            <span className="shrink-0 text-xs text-warning">
+                            <span className="shrink-0 text-caption text-warning">
                               ₹{entry.pendingTotal} due
                             </span>
                           ) : null}
@@ -613,7 +613,7 @@ export function AddSaleModal({
                   <button
                     type="button"
                     onClick={() => setShowNewCustomer(true)}
-                    className="text-sm font-semibold text-accent"
+                    className="text-small font-semibold text-accent"
                   >
                     + New customer
                   </button>
@@ -623,14 +623,14 @@ export function AddSaleModal({
 
             {/* What */}
             <section className="space-y-3 rounded-2xl border border-line bg-surface p-4">
-              <h3 className="text-sm font-bold text-ink">Items</h3>
+              <h3 className="text-small font-bold text-ink">Items</h3>
 
               <div className="grid grid-cols-2 gap-2 rounded-md bg-muted p-1">
                 <button
                   type="button"
                   onClick={() => setMode("items")}
                   className={cn(
-                    "min-h-10 rounded-[9px] text-sm font-medium",
+                    "min-h-10 rounded-[9px] text-small font-medium",
                     mode === "items" ? "bg-surface shadow-sm" : "text-ink-muted",
                   )}
                 >
@@ -640,7 +640,7 @@ export function AddSaleModal({
                   type="button"
                   onClick={() => setMode("quick")}
                   className={cn(
-                    "min-h-10 rounded-[9px] text-sm font-medium",
+                    "min-h-10 rounded-[9px] text-small font-medium",
                     mode === "quick" ? "bg-surface shadow-sm" : "text-ink-muted",
                   )}
                 >
@@ -658,7 +658,7 @@ export function AddSaleModal({
                     onChange={(event) => setQuickAmount(event.target.value)}
                     placeholder="0.00"
                   />
-                  <p className="mt-1 text-xs text-ink-subtle">
+                  <p className="mt-1 text-caption text-ink-subtle">
                     No item list. One amount.
                   </p>
                 </div>
@@ -673,7 +673,7 @@ export function AddSaleModal({
 
               <div className="max-h-56 space-y-1.5 overflow-y-auto">
                 {visibleItems.length === 0 ? (
-                  <p className="rounded-md border border-dashed border-line px-3 py-4 text-sm text-ink-muted">
+                  <p className="rounded-md border border-dashed border-line px-3 py-4 text-small text-ink-muted">
                     No items match. Add a new item below.
                   </p>
                 ) : (
@@ -686,17 +686,17 @@ export function AddSaleModal({
                       className="flex w-full items-center justify-between gap-3 rounded-md border border-line bg-surface px-3 py-2 text-left disabled:opacity-50"
                     >
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium">
+                        <span className="block truncate text-small font-medium">
                           {item.name}
                         </span>
-                        <span className="block text-xs text-ink-muted">
+                        <span className="block text-caption text-ink-muted">
                           {item.priceMode === "quote"
                             ? "Quote"
                             : `${formatPaise(toPaise(item.basePrice))} / ${item.unitLabel}`}
                           {item.isAvailable ? "" : " · Sold out"}
                         </span>
                       </span>
-                      <span className="text-sm font-semibold text-accent">
+                      <span className="text-small font-semibold text-accent">
                         Add
                       </span>
                     </button>
@@ -707,7 +707,7 @@ export function AddSaleModal({
               <button
                 type="button"
                 onClick={() => setShowNewItem(true)}
-                className="text-sm font-semibold text-accent"
+                className="text-small font-semibold text-accent"
               >
                 + New item
               </button>
@@ -729,7 +729,7 @@ export function AddSaleModal({
                             {index + 1}
                           </span>
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-ink">
+                            <p className="truncate text-small font-semibold text-ink">
                               {line.item.name}
                             </p>
                             <p className="text-caption text-ink-muted">
@@ -740,7 +740,7 @@ export function AddSaleModal({
                         </div>
                         <button
                           type="button"
-                          className="text-xs text-danger"
+                          className="text-caption text-danger"
                           onClick={() =>
                             setCart((current) =>
                               current.filter(
@@ -791,7 +791,7 @@ export function AddSaleModal({
                                   type="button"
                                   onClick={() => toggleExtra(line, extra.id)}
                                   className={cn(
-                                    "rounded-full border px-2.5 py-1 text-xs",
+                                    "rounded-full border px-2.5 py-1 text-caption",
                                     line.extraIds.includes(extra.id)
                                       ? "border-accent bg-accent-soft font-medium text-accent-strong"
                                       : "border-line text-ink-muted",
@@ -824,7 +824,7 @@ export function AddSaleModal({
                             −
                           </button>
                           <input
-                            className="h-9 w-14 rounded-md border border-line text-center text-sm"
+                            className="h-9 w-14 rounded-md border border-line text-center text-small"
                             inputMode="decimal"
                             value={line.quantity}
                             onChange={(event) =>
@@ -846,7 +846,7 @@ export function AddSaleModal({
                             +
                           </button>
                         </div>
-                        <p className="figure tnum text-sm font-semibold text-ink">
+                        <p className="figure tnum text-small font-semibold text-ink">
                           {formatPaise(lineTotalPaise(line))}
                         </p>
                       </div>
@@ -854,7 +854,7 @@ export function AddSaleModal({
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-ink-muted">Add an item above.</p>
+                <p className="text-small text-ink-muted">Add an item above.</p>
               )}
                 </>
               )}
@@ -862,7 +862,7 @@ export function AddSaleModal({
 
             {/* When */}
             <section className="space-y-3 rounded-2xl border border-line bg-surface p-4">
-              <h3 className="text-sm font-bold text-ink">Schedule</h3>
+              <h3 className="text-small font-bold text-ink">Schedule</h3>
               <div className="grid grid-cols-2 gap-2">
                 {(["now", "later"] as const).map((entry) => (
                   <button
@@ -870,13 +870,13 @@ export function AddSaleModal({
                     type="button"
                     onClick={() => setWhen(entry)}
                     className={cn(
-                      "min-h-11 rounded-md border px-3 text-sm font-medium capitalize",
+                      "min-h-11 rounded-md border px-3 text-small font-medium",
                       when === entry
                         ? "border-accent bg-accent-soft text-accent-strong"
                         : "border-line bg-surface text-ink-muted",
                     )}
                   >
-                    {entry}
+                    {entry === "now" ? "Now" : "Later"}
                   </button>
                 ))}
               </div>
@@ -901,7 +901,7 @@ export function AddSaleModal({
                       onChange={(event) => setLaterTime(event.target.value)}
                     />
                   </div>
-                  <label className="col-span-2 flex items-center gap-2 text-sm">
+                  <label className="col-span-2 flex items-center gap-2 text-small">
                     <input
                       type="checkbox"
                       checked={estimate}
@@ -916,7 +916,7 @@ export function AddSaleModal({
 
             {/* Payment */}
             <section className="space-y-3 rounded-2xl border border-line bg-surface p-4">
-              <h3 className="text-sm font-bold text-ink">Payment</h3>
+              <h3 className="text-small font-bold text-ink">Payment</h3>
               <div className="grid grid-cols-3 gap-2">
                 {(
                   [
@@ -930,7 +930,7 @@ export function AddSaleModal({
                     type="button"
                     onClick={() => setPaymentChoice(entry.id)}
                     className={cn(
-                      "min-h-10 rounded-md border px-2 text-xs font-medium",
+                      "min-h-10 rounded-md border px-2 text-caption font-medium",
                       paymentChoice === entry.id
                         ? "border-accent bg-accent-soft text-accent-strong"
                         : "border-line bg-surface text-ink-muted",
@@ -972,19 +972,19 @@ export function AddSaleModal({
               </div>
 
               <div className="rounded-md bg-muted px-3 py-2.5">
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-small">
                   <span className="text-ink-muted">Total</span>
                   <span className="tnum font-semibold">
                     {formatPaise(cartTotalPaise)}
                   </span>
                 </div>
-                <div className="mt-1 flex items-center justify-between text-sm">
+                <div className="mt-1 flex items-center justify-between text-small">
                   <span className="text-ink-muted">Paid now</span>
                   <span className="tnum font-medium">
                     {formatPaise(paidPaise)}
                   </span>
                 </div>
-                <div className="mt-1 flex items-center justify-between text-sm">
+                <div className="mt-1 flex items-center justify-between text-small">
                   <span className="text-ink-muted">Due</span>
                   <span className="tnum font-medium">
                     {formatPaise(duePaise)}
@@ -992,7 +992,7 @@ export function AddSaleModal({
                 </div>
               </div>
 
-              <p className="rounded-lg bg-muted px-3 py-2 text-xs font-semibold text-ink">
+              <p className="rounded-lg bg-muted px-3 py-2 text-caption font-semibold text-ink">
                 {outcome}
               </p>
             </section>
@@ -1009,7 +1009,7 @@ export function AddSaleModal({
 
             {/* The save action stays reachable while the long form scrolls. */}
             <div className="sticky bottom-0 -mx-5 border-t border-line bg-surface px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:static sm:mx-0 sm:px-0 sm:pb-0">
-              <div className="mb-2 flex items-center justify-between text-xs">
+              <div className="mb-2 flex items-center justify-between text-caption">
                 <span className="font-medium text-ink-muted">Total</span>
                 <span className="tnum font-bold text-ink">
                   {formatPaise(cartTotalPaise)}

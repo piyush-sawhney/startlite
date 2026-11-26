@@ -1,5 +1,6 @@
 import { BottomTabs, MerchantNav } from "@/components/BottomTabs";
 import { GuestImport } from "@/components/GuestImport";
+import { getShopLogoUrl } from "@/lib/queries";
 import { getPack } from "@/lib/packs";
 import { requireBusiness } from "@/lib/session";
 
@@ -8,12 +9,13 @@ export default async function MerchantLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const { business } = await requireBusiness();
   const noun = getPack(business.categoryPack).noun;
+  const logoUrl = await getShopLogoUrl(business.id);
 
   return (
     <div className="min-h-dvh lg:flex">
       <MerchantNav
-        noun={noun}
         businessName={business.businessName}
+        logoUrl={logoUrl}
         storeHref={`/b/${business.handle}`}
         pendingCount={0}
       />

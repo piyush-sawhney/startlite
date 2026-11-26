@@ -801,8 +801,76 @@ unpaid order ready moves it to `ready`; its final payment then moves it to
   creates an `accepted` order.
 - This is a first-time application, so there is no data migration. The schema
   default becomes `accepted`.
+- `cancelled` means closed with no money. A payment record on a cancelled order
+  stays in history but never counts as received or as a pending balance.
 - The Orders tab filters map `pending` to the open statuses and `paid` to
   `completed`.
+
+## ADR-038: Home header context and dues collection
+
+**Context:** The Home header named the shop but gave the merchant no reason to
+look up: an owner could not see when the pass ends, and a guest had to infer
+that an icon meant signing in would save their work. The customer dues card
+listed balances but showed no total and offered no direct way to collect.
+
+**Decision:** The header is one row. It holds the logo, the shop name, the edit
+icon, a meta label, the state pill, and the owner's Share button. The store
+handle is not in the header. The meta label is inline from 768 px and hidden
+below it. An owner sees `Quarterly pass until`, `Quarterly pass ends`, or
+`Quarterly pass expired` with the date; before activation the same three forms
+use `3-month trial`. A guest or an expired session sees `Sign in to save this
+shop` as a button that opens the save sheet. The pass label uses `success` above
+30 days left, `warning` from 1 to 30 days, and `danger` on expiry; the word and
+date carry the meaning. Share stays owner-only, carries the text `Share your
+store instantly`, and the separate power icon is removed. An owner also gets an
+`Open storefront` button that opens `/b/{handle}` in a new tab. Each order list uses
+one header row: title, total count, total due, sort, and collapse. On desktop
+the header is 64 px tall. The customer dues card shows the count and total of
+all dues, lists the five highest balances, and gives each row a Collect action
+that opens the payment sheet. A quiet link leads to the Customers tab for full
+management.
+
+**Consequences:**
+
+- Pass and trial dates come from the business record; guests have no expiry
+  label and always see the sign-in prompt.
+- The trial is 3 months (90 days) from signup. Each pass is quarterly (90 days).
+  The schema default and admin activation already use 90 days.
+- The date format is the same as other Home dates: `21-Nov-2026`.
+- The dues total covers every customer with a positive pending amount, not just
+  the five rows shown. Each row names the unpaid orders behind its balance.
+- Pending orders and Completed · payment due are disjoint. Ready orders belong
+  to payment due only, so a balance is never counted twice.
+- Payment for a due row stays inside Home; the Customers tab remains the place
+  for customer records and full dues management.
+- Mobile keeps the collapsible card anatomy and the same row actions.
+
+## ADR-039: Collapsible sidebar and desktop width
+
+**Context:** The compact left rail fixed 200 px of the desktop before any work
+was shown. Its six items did not match the work a merchant does most, and the
+Home header truncated the pass or trial line even on a wide screen.
+
+**Decision:** From 1024 px the navigation is a left rail that starts collapsed
+at 68 px with icons only. A toggle expands it to 240 px with labels, and the
+choice persists. The rail order is Home, Customers, Orders, Items, Store
+settings. The footer holds sign-in and create-account for a guest, and the
+storefront link and sign-out for an owner. The bottom bar stays for widths below
+1024 px. In the header, the pass or trial label is never truncated at desktop
+width; the shop name shrinks first. The `Open storefront` and Share buttons show
+their full labels from 1280 px and use icons below it.
+
+**Consequences:**
+
+- The collapsed rail gives the workspace more width without losing navigation.
+- Expenses remains reachable from Store settings; it is not a rail item.
+- An icon-only rail item still has an accessible name and a title.
+- The rail's top mark is the shop logo for an owner, or the first letter of the
+  shop name when no logo is set or the merchant is signed out. It is round, as
+  in the header.
+- Footer actions follow the rail state: labels and full buttons when expanded,
+  accessible icons only when collapsed. Sign out is no exception.
+- Guest and owner rails differ only in their footer actions.
 
 ## Superseded specification sections
 

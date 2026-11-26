@@ -89,7 +89,7 @@ export function ShopLogoModal({
             className="mx-auto my-5 h-24 w-24 rounded-full border border-line object-cover"
           />
         ) : (
-          <p className="my-5 rounded-xl bg-muted p-4 text-center text-sm text-ink-muted">
+          <p className="my-5 rounded-xl bg-muted p-4 text-center text-small text-ink-muted">
             No logo uploaded. The shop name initial will be shown instead.
           </p>
         )}
@@ -102,15 +102,15 @@ export function ShopLogoModal({
               accept="image/jpeg,image/png,image/webp"
               onChange={(event) => void handleUpload(event)}
               disabled={busy}
-              className="block min-h-11 w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-accent-soft file:px-3 file:py-1.5 file:font-semibold file:text-accent-strong"
+              className="block min-h-11 w-full rounded-xl border border-line bg-surface px-3 py-2 text-small file:mr-3 file:rounded-lg file:border-0 file:bg-accent-soft file:px-3 file:py-1.5 file:font-semibold file:text-accent-strong"
             />
-            <p className="mt-1 text-xs text-ink-subtle">
+            <p className="mt-1 text-caption text-ink-subtle">
               JPEG, PNG, or WebP up to 5 MB.
             </p>
           </div>
 
           {error ? (
-            <p className="text-sm text-danger" role="alert">
+            <p className="text-small text-danger" role="alert">
               {error}
             </p>
           ) : null}

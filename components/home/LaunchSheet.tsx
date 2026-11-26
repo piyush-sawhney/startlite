@@ -20,7 +20,7 @@ export function LaunchSheet({
           <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-accent text-lg font-black text-white shadow-[0_1px_2px_rgb(20_18_15/0.1)]">
             SL
           </div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-ink-subtle">
+          <p className="eyebrow text-ink-subtle">
             StartLite
           </p>
           <h2
@@ -29,7 +29,7 @@ export function LaunchSheet({
           >
             Your shop
           </h2>
-          <p className="mt-3 text-[14px] leading-relaxed text-ink-muted">
+          <p className="mt-3 text-small leading-relaxed text-ink-muted">
             Sign in, or start fresh on this phone.
           </p>
         </div>
@@ -37,20 +37,20 @@ export function LaunchSheet({
         <div className="mt-6 space-y-2.5">
           <Link
             href="/login"
-            className={primaryButton("w-full min-h-12 text-[15px]")}
+            className={primaryButton("w-full min-h-12 text-small")}
           >
             Sign in
           </Link>
           <button
             type="button"
             onClick={onStartFresh}
-            className={quietButton("w-full min-h-12 text-[15px]")}
+            className={quietButton("w-full min-h-12 text-small")}
           >
             Start fresh
           </button>
         </div>
 
-        <p className="mt-5 text-center text-xs text-ink-subtle">
+        <p className="mt-5 text-center text-caption text-ink-subtle">
           Sign in any time from Settings.
         </p>
       </div>

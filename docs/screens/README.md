@@ -54,9 +54,8 @@ Every merchant screen uses the same shell. The shell is specified once, here.
 
 | Width | Navigation | Content |
 |---|---|---|
-| 320–767 | Bottom tab bar, 64 px plus safe area | One column, 16 px gutter |
-| 768–1199 | Left rail, 200 px | One column, `max-width: 720px` |
-| 1200 and above | Left rail, 240 px | Main column plus a 360 px right column |
+| 320–1023 | Bottom tab bar, 64 px plus safe area | One column, 16 px gutter |
+| 1024 and above | Collapsible left rail, 68 px collapsed by default, 240 px expanded | Main column plus a 360 px right column |
 
 The storefront keeps its own shell at `max-width: 460px`. The admin keeps
 `max-width: 1200px`.
@@ -78,14 +77,30 @@ The tab bar is 64 px plus the safe area. Each item is 60 px at 360 px and 53 px
 at 320 px. Icon 22 px, label 10 px. Labels never wrap and never ellipsis. The
 active tab uses `accent` at weight 600. The bar never hides on scroll.
 
-From 768 px the same six items become a left rail. The rail ends with the
-`StartLite` wordmark at 11 px, muted.
+### Collapsible rail
+
+From 1024 px the bottom bar is replaced by a left rail. It is **collapsed by
+default** at 68 px and shows only icons; a toggle in the header of the rail
+expands it to 240 px with labels. The choice persists in `localStorage`. Every
+icon-only item has an accessible name and a title. The top of the rail shows
+the round shop logo, or the shop's first letter when no logo exists. The rail
+has five items in this order: Home, Customers, Orders, Items, Store settings.
+Its footer holds the sign-in options for a guest, or the storefront link and
+sign-out for an owner.
+See [ADR-039](../decisions.md#adr-039-collapsible-sidebar-and-desktop-width).
 
 ### Header
 
-56 px on mobile, 64 px on desktop. Sticky. It holds the shop logo or initial
-(round, 40 px), the shop name, and the state pill. The handle appears from
-768 px. There is no search and no gear; Settings is a tab.
+52 px below 768 px, 56 px from 768 px, 64 px from 1024 px. Sticky and one row.
+It holds the shop logo or initial (round, 40 px), the shop name, the edit icon,
+an inline meta label, the state pill, an `Open storefront` button, and a Share
+button labelled `Share your store instantly` for an owner. The store handle is
+not in the header. From 1024 px the meta label shows the quarterly pass or
+3-month trial date in full, with no truncation or ellipsis; the shop name is the
+only element that can shrink. The long labels on the two action buttons appear
+from 1280 px. There is no search and no gear; Store settings is a rail item. See
+[ADR-038](../decisions.md#adr-038-home-header-context-and-dues-collection) and
+[ADR-039](../decisions.md#adr-039-collapsible-sidebar-and-desktop-width).
 
 ### State pill
 
@@ -119,8 +134,8 @@ side panel.
 ### Footer
 
 `StartLite` at 11 px, muted, plus the build version. On mobile it is the last row
-of the page. On desktop it is the last row of the rail. It is never the loudest
-element on the screen.
+of the page. The desktop rail has no footer caption: it ends with the sign-in
+or sign-out action. It is never the loudest element on the screen.
 
 ### Loading
 

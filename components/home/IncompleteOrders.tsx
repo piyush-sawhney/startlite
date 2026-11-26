@@ -15,7 +15,6 @@ import { isReady } from "@/lib/order-status";
 import {
   Check,
   ChevronDown,
-  ClipboardList,
   Edit2,
   MessageCircle,
   PackageCheck,
@@ -25,6 +24,7 @@ import {
 } from "lucide-react";
 import { paidAmount, paymentStatus } from "@/lib/payment-status";
 import type { IncompleteOrder } from "@/lib/home-types";
+import { ListHeader } from "./ListHeader";
 
 const HOME_ORDER_LIMIT = 10;
 
@@ -64,12 +64,10 @@ function neededTone(neededBy: string): string {
 }
 
 const contactClass =
-  "relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition after:absolute after:-inset-2 after:content-['']";
+  "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition after:absolute after:-inset-1 after:content-['']";
 
 export function IncompleteOrders({
   title = "Pending orders",
-  toFinishCount,
-  readyCount,
   totalDue,
   totalCount,
   orders,
@@ -78,8 +76,6 @@ export function IncompleteOrders({
   onEdit,
 }: {
   title?: string;
-  toFinishCount: number;
-  readyCount: number;
   totalDue: string;
   totalCount: number;
   orders: IncompleteOrder[];
@@ -90,6 +86,7 @@ export function IncompleteOrders({
   const [sortKey, setSortKey] = useState<SortKey>("priority");
   const [showSort, setShowSort] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const controlsId = `order-list-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
   const visibleOrders = useMemo(
     () => sortOrders(orders.slice(0, HOME_ORDER_LIMIT), sortKey),
     [orders, sortKey],
@@ -249,89 +246,57 @@ export function IncompleteOrders({
 
   return (
     <Card className="overflow-hidden p-0">
-      {/* One collapsible header per list. */}
-      <div className="flex items-center gap-2 border-b border-line px-3 py-2.5">
-        <button
-          type="button"
-          onClick={() => setCollapsed(!collapsed)}
-          aria-expanded={!collapsed}
-          aria-controls={`order-list-${title}`}
-          className="flex min-w-0 flex-1 items-center gap-2 text-left"
-        >
-          <span
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent-strong"
-            aria-hidden="true"
-          >
-            <ClipboardList className="h-4 w-4" />
-          </span>
-          <span className="min-w-0">
-            <span className="flex items-center gap-2">
-              <span className="truncate text-small font-bold text-ink lg:text-body">
-                {title}
-              </span>
-              <span className="rounded-full bg-muted px-2 py-0.5 text-caption font-bold text-ink">
-                {totalCount}
-              </span>
-            </span>
-            <span className="mt-0.5 flex flex-wrap gap-x-2 text-caption text-ink">
-              {toFinishCount > 0 ? <span>{toFinishCount} to finish</span> : null}
-              {toFinishCount > 0 && readyCount > 0 ? <span>·</span> : null}
-              {readyCount > 0 ? <span>{readyCount} payment due</span> : null}
-            </span>
-          </span>
-          <ChevronDown
-            className={`h-4 w-4 shrink-0 text-ink transition ${collapsed ? "-rotate-90" : ""}`}
-            aria-hidden="true"
-          />
-        </button>
-        <div className="flex shrink-0 items-center gap-1">
-          {totalCount > 0 ? (
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowSort(!showSort)}
-                aria-expanded={showSort}
-                aria-label={`Sort orders: ${SORT_LABELS[sortKey]}`}
-                className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-caption font-bold text-ink transition hover:bg-muted"
-              >
-                <span className="hidden sm:inline">Sort: </span>
-                {SORT_LABELS[sortKey]}
-                <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
-              </button>
-              {showSort ? (
-                <div className="absolute right-0 top-10 z-20 w-40 overflow-hidden rounded-xl border border-line bg-surface shadow-lg">
-                  {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => {
-                        setSortKey(key);
-                        setShowSort(false);
-                      }}
-                      className={`block w-full px-3 py-2 text-left text-small transition hover:bg-muted ${
-                        key === sortKey ? "font-bold text-ink" : "text-ink"
-                      }`}
-                    >
-                      {SORT_LABELS[key]}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-          <div className="text-right">
-            <p className="eyebrow text-ink">Due</p>
-            <p className="figure text-small font-bold text-ink">{totalDue}</p>
+      <ListHeader
+        title={title}
+        count={totalCount}
+        total={totalDue}
+        totalLabel="Total due"
+        controlsId={controlsId}
+        collapsed={collapsed}
+        onToggle={() => setCollapsed(!collapsed)}
+      >
+        {totalCount > 0 ? (
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowSort(!showSort)}
+              aria-expanded={showSort}
+              aria-label={`Sort orders: ${SORT_LABELS[sortKey]}`}
+              className="relative inline-flex min-h-9 items-center gap-1 rounded-xl px-2 text-caption font-bold text-ink transition after:absolute after:-inset-1 after:content-[''] hover:bg-muted"
+            >
+              <span className="hidden sm:inline">Sort: </span>
+              {SORT_LABELS[sortKey]}
+              <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+            {showSort ? (
+              <div className="absolute right-0 top-10 z-20 w-40 overflow-hidden rounded-xl border border-line bg-surface shadow-lg">
+                {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => {
+                      setSortKey(key);
+                      setShowSort(false);
+                    }}
+                    className={`block w-full px-3 py-2 text-left text-small transition hover:bg-muted ${
+                      key === sortKey ? "font-bold text-ink" : "text-ink"
+                    }`}
+                  >
+                    {SORT_LABELS[key]}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
-        </div>
-      </div>
+        ) : null}
+      </ListHeader>
       {!collapsed ? (
         <div
-          id={`order-list-${title}`}
+          id={controlsId}
           className="space-y-2 p-2 lg:max-h-[24rem] lg:overflow-y-auto lg:overscroll-contain"
         >
           {totalCount === 0 ? (
-            <p className="py-4 text-center text-small text-ink">No orders.</p>
+            <p className="py-4 text-center text-small text-ink-muted">No orders.</p>
           ) : (
             visibleOrders.map((order) => (
               <div

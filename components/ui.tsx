@@ -27,11 +27,13 @@ export function quietButton(extra?: string) {
 export function RowAction({
   icon: Icon,
   label,
+  ariaLabel,
   onClick,
   tone = "accent",
 }: {
   icon: LucideIcon;
   label: string;
+  ariaLabel?: string;
   onClick: () => void;
   tone?: "accent" | "warning";
 }) {
@@ -39,9 +41,9 @@ export function RowAction({
     <button
       type="button"
       onClick={onClick}
-      aria-label={label}
+      aria-label={ariaLabel ?? label}
       className={cn(
-        "inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-bold transition sm:min-h-9 sm:px-3",
+        "relative inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border px-2 text-caption font-bold transition after:absolute after:-inset-1 after:content-[''] sm:min-h-9 sm:px-3",
         tone === "warning"
           ? "border-warning/30 bg-warning-soft text-warning hover:bg-warning/15"
           : "border-accent/30 bg-accent-soft text-accent-strong hover:bg-accent/15",

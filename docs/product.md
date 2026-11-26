@@ -59,8 +59,9 @@ accounting only or a website only. Neither fits a shop that runs inside a chat.
 
 ## Access
 
-- 90 days of full features from signup.
-- Renewal is prepaid for another 90 days, activated from the owner admin in v1.
+- A 3-month (90-day) trial with full features from signup.
+- Renewal is a prepaid quarterly pass for another 90 days, activated from the
+  owner admin in v1.
   There is no AutoPay mandate.
 - On expiry the public storefront pauses. The merchant keeps login and full data
   export.

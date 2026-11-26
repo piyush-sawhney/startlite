@@ -191,7 +191,7 @@ export function AddCustomerModal({
           </div>
 
           <label className="flex items-center justify-between gap-3 rounded-xl border border-line px-3 py-2.5">
-            <span className="text-sm font-medium text-ink">Store address</span>
+            <span className="text-small font-medium text-ink">Store address</span>
             <input
               type="checkbox"
               checked={storeAddress}
@@ -285,7 +285,7 @@ export function AddCustomerModal({
           ) : null}
 
           {error ? (
-            <p className="text-xs text-danger" aria-live="polite">
+            <p className="text-caption text-danger" aria-live="polite">
               {error}
             </p>
           ) : null}

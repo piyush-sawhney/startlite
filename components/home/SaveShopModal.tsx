@@ -23,7 +23,7 @@ export function SaveShopModal({
         <h2 id="save-shop-title" className="text-lg font-bold text-ink">
           Save your shop
         </h2>
-        <p className="mt-1 text-sm leading-6 text-ink-muted">
+        <p className="mt-1 text-small leading-6 text-ink-muted">
           This shop is only on this phone. Sign in to keep it.
         </p>
 
@@ -43,7 +43,7 @@ export function SaveShopModal({
           <button
             type="button"
             onClick={onClose}
-            className="w-full min-h-11 rounded-xl text-sm font-medium text-ink-muted hover:text-ink"
+            className="w-full min-h-11 rounded-xl text-small font-medium text-ink-muted hover:text-ink"
           >
             Keep using this phone
           </button>
