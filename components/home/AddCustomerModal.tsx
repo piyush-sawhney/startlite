@@ -9,6 +9,7 @@ export type CustomerAddressInput = {
   line1: string;
   line2?: string;
   line3?: string;
+  locality?: string;
   city?: string;
   state?: string;
   country: string;
@@ -48,6 +49,7 @@ export function AddCustomerModal({
   const [line1, setLine1] = useState("");
   const [line2, setLine2] = useState("");
   const [line3, setLine3] = useState("");
+  const [locality, setLocality] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [country, setCountry] = useState("India");
@@ -70,6 +72,7 @@ export function AddCustomerModal({
     setLine1("");
     setLine2("");
     setLine3("");
+    setLocality("");
     setCity("");
     setState("");
     setCountry("India");
@@ -87,8 +90,8 @@ export function AddCustomerModal({
       setError("Enter a valid WhatsApp number, or leave it empty.");
       return;
     }
-    if (storeAddress && !line1.trim()) {
-      setError("Enter address line 1, or turn the address off.");
+    if (storeAddress && !line1.trim() && !locality.trim() && !pincode.trim()) {
+      setError("Enter an address line or locality, or turn the address off.");
       return;
     }
 
@@ -105,6 +108,7 @@ export function AddCustomerModal({
               line1: line1.trim(),
               line2: line2.trim() || undefined,
               line3: line3.trim() || undefined,
+              locality: locality.trim() || undefined,
               city: city.trim() || undefined,
               state: state.trim() || undefined,
               country: country.trim() || "India",
@@ -232,6 +236,17 @@ export function AddCustomerModal({
                   onChange={(event) => setLine3(event.target.value)}
                   className={inputClass}
                   placeholder="Optional"
+                  maxLength={80}
+                />
+              </div>
+              <div>
+                <Label>Locality</Label>
+                <input
+                  type="text"
+                  value={locality}
+                  onChange={(event) => setLocality(event.target.value)}
+                  className={inputClass}
+                  placeholder="e.g. Kothrud, Bandra West"
                   maxLength={80}
                 />
               </div>

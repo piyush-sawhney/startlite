@@ -71,11 +71,12 @@ Each business has a storefront at `/b/<handle>`, for example
 | Items | 4 | Three pack starters plus one item for the trade |
 | Variants | 2 items | The first and the custom item have two options |
 | Extra | 1 | On the first item, for example Eggless or Home delivery |
-| Customers | 5 | One has no phone, to test the no-phone identity rule |
-| Orders | 7 | 2 completed, 2 ready, 1 accepted, 1 waiting for client, 1 cancelled |
-| Payments | 4 | Full, 30% advance, 40% advance, full |
+| Customers | 5 | One has no phone or address, to test both null states |
+| Orders | 13 | Completed, ready, accepted, in progress, under review, waiting for client, declined, cancelled |
+| Payments | 8 | Full, advances of 25–60%, and unpaid orders |
+| TDS and adjustment | 1 each | One business order with TDS, one order with a discount and reason |
 | Expenses | 4 | Today, yesterday, 3 days ago, 10 days ago |
-| Requests | 1 | A pending storefront request for today |
+| Requests | 3 | Pending storefront requests with one, two, and three lines |
 
 The order mix fills every Home zone:
 

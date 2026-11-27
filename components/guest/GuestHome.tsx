@@ -71,6 +71,7 @@ export function GuestHome({ state, update, go, toast }: GuestViewProps) {
                   line1: customer.address.line1,
                   line2: customer.address.line2 ?? "",
                   line3: customer.address.line3 ?? "",
+                  locality: customer.address.locality ?? "",
                   city: customer.address.city ?? "",
                   state: customer.address.state ?? "",
                   country: customer.address.country,

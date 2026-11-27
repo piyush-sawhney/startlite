@@ -153,6 +153,7 @@ One row for the platform. Only the admin role writes it.
 | `phone` | TEXT | Nullable. Normalized digits. |
 | `sub_label` | TEXT | For example "Rohan - Class 10" |
 | `notes` | TEXT | Optional |
+| `address` | JSONB | Optional customer address with `line1`, `line2`, `line3`, `locality`, `city`, `state`, `country`, and `pincode` |
 | `last_paid_at` | TIMESTAMPTZ | Optional |
 | `created_at` | TIMESTAMPTZ | |
 

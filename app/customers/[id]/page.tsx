@@ -1,19 +1,24 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OpeningDueForm } from "@/components/OpeningDueForm";
-import { Card, MetricTile, PageHeader, StatusPill } from "@/components/ui";
+import { CustomerDetailCards } from "@/components/reports/CustomerCards";
+import { Card, PageHeader, StatusPill } from "@/components/ui";
 import { whatsappLink } from "@/lib/bill";
-import { callLink, smsLink } from "@/lib/contact";
+import { summarizeCustomerOrders } from "@/lib/customer-summary";
+import { callLink, maskPhoneLast4, smsLink } from "@/lib/contact";
+import {
+  formatCustomerAddress,
+  localityAndPincode,
+} from "@/lib/customer-address";
 import { formatDateDMY, istDateString } from "@/lib/date";
 import { dec, formatAmount } from "@/lib/money";
-import { isClosed } from "@/lib/order-status";
 import { getCustomer, getCustomerOrders, orderDue } from "@/lib/queries";
 import { requireBusiness } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 const ORDER_GRID =
-  "grid grid-cols-2 gap-x-4 gap-y-1 px-3 py-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,0.8fr)_minmax(0,0.8fr)] lg:items-center";
+  "grid grid-cols-2 gap-x-4 gap-y-1 px-3 py-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.8fr)] lg:items-center";
 
 export default async function CustomerPage({
   params,
@@ -32,10 +37,8 @@ export default async function CustomerPage({
     paid: dec(order.paidTotal),
     due: dec(orderDue(order)),
   }));
-  const openRows = rows.filter((row) => !isClosed(row.order.status));
-  const billed = rows.reduce((sum, row) => sum.plus(row.total), dec(0));
-  const paid = openRows.reduce((sum, row) => sum.plus(row.paid), dec(0));
-  const pending = openRows.reduce((sum, row) => sum.plus(row.due), dec(0));
+  const summary = summarizeCustomerOrders(orders);
+  const { pending } = summary;
 
   const reminder = pending.greaterThan(0)
     ? `Namaste ${customer.name}, gentle reminder from ${business.businessName} regarding pending balance of ${formatAmount(pending)}.`
@@ -52,23 +55,19 @@ export default async function CustomerPage({
       <PageHeader
         title={customer.name}
         subtitle={
-          customer.phone
-            ? `${customer.phone}${customer.subLabel ? ` · ${customer.subLabel}` : ""}`
-            : customer.subLabel || "No phone"
+          localityAndPincode(customer.address) ||
+          `Customer since ${formatDateDMY(istDateString(customer.createdAt))}`
         }
       />
 
-      <section aria-label="Customer summary" className="mb-5 grid grid-cols-2 gap-2 md:grid-cols-4">
-        <MetricTile label="Orders" value={String(rows.length)} period="All" />
-        <MetricTile label="Billed" value={formatAmount(billed)} period="All" />
-        <MetricTile label="Paid" value={formatAmount(paid)} period="All" tone="success" />
-        <MetricTile
-          label="Pending"
-          value={formatAmount(pending)}
-          period="All"
-          tone={pending.greaterThan(0) ? "warning" : "plain"}
-        />
-      </section>
+      <CustomerDetailCards
+        orderCount={summary.orderCount}
+        completedCount={summary.completedCount}
+        cancelledCount={summary.cancelledCount}
+        billed={formatAmount(summary.totalBilled)}
+        paid={formatAmount(summary.totalPaid)}
+        due={formatAmount(pending)}
+      />
 
       {customer.phone ? (
         <div className="mb-4 grid grid-cols-3 gap-2">
@@ -102,11 +101,19 @@ export default async function CustomerPage({
         <dl className="divide-y divide-line px-3">
           <div className="flex items-center justify-between gap-3 py-2.5">
             <dt className="text-caption text-ink-muted">Phone</dt>
-            <dd className="text-small font-semibold text-ink">{customer.phone ?? "No phone"}</dd>
+            <dd className="text-small font-semibold text-ink">
+              {maskPhoneLast4(customer.phone)}
+            </dd>
           </div>
           <div className="flex items-center justify-between gap-3 py-2.5">
             <dt className="text-caption text-ink-muted">Label</dt>
             <dd className="text-small font-semibold text-ink">{customer.subLabel ?? "—"}</dd>
+          </div>
+          <div className="flex items-start justify-between gap-3 py-2.5">
+            <dt className="shrink-0 text-caption text-ink-muted">Address</dt>
+            <dd className="whitespace-pre-line text-right text-small font-semibold text-ink">
+              {formatCustomerAddress(customer.address) || "—"}
+            </dd>
           </div>
           <div className="flex items-center justify-between gap-3 py-2.5">
             <dt className="text-caption text-ink-muted">Last paid</dt>
@@ -138,18 +145,19 @@ export default async function CustomerPage({
           <>
             <div aria-hidden="true" className={`${ORDER_GRID} hidden border-b border-line py-2 lg:grid`}>
               <span className="eyebrow text-ink-subtle">Order</span>
-              <span className="eyebrow text-ink-subtle">Needed by</span>
-              <span className="eyebrow text-ink-subtle">Placed on</span>
+              <span className="eyebrow text-ink-subtle">Needed</span>
+              <span className="eyebrow text-ink-subtle">Placed</span>
               <span className="eyebrow text-ink-subtle">Status</span>
-              <span className="eyebrow text-right text-ink-subtle">Total</span>
-              <span className="eyebrow text-right text-ink-subtle">Due</span>
+              <span className="eyebrow text-right text-ink-subtle">Bill total</span>
+              <span className="eyebrow text-right text-ink-subtle">Paid</span>
+              <span className="eyebrow text-right text-ink-subtle">Balance</span>
             </div>
             <div className="divide-y divide-line">
-              {rows.map(({ order, total, due }) => (
+              {rows.map(({ order, total, paid, due }) => (
                 <Link
                   key={order.id}
                   href={`/app/sales/${order.id}`}
-                  aria-label={`Order ${order.orderCode}, ${formatAmount(due)} due`}
+                  aria-label={`Order ${order.orderCode}, ${formatAmount(due)} balance`}
                   className={ORDER_GRID}
                 >
                   <span className="truncate text-small font-bold text-ink">
@@ -163,6 +171,9 @@ export default async function CustomerPage({
                   </span>
                   <span><StatusPill status={order.status} /></span>
                   <span className="figure text-small text-ink">{formatAmount(total)}</span>
+                  <span className="figure text-small text-ink-muted">
+                    {formatAmount(paid)}
+                  </span>
                   <span
                     className={`figure text-small font-bold ${due.greaterThan(0) ? "text-warning" : "text-success"}`}
                   >

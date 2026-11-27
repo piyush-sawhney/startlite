@@ -480,6 +480,7 @@ export function HomeDashboard({
           name: customer.name,
           phone: customer.phone ?? "",
           subLabel: customer.subLabel ?? "",
+          address: customer.address,
         }),
       });
       if (!res.ok) {

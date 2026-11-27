@@ -110,12 +110,22 @@ workspace:
 - Pack starters plus a trade-specific item and two more items. Two option
   groups carry different prices. Extras have price deltas, and some extras are
   scoped to one variant as sub-variants.
-- Five customers with local phone numbers and identification labels.
+- A verified owner account with a locale that matches the shop's city, a
+  WhatsApp number with country code, a realistic UPI handle, and bank details
+  only for shops that take bank transfers. Pass dates cover an active pass, a
+  pass ending soon, an expired pass, an expired trial, and healthy trials. Some
+  shops also carry a notice banner and an advance policy.
+- Five customers with varied 10-digit mobile numbers, identification labels,
+  and stored addresses (`line1`, locality, city, state, country, pincode). One
+  buyer has neither phone nor address. `last_paid_at` is derived from the
+  payment rows, not a fixed date.
 - 13 orders placed across the last three weeks. Placement times fall inside
   business hours. Needed-by dates follow the booking, from same day to three
   days ahead. One order has a six-line item list for the `+N more` summary.
   Statuses cover completed, ready, accepted, in progress, under review, waiting
-  for client, declined, and cancelled.
+  for client, declined, and cancelled. One order carries a TDS deduction, one a
+  negative adjustment with a reason, and a few carry progress notes or follow-up
+  dates.
 - Three storefront requests with one, two, and three lines.
 
 The full account table and the empty-database flow live in

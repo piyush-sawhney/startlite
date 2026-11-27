@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { customers, orders } from "@/db/schema";
 import { apiData, apiError, readJson } from "@/lib/api";
 import { requireApiBusiness } from "@/lib/api-auth";
+import { normalizeCustomerAddress } from "@/lib/customer-address";
 import { dec } from "@/lib/money";
 import { isClosed } from "@/lib/order-status";
 import { orderDue } from "@/lib/queries";
@@ -56,11 +57,23 @@ export async function GET(request: Request) {
   return apiData({ customers: result });
 }
 
+const addressSchema = z.object({
+  line1: z.string().trim().max(120).nullable().optional(),
+  line2: z.string().trim().max(120).nullable().optional(),
+  line3: z.string().trim().max(120).nullable().optional(),
+  locality: z.string().trim().max(80).nullable().optional(),
+  city: z.string().trim().max(80).nullable().optional(),
+  state: z.string().trim().max(80).nullable().optional(),
+  country: z.string().trim().max(80).nullable().optional(),
+  pincode: z.string().trim().max(12).nullable().optional(),
+});
+
 const createCustomerSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(80),
   phone: z.string().trim().max(20).nullable().optional(),
   subLabel: z.string().trim().max(100).nullable().optional(),
   notes: z.string().trim().max(500).nullable().optional(),
+  address: addressSchema.nullable().optional(),
 });
 
 export async function POST(request: Request) {
@@ -76,8 +89,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const { name, phone, subLabel, notes } = parsed.data;
+  const { name, phone, subLabel, notes, address } = parsed.data;
   const cleanPhone = phone ? phone.replace(/\D/g, "").slice(-10) || null : null;
+  const cleanAddress =
+    address === undefined ? undefined : normalizeCustomerAddress(address);
 
   if (cleanPhone) {
     const [existing] = await db
@@ -99,6 +114,7 @@ export async function POST(request: Request) {
           name: name || existing.name,
           subLabel: subLabel ?? existing.subLabel,
           notes: notes ?? existing.notes,
+          ...(cleanAddress !== undefined ? { address: cleanAddress } : {}),
         })
         .where(eq(customers.id, existing.id))
         .returning();
@@ -115,6 +131,7 @@ export async function POST(request: Request) {
       phone: cleanPhone,
       subLabel: subLabel || null,
       notes: notes || null,
+      address: cleanAddress ?? null,
     })
     .returning();
 

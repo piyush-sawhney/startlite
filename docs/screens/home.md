@@ -313,8 +313,12 @@ line amounts. The PATCH endpoint stores these values on the order line.
 | WhatsApp number | no | 10 digits for `+91` |
 | Label | no | `regular`, `Sector 4` |
 | Store address | toggle | Off |
-| Address lines 1 to 3 | when the toggle is on | None |
+| Address lines 1 to 3 | no, but line 1, locality, or pincode is needed when the toggle is on | None |
+| Locality | no | Shown in the customer list |
 | City, state, country, pincode | no | India for country |
+
+For an owner the address is saved with `POST /api/v1/merchant/customers`. For a
+guest it stays in `startlite_guest_v2`.
 
 The label is free text. It helps the merchant recognise the person later.
 

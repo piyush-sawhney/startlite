@@ -21,3 +21,14 @@ export function callLink(
 ): string {
   return `tel:${phoneDigits(phone, countryCode)}`;
 }
+
+/**
+ * Display-only phone masking. Every digit except the last four becomes a
+ * bullet; short numbers are left alone. Contact links still use the raw value.
+ */
+export function maskPhoneLast4(phone: string | null | undefined): string {
+  const digits = (phone ?? "").replace(/\D/g, "");
+  if (!digits) return "No phone";
+  if (digits.length <= 4) return digits;
+  return `${"•".repeat(digits.length - 4)}${digits.slice(-4)}`;
+}

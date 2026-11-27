@@ -1,6 +1,10 @@
 import { CustomersReport } from "@/components/reports/CustomersReport";
 import { getCustomersReport } from "@/lib/queries";
-import type { CustomersFilters, ReportSort } from "@/lib/report-types";
+import type {
+  CustomerSegment,
+  CustomersFilters,
+  ReportSort,
+} from "@/lib/report-types";
 import { requireBusiness } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -11,9 +15,18 @@ function parseFilters(params: Record<string, string | string[] | undefined>): Cu
     return Array.isArray(raw) ? raw[0] ?? "" : raw ?? "";
   };
   const sort = value("sort");
+  const rawSegment = value("segment");
+  const segment: CustomerSegment =
+    rawSegment === "dues" ||
+    rawSegment === "paid" ||
+    rawSegment === "active"
+      ? rawSegment
+      : value("dues") === "1"
+        ? "dues"
+        : "all";
   return {
     query: value("q"),
-    withDues: value("dues") === "1",
+    segment,
     sort: (["pending", "name", "recent"].includes(sort)
       ? sort
       : "pending") as ReportSort,

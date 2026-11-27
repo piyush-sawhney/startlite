@@ -13,6 +13,12 @@ import {
   orders,
   pendingOrders,
 } from "@/db/schema";
+import { maskPhoneLast4 } from "./contact";
+import type { CustomerAddress } from "./customer-address";
+import {
+  summarizeCustomerOrders,
+  type CustomerSummaryOrder,
+} from "./customer-summary";
 import { dec, formatAmount, formatCompactAmount } from "./money";
 import { getPassStatus } from "./pass-status";
 import { hasScheduledTime, summarizeIncompleteOrders } from "./home-orders";
@@ -36,9 +42,9 @@ import type {
 } from "./home-types";
 import type {
   CustomerReportRow,
+  CustomerSegmentData,
   CustomersFilters,
   CustomersReportData,
-  ReportTile,
 } from "./report-types";
 
 export type PublicItem = {
@@ -312,7 +318,8 @@ export async function getMerchantHeaderContext(businessId: string) {
 
 /**
  * The owner adapter for the Customers report. It merges customer records with
- * buyers found in orders and totals every open balance. See ADR-040.
+ * buyers found in orders. Counts and money totals come from the shared
+ * summarizer; only dues are limited to open orders. See ADR-040.
  */
 export async function getCustomersReport(
   businessId: string,
@@ -339,12 +346,10 @@ export async function getCustomersReport(
     name: string;
     phone?: string;
     subLabel?: string;
-    orderCount: number;
+    address: CustomerAddress | null;
+    orderRows: CustomerSummaryOrder[];
     lastPaid: Date | null;
     created: Date;
-    totalBilled: ReturnType<typeof dec>;
-    paid: ReturnType<typeof dec>;
-    pending: ReturnType<typeof dec>;
     linked: boolean;
   };
 
@@ -355,12 +360,10 @@ export async function getCustomersReport(
       name: customer.name,
       phone: customer.phone || undefined,
       subLabel: customer.subLabel || undefined,
-      orderCount: 0,
+      address: customer.address ?? null,
+      orderRows: [],
       lastPaid: customer.lastPaidAt,
       created: customer.createdAt,
-      totalBilled: dec(0),
-      paid: dec(0),
-      pending: dec(0),
       linked: true,
     });
   }
@@ -379,40 +382,57 @@ export async function getCustomersReport(
       id: key,
       name: order.customerName?.trim() || "Buyer",
       phone: order.customerPhone || undefined,
-      orderCount: 0,
+      address: null,
+      orderRows: [],
       lastPaid: null,
       created: new Date(0),
-      totalBilled: dec(0),
-      paid: dec(0),
-      pending: dec(0),
       linked: false,
     };
     entry.name = entry.name || order.customerName?.trim() || "Buyer";
     entry.phone = entry.phone || order.customerPhone || undefined;
-    entry.orderCount += 1;
-    if (!isClosed(order.status)) {
-      const total = dec(order.grandTotal);
-      const paid = dec(order.paidTotal);
-      const due = total.minus(paid).minus(dec(order.tdsTotal));
-      entry.totalBilled = entry.totalBilled.plus(total);
-      entry.paid = entry.paid.plus(paid);
-      if (due.greaterThan(0)) entry.pending = entry.pending.plus(due);
-    }
+    entry.orderRows.push(order);
     byKey.set(key, entry);
   }
 
-  const all = [...byKey.values()];
-  const withDues = all.filter((entry) => entry.pending.greaterThan(0));
+  const all = [...byKey.values()].map((entry) => ({
+    entry,
+    summary: summarizeCustomerOrders(entry.orderRows),
+  }));
+  const withDues = all.filter(({ summary }) => summary.pending.greaterThan(0));
+  const hasPaid = all.filter(({ summary }) => summary.totalPaid.greaterThan(0));
+  const hasOpen = all.filter(({ summary }) => summary.openCount > 0);
   const pendingTotal = all.reduce(
-    (total, entry) => total.plus(entry.pending),
+    (total, { summary }) => total.plus(summary.pending),
     dec(0),
   );
+  const paidTotal = all.reduce(
+    (total, { summary }) => total.plus(summary.totalPaid),
+    dec(0),
+  );
+  const openOrders = all.reduce(
+    (total, { summary }) => total + summary.openCount,
+    0,
+  );
+
+  const segments: CustomerSegmentData[] = [
+    { key: "all", count: all.length, detail: "Everyone" },
+    { key: "dues", count: withDues.length, detail: formatAmount(pendingTotal) },
+    { key: "paid", count: hasPaid.length, detail: formatAmount(paidTotal) },
+    {
+      key: "active",
+      count: hasOpen.length,
+      detail: `${openOrders} open ${openOrders === 1 ? "order" : "orders"}`,
+    },
+  ];
 
   const query = filters.query.trim().toLowerCase().replace(/\D/g, "");
   const text = filters.query.trim().toLowerCase();
-  let rows = filters.withDues ? withDues : all;
+  let rows = all;
+  if (filters.segment === "dues") rows = withDues;
+  if (filters.segment === "paid") rows = hasPaid;
+  if (filters.segment === "active") rows = hasOpen;
   if (text) {
-    rows = rows.filter((entry) => {
+    rows = rows.filter(({ entry }) => {
       const nameHit = entry.name.toLowerCase().includes(text);
       const phoneHit = query.length > 0 &&
         (entry.phone ?? "").replace(/\D/g, "").includes(query);
@@ -421,49 +441,39 @@ export async function getCustomersReport(
   }
 
   const sorted = [...rows].sort((a, b) => {
-    if (filters.sort === "name") return a.name.localeCompare(b.name);
+    if (filters.sort === "name") return a.entry.name.localeCompare(b.entry.name);
     if (filters.sort === "recent") {
-      return b.created.getTime() - a.created.getTime();
+      return b.entry.created.getTime() - a.entry.created.getTime();
     }
-    if (a.pending.equals(b.pending)) return a.name.localeCompare(b.name);
-    return a.pending.greaterThan(b.pending) ? -1 : 1;
+    if (a.summary.pending.equals(b.summary.pending)) {
+      return a.entry.name.localeCompare(b.entry.name);
+    }
+    return a.summary.pending.greaterThan(b.summary.pending) ? -1 : 1;
   });
 
-  const mapped: CustomerReportRow[] = sorted.map((entry) => ({
+  const mapped: CustomerReportRow[] = sorted.map(({ entry, summary }) => ({
     id: entry.id,
     name: entry.name,
-    phone: entry.phone,
+    phoneMasked: maskPhoneLast4(entry.phone),
     subLabel: entry.subLabel,
-    orderCount: entry.orderCount,
+    locality: entry.address?.locality || undefined,
+    pincode: entry.address?.pincode || undefined,
+    orderCount: summary.orderCount,
+    completedCount: summary.completedCount,
+    cancelledCount: summary.cancelledCount,
+    openCount: summary.openCount,
     lastPaidDate: entry.lastPaid ? istDateString(entry.lastPaid) : null,
     createdDate: entry.created.getTime() > 0 ? istDateString(entry.created) : "",
-    totalBilled: formatAmount(entry.totalBilled),
-    paid: formatAmount(entry.paid),
-    pending: formatAmount(entry.pending),
-    hasDues: entry.pending.greaterThan(0),
+    totalBilled: formatAmount(summary.totalBilled),
+    totalPaid: formatAmount(summary.totalPaid),
+    pending: formatAmount(summary.pending),
+    hasDues: summary.pending.greaterThan(0),
     linked: entry.linked,
   }));
 
-  const tiles: ReportTile[] = [
-    { label: "Customers", value: String(all.length), period: "All" },
-    {
-      label: "With dues",
-      value: String(withDues.length),
-      period: "All",
-      tone: "warning",
-    },
-    {
-      label: "Pending",
-      value: formatAmount(pendingTotal),
-      period: "All",
-      tone: "warning",
-    },
-  ];
-
   return {
-    tiles,
+    segments,
     totalCount: all.length,
-    withDuesCount: withDues.length,
     pendingTotal: formatAmount(pendingTotal),
     rows: mapped,
   };

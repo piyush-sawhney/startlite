@@ -126,6 +126,7 @@ export type GuestCustomerAddress = {
   line1: string;
   line2: string;
   line3: string;
+  locality: string;
   city: string;
   state: string;
   country: string;
@@ -503,6 +504,7 @@ function normalizeCustomerAddress(value: unknown): GuestCustomerAddress | null {
     line1,
     line2: clampText(raw.line2, 80).trim(),
     line3: clampText(raw.line3, 80).trim(),
+    locality: clampText(raw.locality, 80).trim(),
     city: clampText(raw.city, 60).trim(),
     state: clampText(raw.state, 60).trim(),
     country: clampText(raw.country, 60).trim() || "India",
@@ -723,8 +725,13 @@ export type GuestCustomer = {
   name: string;
   phone: string;
   pendingPaise: number;
+  /** Lifetime totals; dues only come from open orders. */
   totalPaise: number;
+  paidPaise: number;
   orderCount: number;
+  completedCount: number;
+  cancelledCount: number;
+  openCount: number;
   lastPaidAt: string | null;
   subLabel: string;
   address: GuestCustomerAddress | null;
@@ -760,7 +767,11 @@ export function guestCustomers(state: GuestState): GuestCustomer[] {
       phone: record.phone,
       pendingPaise: 0,
       totalPaise: 0,
+      paidPaise: 0,
       orderCount: 0,
+      completedCount: 0,
+      cancelledCount: 0,
+      openCount: 0,
       lastPaidAt: null,
       subLabel: record.subLabel,
       address: record.address,
@@ -769,7 +780,6 @@ export function guestCustomers(state: GuestState): GuestCustomer[] {
   }
 
   for (const order of state.orders) {
-    if (isCancelled(order.status)) continue;
     const key = guestCustomerKey(order);
     if (!key) continue;
     const totals = guestOrderTotals(order);
@@ -783,7 +793,11 @@ export function guestCustomers(state: GuestState): GuestCustomer[] {
         phone: order.customerPhone,
         pendingPaise: 0,
         totalPaise: 0,
+        paidPaise: 0,
         orderCount: 0,
+        completedCount: 0,
+        cancelledCount: 0,
+        openCount: 0,
         lastPaidAt: null,
         subLabel: "",
         address: null,
@@ -792,8 +806,11 @@ export function guestCustomers(state: GuestState): GuestCustomer[] {
 
     entry.name = order.customerName || entry.name;
     entry.phone = order.customerPhone || entry.phone;
-    entry.pendingPaise += isCompleted(totals.status) ? 0 : totals.duePaise;
-    if (!isCompleted(totals.status) && totals.duePaise > 0) {
+    if (isCompleted(totals.status)) entry.completedCount += 1;
+    if (isCancelled(totals.status)) entry.cancelledCount += 1;
+    if (!isClosed(totals.status)) entry.openCount += 1;
+    if (!isClosed(totals.status) && totals.duePaise > 0) {
+      entry.pendingPaise += totals.duePaise;
       entry.orderDues.push({
         id: order.id,
         code: order.code,
@@ -803,6 +820,7 @@ export function guestCustomers(state: GuestState): GuestCustomer[] {
       });
     }
     entry.totalPaise += totals.totalPaise;
+    entry.paidPaise += totals.paidPaise;
     entry.orderCount += 1;
     for (const payment of order.payments) {
       if (!entry.lastPaidAt || payment.paidAt > entry.lastPaidAt) {

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { localityAndPincode } from "./customer-address";
 import {
+  addGuestCustomer,
   addGuestItem,
   addGuestOrder,
   addGuestPayment,
@@ -97,6 +99,50 @@ describe("guest store", () => {
     expect(customers[0].name).toBe("Asha");
     expect(customers[0].pendingPaise).toBe(45000);
     expect(customers[0].orderCount).toBe(2);
+    expect(customers[0].completedCount).toBe(0);
+    expect(customers[0].cancelledCount).toBe(0);
+    expect(customers[0].paidPaise).toBe(10000);
+  });
+
+  it("counts cancelled orders without carrying their dues", () => {
+    let state = createGuestState("bakery");
+    state = addGuestOrder(state, {
+      customerName: "Ravi",
+      customerPhone: "9000000009",
+      lines: [
+        { itemName: "Cake", quantity: "1", unitPrice: "500.00", unitLabel: "cake" },
+      ],
+      paidAmount: "100.00",
+    }).state;
+    state = setGuestOrderStatus(state, state.orders[0].id, "cancelled");
+
+    const customer = guestCustomers(state)[0];
+    expect(customer.orderCount).toBe(1);
+    expect(customer.cancelledCount).toBe(1);
+    expect(customer.totalPaise).toBe(50000);
+    expect(customer.paidPaise).toBe(10000);
+    expect(customer.pendingPaise).toBe(0);
+  });
+
+  it("keeps the locality and pincode on a guest customer", () => {
+    let state = createGuestState("grocery");
+    state = addGuestCustomer(state, {
+      name: "Meena",
+      address: {
+        line1: "12 Main Street",
+        line2: "",
+        line3: "",
+        locality: "Kothrud",
+        city: "Pune",
+        state: "MH",
+        country: "India",
+        pincode: "411038",
+      },
+    });
+
+    expect(localityAndPincode(guestCustomers(state)[0].address)).toBe(
+      "Kothrud · 411038",
+    );
   });
 
   it("marks custom catalog work as content and builds an import payload", () => {

@@ -11,6 +11,7 @@ import type {
   ReportSort,
 } from "@/lib/report-types";
 import { ChevronDown } from "lucide-react";
+import { CustomerFilterCards } from "./CustomerCards";
 import { ReportShell } from "./ReportShell";
 
 const SORT_LABELS: Record<ReportSort, string> = {
@@ -20,7 +21,7 @@ const SORT_LABELS: Record<ReportSort, string> = {
 };
 
 const GRID =
-  "grid grid-cols-1 gap-x-4 gap-y-1 px-3 py-3 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)_72px_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,0.9fr)] lg:items-center";
+  "grid grid-cols-1 gap-x-4 gap-y-1 px-3 py-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,0.85fr)_minmax(0,0.85fr)_minmax(0,0.9fr)] lg:items-center";
 
 export function CustomersReport({
   data,
@@ -38,7 +39,7 @@ export function CustomersReport({
     const merged = { ...filters, ...next };
     const params = new URLSearchParams();
     if (merged.query.trim()) params.set("q", merged.query.trim());
-    if (merged.withDues) params.set("dues", "1");
+    if (merged.segment !== "all") params.set("segment", merged.segment);
     if (merged.sort !== "pending") params.set("sort", merged.sort);
     const query = params.toString();
     router.push(query ? `/customers?${query}` : "/customers");
@@ -51,7 +52,8 @@ export function CustomersReport({
     <ReportShell
       title="Customers"
       subtitle={subtitle}
-      tiles={data.tiles}
+      tiles={[]}
+      summary={<CustomerFilterCards segments={data.segments} filters={filters} />}
       filters={
         <div className="flex flex-wrap items-center gap-2">
           <form
@@ -73,32 +75,6 @@ export function CustomersReport({
               className="block min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-small text-ink placeholder:text-ink-subtle focus:border-accent/50 focus:outline-none"
             />
           </form>
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              aria-pressed={!filters.withDues}
-              onClick={() => update({ withDues: false })}
-              className={`min-h-11 rounded-xl px-3 text-caption font-bold transition ${
-                !filters.withDues
-                  ? "bg-accent-soft text-accent-strong"
-                  : "text-ink-muted hover:bg-muted"
-              }`}
-            >
-              All
-            </button>
-            <button
-              type="button"
-              aria-pressed={filters.withDues}
-              onClick={() => update({ withDues: true })}
-              className={`min-h-11 rounded-xl px-3 text-caption font-bold transition ${
-                filters.withDues
-                  ? "bg-accent-soft text-accent-strong"
-                  : "text-ink-muted hover:bg-muted"
-              }`}
-            >
-              With dues
-            </button>
-          </div>
         </div>
       }
     >
@@ -177,12 +153,12 @@ export function CustomersReport({
                 aria-hidden="true"
                 className={`${GRID} hidden border-b border-line py-2 lg:grid`}
               >
-                <span className="eyebrow text-ink-subtle">Customer</span>
-                <span className="eyebrow text-ink-subtle">Phone</span>
+                <span className="eyebrow text-ink-subtle">Name</span>
+                <span className="eyebrow text-ink-subtle">Mobile</span>
                 <span className="eyebrow text-ink-subtle">Orders</span>
-                <span className="eyebrow text-ink-subtle">Billed</span>
-                <span className="eyebrow text-ink-subtle">Last paid</span>
-                <span className="eyebrow text-right text-ink-subtle">Pending</span>
+                <span className="eyebrow text-ink-subtle">Total billed</span>
+                <span className="eyebrow text-ink-subtle">Total paid</span>
+                <span className="eyebrow text-right text-ink-subtle">Balance due</span>
               </div>
               <div className="divide-y divide-line">
                 {data.rows.map((row) => {
@@ -197,18 +173,44 @@ export function CustomersReport({
                             {row.subLabel}
                           </span>
                         ) : null}
+                        {row.locality || row.pincode ? (
+                          <span className="block truncate text-caption text-ink-subtle">
+                            {[row.locality, row.pincode].filter(Boolean).join(" · ")}
+                          </span>
+                        ) : null}
                       </span>
-                      <span className="truncate text-caption text-ink-muted">
-                        {row.phone ?? "No phone"}
+                      <span className="min-w-0">
+                        <span className="block truncate text-caption text-ink-muted">
+                          {row.phoneMasked ?? "No phone"}
+                        </span>
+                        <span className="block truncate text-caption text-ink-subtle">
+                          {row.lastPaidDate
+                            ? `Paid on ${row.lastPaidDate}`
+                            : "No payments"}
+                        </span>
                       </span>
-                      <span className="text-caption text-ink-muted">
-                        {row.orderCount} {row.orderCount === 1 ? "order" : "orders"}
+                      <span className="min-w-0">
+                        <span className="block text-small font-semibold text-ink">
+                          <span className="lg:hidden">
+                            {row.orderCount} {row.orderCount === 1 ? "order" : "orders"}
+                          </span>
+                          <span className="hidden lg:inline">{row.orderCount}</span>
+                        </span>
+                        <span className="block truncate text-caption text-ink-muted">
+                          {row.completedCount} done · {row.cancelledCount} cancelled
+                        </span>
                       </span>
-                      <span className="figure text-small text-ink">
-                        {row.totalBilled}
+                      <span className="text-small text-ink">
+                        <span className="text-caption text-ink-subtle lg:hidden">
+                          Billed ·{" "}
+                        </span>
+                        <span className="figure">{row.totalBilled}</span>
                       </span>
-                      <span className="text-caption text-ink-muted">
-                        {row.lastPaidDate ?? "—"}
+                      <span className="text-small text-ink">
+                        <span className="text-caption text-ink-subtle lg:hidden">
+                          Paid ·{" "}
+                        </span>
+                        <span className="figure">{row.totalPaid}</span>
                       </span>
                       <span className="text-left lg:text-right">
                         <span
@@ -219,18 +221,19 @@ export function CustomersReport({
                         <span
                           className={`mt-0.5 block text-caption font-semibold lg:hidden ${row.hasDues ? "text-warning" : "text-ink-subtle"}`}
                         >
-                          {row.hasDues ? "Pending" : "No dues"}
+                          {row.hasDues ? "Due" : "Clear"}
                         </span>
                       </span>
                     </>
                   );
 
                   const className = `${GRID} transition hover:bg-muted/60`;
+                  const label = `${row.name}, ${row.phoneMasked ?? "no phone"}, ${row.pending} due`;
                   return row.linked ? (
                     <Link
                       key={row.id}
                       href={`/customers/${row.id}`}
-                      aria-label={`${row.name}, ${row.pending} pending`}
+                      aria-label={label}
                       className={className}
                     >
                       {content}
@@ -239,7 +242,7 @@ export function CustomersReport({
                     <div
                       key={row.id}
                       role="group"
-                      aria-label={`${row.name}, ${row.pending} pending`}
+                      aria-label={label}
                       className={className}
                     >
                       {content}

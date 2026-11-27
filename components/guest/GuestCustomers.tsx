@@ -6,6 +6,11 @@ import {
   StatusPill,
   primaryButton,
 } from "@/components/ui";
+import {
+  formatCustomerAddress,
+  localityAndPincode,
+} from "@/lib/customer-address";
+import { maskPhoneLast4 } from "@/lib/contact";
 import { formatPaise } from "@/lib/paise";
 import {
   guestCustomerOrders,
@@ -56,10 +61,25 @@ export function GuestCustomersList({ state, go }: GuestViewProps) {
                 <div className="min-w-0">
                   <p className="truncate font-medium">{customer.name}</p>
                   <p className="mt-0.5 text-xs text-ink-muted">
-                    {customer.phone || "No phone"}
+                    {maskPhoneLast4(customer.phone)}
                     {customer.lastPaidAt
                       ? ` · Paid ${shortDate(customer.lastPaidAt)}`
                       : " · No payments yet"}
+                  </p>
+                  <p className="mt-1 text-xs text-ink-muted">
+                    {customer.orderCount} order
+                    {customer.orderCount === 1 ? "" : "s"} ·{" "}
+                    {customer.completedCount} done ·{" "}
+                    {customer.cancelledCount} cancelled
+                  </p>
+                  {localityAndPincode(customer.address) ? (
+                    <p className="mt-1 truncate text-xs text-ink-subtle">
+                      {localityAndPincode(customer.address)}
+                    </p>
+                  ) : null}
+                  <p className="mt-1 text-xs text-ink-muted">
+                    Billed <span className="tnum font-semibold">{formatPaise(customer.totalPaise)}</span> · Paid{" "}
+                    <span className="tnum font-semibold">{formatPaise(customer.paidPaise)}</span>
                   </p>
                 </div>
                 <div className="shrink-0 text-right">
@@ -121,8 +141,9 @@ export function GuestCustomerDetail({
             {customer.name}
           </h1>
           <p className="mt-1 text-sm text-ink-muted">
-            {customer.phone || "No phone"} · {customer.orderCount} order
-            {customer.orderCount === 1 ? "" : "s"}
+            {maskPhoneLast4(customer.phone)} · {customer.orderCount} order
+            {customer.orderCount === 1 ? "" : "s"} · {customer.completedCount} done ·{" "}
+            {customer.cancelledCount} cancelled
           </p>
         </div>
         <div className="text-right">
@@ -161,6 +182,15 @@ export function GuestCustomerDetail({
           Add sale for {customer.name.split(" ")[0]}
         </button>
       </div>
+
+      <section className="mt-5 rounded-2xl border border-line bg-surface p-4">
+        <p className="text-xs font-semibold text-ink-muted">Phone</p>
+        <p className="mt-1 text-sm">{maskPhoneLast4(customer.phone)}</p>
+        <p className="mt-3 text-xs font-semibold text-ink-muted">Address</p>
+        <p className="mt-1 whitespace-pre-line text-sm">
+          {formatCustomerAddress(customer.address) || "—"}
+        </p>
+      </section>
 
       <section className="mt-6">
         <SectionTitle>Orders</SectionTitle>
@@ -221,6 +251,20 @@ function CustomerSummary({ customer }: { customer: GuestCustomer }) {
         <span className="text-sm text-ink-muted">Total billed</span>
         <span className="tnum text-sm font-semibold">
           {formatPaise(customer.totalPaise)}
+        </span>
+      </div>
+      <div className="mt-2 flex items-baseline justify-between gap-3">
+        <span className="text-sm text-ink-muted">Total paid</span>
+        <span className="tnum text-sm font-semibold text-success">
+          {formatPaise(customer.paidPaise)}
+        </span>
+      </div>
+      <div className="mt-2 flex items-baseline justify-between gap-3">
+        <span className="text-sm text-ink-muted">Pending</span>
+        <span
+          className={`tnum text-sm font-semibold ${customer.pendingPaise > 0 ? "text-warning" : "text-ink-subtle"}`}
+        >
+          {formatPaise(customer.pendingPaise)}
         </span>
       </div>
       <div className="mt-2 flex items-baseline justify-between gap-3">

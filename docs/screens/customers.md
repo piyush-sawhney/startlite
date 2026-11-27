@@ -18,7 +18,8 @@ follow-up. The page answers:
 
 - Who has a pending amount.
 - When each buyer last paid.
-- How many orders each buyer has.
+- How many orders each buyer has, including completed and cancelled ones.
+- How much has been billed and collected in total.
 
 ## Arrival and exit
 
@@ -54,22 +55,22 @@ replaces the bottom tabs. The 360 px right column stays empty on report pages.
 │ Customers  18 people · All │
 ├────────────────────────────┤
 │ ┌──────────┬──────────┐    │
-│ │Customers │With dues │    │
-│ │18        │7         │    │
+│ │All cust. │With dues │    │
+│ │18  •     │7   ₹14.2k│    │
 │ ├──────────┼──────────┤    │
-│ │Pending   │          │    │
-│ │₹14,200   │          │    │
+│ │Has paid  │Active    │    │
+│ │12  ₹52k  │9   8 jobs│    │
 │ └──────────┴──────────┘    │
 ├────────────────────────────┤
 │ Search name or phone       │
-│ All | With dues            │
 ├────────────────────────────┤
 │ Customers: Total 18        │
 │ ─────────────────────────  │
 │ Sana · Regular             │
-│ 98765 43210 · 4 orders     │
-│ Billed ₹5,600 Last 21-Nov  │
-│              Pending ₹2,400│
+│ Kothrud · 411038           │
+│ ••••••3210 · Paid on 21-Nov│
+│ 4  ·  2 done · 1 cancelled │
+│ ₹5,600  ₹4,900  ₹700 due   │
 └────────────────────────────┘
 ```
 
@@ -77,12 +78,12 @@ replaces the bottom tabs. The 360 px right column stays empty on report pages.
 1200 px
 rail │ main column                                │ right column
      │ Customers  18 people · All                 │ empty
-     │ ┌─────────┬──────────┬─────────┐            │
-     │ │Customers│ With dues│ Pending │            │
-     │ └─────────┴──────────┴─────────┘            │
-     │ [Search name or phone] [With dues]          │
+     │ ┌─────────┬──────────┬─────────┬─────────┐ │
+     │ │All      │ With dues│ Has paid│ Active  │ │
+     │ └─────────┴──────────┴─────────┴─────────┘ │
+     │ [Search name or phone]                     │
      │ Customers: Total 18       Sort: Pending     │
-     │ CUSTOMER PHONE ORDERS BILLED LAST PAID PEND │
+     │ NAME MOBILE ORDERS BILLED PAID DUE         │
      │ row · row · row · row                       │
 ```
 
@@ -90,8 +91,8 @@ rail │ main column                                │ right column
 |---|---|---|---|
 | Navigation | Bottom tabs | Bottom tabs | Collapsible rail |
 | Page header | 72 px | 72 px | 80 px |
-| Summary strip | Two by two grid, third tile spans two columns | Three in a row | Three in a row |
-| Filters | Wrapped rows | One row | One row |
+| Filter cards | Two by two grid, tappable | Four in a row | Four in a row |
+| Filters | Search only | One row | One row |
 | List card | Page flow | Page flow | Page flow, full main width |
 
 ## Zones
@@ -103,66 +104,81 @@ example `18 people · All`. There is no filled action button on the page. New
 customer records start from a sale or from a previous due in customer detail.
 Hidden: the page header keeps the title but drops the count while loading.
 
-### Summary strip
+### Filter cards
 
-Three tiles in this order: `Customers`, `With dues`, `Pending`. Each tile uses
-the shared metric anatomy from
-[report list anatomy](README.md#report-list-anatomy). The period is always
-`All`. `Pending` is the sum of unpaid amounts across all buyers with a positive
-balance. Empty: all three tiles show zero. Hidden: the strip is hidden for a
-session-expired owner.
+Four cards replace the old metric strip. Each card shows a count and a short
+detail line, and tapping it filters the list to that group:
+
+| Card | Filters to | Detail line |
+|---|---|---|
+| `All customers` | Every buyer | `Everyone` |
+| `With dues` | Positive balance on open orders | Pending amount |
+| `Has paid` | At least one payment ever | Lifetime collected amount |
+| `Active orders` | At least one non-closed order | Number of open orders |
+
+The active card gets an accent border and a dot, and exposes `aria-current`.
+Counts come from all buyers, never from the current filter. Empty: each card
+shows zero. Hidden: the cards are hidden for a session-expired owner.
 
 ### Filters
 
-The search field accepts a name or phone digits. The `With dues` pill shows only
-buyers with a positive pending amount. The default filter is `All`. There is no
-period filter because customer records have no period. Empty: the filter bar is
-hidden when the shop has no customers. Hidden: the `With dues` pill is hidden
-when no buyer has dues.
+The search field accepts a name or phone digits. The old `All | With dues` pills
+are gone: the cards are the only segment control, so the same choice is not
+shown twice. The default segment is `All customers`. Sort keys are `Pending`,
+`Name`, and `Recently added`. There is no period filter because customer records
+have no period. Empty: the filter bar is hidden when the shop has no customers.
 
 ### Customer list
 
 The card header follows the
 [report list anatomy](README.md#report-list-anatomy). It shows `Customers:`,
-`Total {count}`, and the collapse chevron. It has no total amount. `Pending`
-lives in the summary strip. Sort keys are `Pending`, `Name`, and `Recently
-added`. `Pending` is the default. Sort ties break on name. The list has no row
-cap. Empty: `No customers yet.` and Add sale. Hidden: the list card is hidden
-while loading.
+`Total {count}`, and the collapse chevron. It has no total amount: money totals
+live on the filter cards and in the money columns, not in the header. `Pending`
+is the default sort. Sort ties break on name. The list has no row cap. Empty:
+`No customers yet.` and Add sale. Hidden: the list card is hidden while loading.
 
 ### Customer row
 
-On desktop the list has aligned columns with eyebrow headings: `Customer`,
-`Phone`, `Orders`, `Billed`, `Last paid`, and `Pending`. A row uses one grid and
-one `figure` column for each amount. On mobile the same cells stack in one
+On desktop the list has aligned columns with eyebrow headings: `Name`, `Mobile`,
+`Orders`, `Total billed`, `Total paid`, and `Balance due`. A row uses one grid
+and one `figure` column for each amount. On mobile the same cells stack in one
 column.
 
 | Cell | Content |
 |---|---|
-| Customer | Name, or the phone when no name exists. Sub-label on a second line when one exists |
-| Phone | Phone digits, or `No phone` |
-| Orders | `{n} orders` |
-| Billed | Sum of open order totals, `figure` utility |
-| Last paid | Date from `last_paid_at`, or `—` |
-| Pending | Pending amount, `figure` utility. Caption `Pending` or `No dues` on mobile |
+| Name | Name, or the phone when no name exists. Sub-label on a second line; `locality · pincode` from the stored address on a third line |
+| Mobile | Phone masked to the last four digits (e.g. `••••••3210`), or `No phone`; `Paid on {date}` on a second line |
+| Orders | Count only on desktop (`4`); `{n} orders` on mobile. Caption `{completed} done · {cancelled} cancelled` |
+| Total billed | Lifetime sum of order totals, `figure` utility |
+| Total paid | Lifetime sum of payments, `figure` utility |
+| Balance due | Positive balance on open orders, `figure` utility. Caption `Due` or `Clear` on mobile |
 
-A row with no pending amount stays in the list under `All`. It is hidden under
-`With dues`. Names and phone digits never wrap to a third line.
+Raw phone digits are never sent to the list; search still matches them on the
+server. A row with no pending amount stays in the list under `All customers`. It
+is hidden under `With dues`. Names, masked phone numbers, and the locality line
+truncate instead of wrapping.
 
 ### Customer detail
 
 `/customers/{id}` opens one customer record. It answers who the buyer is and
-what they owe. The page has four metric tiles: `Orders`, `Billed`, `Paid`, and
-`Pending`. `Billed` and `Paid` cover open orders only. Closed orders stay out of
-both totals.
+what they owe. Four cards use the list's card anatomy: `Orders` (with a
+`completed · cancelled` detail line), `Total billed`, `Total paid`, and `Balance
+due`. Billed and paid cover every order; the balance covers open orders only.
+There is no separate Completed or Cancelled tile because the Orders card already
+carries that split.
 
-Contact actions are `Call`, `SMS`, and `WhatsApp`. A reminder message includes
-the pending amount when one exists. The details card shows phone, label, last
-paid, customer since, and notes from
-[customers](../data-model.md#customers). The orders card lists every order for
-that buyer with order code, needed-by date, placed-on date, status, total, and
-due. Add previous due stays below the orders. Empty: the orders card says `No
-orders yet.` Hidden: contact actions are hidden when the customer has no phone.
+The header subtitle shows `locality · pincode`, or `Customer since {date}` when
+there is no address. The header never repeats the phone or label: the details
+card is the only place for phone, label, address, last paid, customer since, and
+notes from [customers](../data-model.md#customers). Contact actions are `Call`,
+`SMS`, and `WhatsApp` and still use the full number. The address uses
+`line1`–`line3`, then `locality, city, state`, then `country pincode`. The guest
+detail shows phone and address in its own card.
+
+The orders card lists every order for that buyer under `Order`, `Needed`,
+`Placed`, `Status`, `Bill total`, `Paid`, and `Balance`. Add previous due stays
+below the orders. Empty: the orders card says `No orders yet.` Hidden: contact
+actions are hidden when the customer has no phone.
 
 ## Guest and owner
 
@@ -172,7 +188,11 @@ orders yet.` Hidden: contact actions are hidden when the customer has no phone.
 | State pill | `Not saved` | `Saved` or `Offline` |
 | Request bar | Hidden | Shown when requests wait |
 | Customer identity | Key from phone, then customer id, then name | Customer id with phone as the lookup |
+| Phone display | Masked to the last four digits in both list and detail | Masked to the last four digits in both list and detail |
 | Detail actions | Add sale, remove not available | Add sale, Add previous due, call, WhatsApp |
+
+Both visitors see the same counts and money rules. Guest statuses come from
+`guestOrderTotals()`, which can promote a paid `ready` order to `completed`.
 
 Owner and guest both merge records with buyers found in orders. A buyer who
 gives no phone stays a separate record. See
@@ -181,24 +201,29 @@ gives no phone stays a separate record. See
 ## Data
 
 The owner adapter is `getCustomersReport(businessId, filters)` in
-[queries.ts](../../lib/queries.ts). The guest adapter is
-`guestCustomersReport(state, filters)` in
-[guest-store.ts](../../lib/guest-store.ts). Both return
-`CustomersReportData`. The shared shapes live in `lib/report-types.ts`, which
-implementation adds. The page component never reads a database or local storage
+[queries.ts](../../lib/queries.ts). It returns `CustomersReportData` from
+[report-types.ts](../../lib/report-types.ts) and renders through
+`components/reports/CustomersReport.tsx`. The guest list is built from
+`guestCustomers(state)` in [guest-store.ts](../../lib/guest-store.ts) and renders
+through `components/guest/GuestCustomers.tsx`. ADR-040 describes a shared report
+page; the guest report adapter has not been built yet, so the two views share the
+display rules and helpers rather than one component. Neither page reads storage
 directly.
 
 | Value | Source |
 |---|---|
 | Row | [customers](../data-model.md#customers) merged with order totals |
-| Pending | `pendingByCustomer` from open orders with a positive balance |
-| Order count, billed, paid, pending | Open orders with a positive balance. Closed orders are excluded |
+| Counts, billed, paid | `summarizeCustomerOrders()` over every order; declined counts as cancelled |
+| Pending | Positive balance on open orders only. Closed orders are excluded |
+| Masked phone | `maskPhoneLast4()` in [contact.ts](../../lib/contact.ts) |
+| Locality, pincode | `address` on the customer record, or guest `address` in local storage |
 | Last paid | `last_paid_at` on the customer record, written by a payment |
 | Label, notes, customer since | `sub_label`, `notes`, and `created_at` on the customer record |
 | Search index | Customer lookup `(business_id, phone)` in [data-model.md](../data-model.md#indexes) |
 
-Guest totals use integer paise through [paise.ts](../../lib/paise.ts). The guest
-adapter applies the same pending rule as the owner adapter.
+Guest totals use integer paise through [paise.ts](../../lib/paise.ts) and the
+same open-order dues rule. Guest order status comes from `guestOrderTotals()`,
+which can promote a paid `ready` order to `completed`.
 
 ## Interactions
 
@@ -206,7 +231,7 @@ adapter applies the same pending rule as the owner adapter.
 |---|---|
 | Tap a row | Opens `/customers/{id}` with filters kept in the URL |
 | Type in search | Updates the URL and filters the list |
-| Tap a pill | Sets the filter and updates the URL |
+| Tap a filter card | Sets the customer segment and updates the URL |
 | Tap sort | Opens a small menu. One tap sets the sort and closes the menu |
 | Tap the chevron | Collapses or expands the list. State is local to the page |
 | Back | Returns to the previous view with filters kept |
@@ -217,7 +242,7 @@ adapter applies the same pending rule as the owner adapter.
 | State | What appears |
 |---|---|
 | First run | Empty state with Add sale |
-| Loading | Skeleton with the final header, three tiles, filter bar, and five row heights |
+| Loading | Skeleton with the final header, four card outlines, search bar, and five row heights |
 | Empty filter | `No customers for this filter.` and Clear filters |
 | Offline owner | Last loaded rows and the `Offline` pill |
 | Offline guest | All rows work. Pill stays `Not saved` |
@@ -230,14 +255,15 @@ adapter applies the same pending rule as the owner adapter.
 |---|---|
 | Page title | `Customers` |
 | Subtitle | `{n} people · All` |
-| Metric tiles | `Customers`, `With dues`, `Pending` |
+| Filter cards | `All customers`, `With dues`, `Has paid`, `Active orders` |
 | Search placeholder | `Search name or phone` |
-| Filter pills | `All`, `With dues` |
 | Sort options | `Pending`, `Name`, `Recently added` |
-| Column labels | `Customer`, `Phone`, `Orders`, `Billed`, `Last paid`, `Pending` |
-| Row labels | `No phone`, `—`, `{n} orders` |
-| Amount captions | `Pending`, `No dues` |
-| Detail labels | `Customer details`, `Phone`, `Label`, `Last paid`, `Customer since`, `Note:`, `Orders`, `No orders yet.` |
+| Column labels | `Name`, `Mobile`, `Orders`, `Total billed`, `Total paid`, `Balance due` |
+| Row labels | `No phone`, `—`, `{n} orders`, `{n} done · {n} cancelled`, `No payments`, `Paid on {date}` |
+| Amount captions | `Due`, `Clear` |
+| Detail cards | `Orders`, `Total billed`, `Total paid`, `Balance due` |
+| Detail table labels | `Order`, `Needed`, `Placed`, `Status`, `Bill total`, `Paid`, `Balance` |
+| Detail labels | `Customer details`, `Phone`, `Label`, `Address`, `Last paid`, `Customer since`, `Note:`, `No orders yet.` |
 | Detail actions | `Call`, `SMS`, `WhatsApp`, `Add previous due` |
 | Empty list | `No customers yet.` and `Add sale` |
 | Empty filter | `No customers for this filter.` and `Clear filters` |
@@ -246,11 +272,12 @@ adapter applies the same pending rule as the owner adapter.
 ## Accessibility and performance
 
 - Each row is one link with an accessible name that includes the customer name,
-  phone, and pending amount.
+  masked phone, and balance due.
+- Filter cards are links with `aria-current` on the active segment.
 - Contact actions in detail use the shared 44 px target and an accessible name.
 - Amounts use tabular numerals and never animate.
 - Search input has a visible label. The placeholder is not the label.
-- Filter pills use `aria-pressed`. The sort menu uses `aria-expanded`.
+- The sort menu uses `aria-expanded`.
 - Tap targets are at least 44 px with 8 px gaps.
 - The list has no cap. The adapter sorts and filters before render.
 - Loading uses final heights. Data replaces the skeleton in place.

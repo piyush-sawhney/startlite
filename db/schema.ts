@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import type { CustomerAddress } from "@/lib/customer-address";
 import {
   boolean,
   date,
@@ -172,6 +173,7 @@ export const customers = pgTable(
     phone: text("phone"),
     subLabel: text("sub_label"),
     notes: text("notes"),
+    address: jsonb("address").$type<CustomerAddress | null>(),
     lastPaidAt: timestamp("last_paid_at", { withTimezone: true }),
     createdAt: createdAt(),
   },

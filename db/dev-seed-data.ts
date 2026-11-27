@@ -617,3 +617,105 @@ export const DEV_BUSINESSES: DevBusinessSeed[] = [
     customItem: { name: "Dog walking pack", price: "1200.00", unit: "week" },
   },
 ];
+
+/* ------------------------------------------------------------------ */
+/* Account and address helpers                                         */
+/* ------------------------------------------------------------------ */
+
+const BANK_PROFILES = [
+  { upi: "okhdfcbank", ifsc: "HDFC0001234" },
+  { upi: "okaxis", ifsc: "UTIB0001122" },
+  { upi: "oksbi", ifsc: "SBIN0001234" },
+  { upi: "okicici", ifsc: "ICIC0001234" },
+] as const;
+
+const MOBILE_PREFIXES = ["98765", "90000", "98123", "99001", "96321"];
+
+/** City facts used for customer addresses and storefront locale. */
+export const CITY_DETAILS: Record<
+  string,
+  { state: string; pincode: string; locale: string }
+> = {
+  Pune: { state: "Maharashtra", pincode: "411038", locale: "mr" },
+  Bengaluru: { state: "Karnataka", pincode: "560011", locale: "en" },
+  Mumbai: { state: "Maharashtra", pincode: "400050", locale: "en" },
+  Ahmedabad: { state: "Gujarat", pincode: "380015", locale: "gu" },
+  Delhi: { state: "Delhi", pincode: "110024", locale: "hi-Latn" },
+  Lucknow: { state: "Uttar Pradesh", pincode: "226010", locale: "hi" },
+  Bhopal: { state: "Madhya Pradesh", pincode: "462003", locale: "hi" },
+  Noida: { state: "Uttar Pradesh", pincode: "201301", locale: "hi-Latn" },
+  Hyderabad: { state: "Telangana", pincode: "500034", locale: "en" },
+  Chennai: { state: "Tamil Nadu", pincode: "600040", locale: "ta" },
+  Jaipur: { state: "Rajasthan", pincode: "302017", locale: "hi" },
+  Kolkata: { state: "West Bengal", pincode: "700064", locale: "en" },
+  Gurugram: { state: "Haryana", pincode: "122009", locale: "hi-Latn" },
+  Patna: { state: "Bihar", pincode: "800001", locale: "hi" },
+  Chandigarh: { state: "Chandigarh", pincode: "160022", locale: "hi" },
+  Kochi: { state: "Kerala", pincode: "682016", locale: "en" },
+};
+
+export function cityDetails(locality: string) {
+  const city = locality.split(",")[1]?.trim() || "Pune";
+  return {
+    city,
+    area: locality.split(",")[0]?.trim() || city,
+    ...(CITY_DETAILS[city] ?? CITY_DETAILS.Pune),
+  };
+}
+
+/** Country code plus ten digits, stored as plain digits like real accounts. */
+export function devWhatsappNumber(index: number): string {
+  const prefix = MOBILE_PREFIXES[index % MOBILE_PREFIXES.length];
+  return `91${prefix}${String((index * 3571 + 60427) % 100000).padStart(5, "0")}`;
+}
+
+export function devCustomerPhone(seedIndex: number, index: number): string {
+  const prefix = MOBILE_PREFIXES[(index + seedIndex) % MOBILE_PREFIXES.length];
+  return `${prefix}${String((seedIndex * 7919 + index * 104729 + 48211) % 100000).padStart(5, "0")}`;
+}
+
+export function devUpiId(seed: DevBusinessSeed, index: number): string {
+  const handle = seed.ownerName
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, "")
+    .trim()
+    .split(/\s+/)
+    .join(".");
+  return `${handle}@${BANK_PROFILES[index % BANK_PROFILES.length].upi}`;
+}
+
+/** Cash-first shops have no bank details to show on a bill. */
+export function devBankDetails(
+  seed: DevBusinessSeed,
+  index: number,
+): { accountName: string; accountNumber: string; ifsc: string } | null {
+  if (index % 3 === 0) return null;
+  const bank = BANK_PROFILES[index % BANK_PROFILES.length];
+  return {
+    accountName: seed.ownerName,
+    accountNumber: String(10000000000000 + index * 123457),
+    ifsc: bank.ifsc,
+  };
+}
+
+export function devEnableTimeSlots(pack: string): boolean {
+  return !["freelance", "tutoring", "wellness"].includes(pack);
+}
+
+/** Consultation-style trades use a neutral bill header. */
+export function devPrivacyMode(pack: string): boolean {
+  return ["tutoring", "wellness", "freelance"].includes(pack);
+}
+
+export function devNoticeBanner(index: number): string | null {
+  if (index % 7 === 3) return "Closed on Tuesdays";
+  if (index % 11 === 5) return "Cash and UPI accepted";
+  return null;
+}
+
+export function devAdvancePolicy(pack: string): string | null {
+  if (["food", "bakery", "rentals"].includes(pack)) {
+    return "50% advance confirms your order.";
+  }
+  return null;
+}

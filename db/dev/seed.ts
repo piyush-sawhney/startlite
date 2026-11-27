@@ -30,6 +30,15 @@ import {
   DEV_SEED_PASSWORD,
   PACK_COLORS,
   PACK_SEED_PROFILES,
+  cityDetails,
+  devAdvancePolicy,
+  devBankDetails,
+  devCustomerPhone,
+  devEnableTimeSlots,
+  devNoticeBanner,
+  devPrivacyMode,
+  devUpiId,
+  devWhatsappNumber,
   type DevBusinessSeed,
   type PackSeedProfile,
 } from "../dev-seed-data";
@@ -189,6 +198,10 @@ type OrderSeed = {
   paymentMode: string;
   billNo: string | null;
   deliveryNote?: string | null;
+  tds?: string;
+  adjustment?: { amount: string; reason: string };
+  followUpDate?: string;
+  progressNote?: string | null;
 };
 
 async function ensurePlatformSettings() {
@@ -229,6 +242,17 @@ async function createOwner(seed: DevBusinessSeed) {
   if (!owner) {
     throw new Error(`Sign-up did not create ${seed.email}`);
   }
+
+  // Dev accounts behave like verified owners instead of fresh sign-ups.
+  await db
+    .update(user)
+    .set({
+      emailVerified: true,
+      locale: cityDetails(seed.locality).locale,
+      updatedAt: new Date(),
+    })
+    .where(eq(user.id, owner.id));
+
   return owner;
 }
 
@@ -409,24 +433,38 @@ async function seedItems(
 
 async function seedCustomers(
   businessId: string,
+  seed: DevBusinessSeed,
   seedIndex: number,
   profile: PackSeedProfile,
 ): Promise<SeededCustomer[]> {
   const offset = (seedIndex * 5) % CUSTOMER_NAMES.length;
+  const place = cityDetails(seed.locality);
 
   const rows = Array.from({ length: 5 }, (_, index) => {
     const name = CUSTOMER_NAMES[(offset + index) % CUSTOMER_NAMES.length];
-    const phoneIndex = seedIndex * 10 + index;
     const noPhone = index === 4;
 
     return {
       businessId,
       name,
-      phone: noPhone
-        ? null
-        : `98765${String(phoneIndex).padStart(5, "0")}`,
+      phone: noPhone ? null : devCustomerPhone(seedIndex, index),
       subLabel: index < 2 ? profile.customerNotes[index] : null,
       notes: index === 0 ? profile.deliveryNote : null,
+      // One buyer without a phone also has no address, so both null states are
+      // exercised. The others carry a real locality and pincode for the list.
+      address:
+        index === 4
+          ? null
+          : {
+              line1: `${10 + index}, ${place.area} Main Road`,
+              line2: index % 2 === 0 ? "Near the market" : "",
+              line3: "",
+              locality: place.area,
+              city: place.city,
+              state: place.state,
+              country: "India",
+              pincode: place.pincode,
+            },
     };
   });
 
@@ -474,13 +512,16 @@ function buildLine(line: SeedLine) {
 async function seedOrder(businessId: string, input: OrderSeed) {
   const built = input.lines.map(buildLine);
   const revenueSubtotal = sum(built.map((line) => line.contribution));
-  const grandTotal = revenueSubtotal;
+  const adjustmentAmount = input.adjustment?.amount ?? "0.00";
+  const grandTotal = money(dec(revenueSubtotal).plus(dec(adjustmentAmount)));
+  const tdsTotal = input.tds ?? "0.00";
+  const payable = dec(grandTotal).minus(dec(tdsTotal));
   const paidTotal =
     input.paid === "full"
-      ? grandTotal
+      ? money(payable)
       : input.paid === "none"
         ? "0.00"
-        : money(dec(grandTotal).times(input.paid.percent).div(100));
+        : money(payable.times(input.paid.percent).div(100));
 
   const [order] = await db
     .insert(orders)
@@ -498,6 +539,12 @@ async function seedOrder(businessId: string, input: OrderSeed) {
       revenueSubtotal,
       grandTotal,
       paidTotal,
+      tdsTotal,
+      adjustmentAmount,
+      adjustmentReason: input.adjustment?.reason ?? null,
+      nonRevenueTotal: "0.00",
+      followUpDate: input.followUpDate ?? null,
+      progressNote: input.progressNote ?? null,
       billNo: input.billNo,
       createdAt: input.createdAt,
       updatedAt: input.createdAt,
@@ -533,6 +580,18 @@ async function seedBusiness(seed: DevBusinessSeed, seedIndex: number) {
   }
 
   const owner = await createOwner(seed);
+  const bank = devBankDetails(seed, seedIndex);
+  const passState = seedIndex % 6;
+  const trialEndsAt =
+    passState === 4 ? atDay(-12, 9) : atDay(60 + (seedIndex % 25), 9);
+  const passExpiresAt =
+    passState === 0
+      ? atDay(120, 9)
+      : passState === 1
+        ? atDay(9, 9)
+        : passState === 5
+          ? atDay(-5, 9)
+          : null;
 
   const [business] = await db
     .insert(businesses)
@@ -544,16 +603,21 @@ async function seedBusiness(seed: DevBusinessSeed, seedIndex: number) {
       category: seed.category,
       locality: seed.locality,
       tagline: seed.tagline,
-      whatsappNumber: `9198765${String(seedIndex + 1).padStart(5, "0")}`,
-      upiId: `${seed.handle.replace(/-/g, ".")}@okhdfcbank`,
-      showBankDetails: seedIndex % 2 === 0,
-      bankAccountName: seed.ownerName,
-      bankAccountNumber: `50100${String(200300 + seedIndex).padStart(7, "0")}`,
-      bankIfsc: "HDFC0001234",
+      whatsappNumber: devWhatsappNumber(seedIndex),
+      upiId: devUpiId(seed, seedIndex),
+      showBankDetails: bank !== null,
+      bankAccountName: bank?.accountName ?? null,
+      bankAccountNumber: bank?.accountNumber ?? null,
+      bankIfsc: bank?.ifsc ?? null,
       addressPlaceholder: profile.deliveryNote,
-      enableTimeSlots: true,
-      defaultLocale: "en",
-      nextBillNo: 6,
+      noticeBanner: devNoticeBanner(seedIndex),
+      enableTimeSlots: devEnableTimeSlots(seed.pack),
+      advancePolicyText: devAdvancePolicy(seed.pack),
+      privacyMode: devPrivacyMode(seed.pack),
+      defaultLocale: cityDetails(seed.locality).locale,
+      nextBillNo: 10,
+      trialEndsAt,
+      passExpiresAt,
       firstItemAt: atDay(-30, 10),
       createdAt: atDay(-30, 9),
       updatedAt: atDay(-1, 18),
@@ -568,7 +632,7 @@ async function seedBusiness(seed: DevBusinessSeed, seedIndex: number) {
   );
 
   const items = await seedItems(business.id, seed, profile);
-  const people = await seedCustomers(business.id, seedIndex, profile);
+  const people = await seedCustomers(business.id, seed, seedIndex, profile);
 
   const pack = getPack(seed.pack);
   const customIndex = pack.starters.length;
@@ -599,6 +663,8 @@ async function seedBusiness(seed: DevBusinessSeed, seedIndex: number) {
       customer: people[2],
       code: "ORD-1002",
       status: "completed",
+      // TDS withheld on a business order; the buyer's bill shows no balance.
+      tds: "45.00",
       source: "phone",
       neededBy: dayOf(atDay(-9, 16, 40)),
       timeSlot: "18:00",
@@ -633,6 +699,9 @@ async function seedBusiness(seed: DevBusinessSeed, seedIndex: number) {
       customer: people[3],
       code: "ORD-1004",
       status: "accepted",
+      adjustment: { amount: "-50.00", reason: "Loyalty discount" },
+      progressNote: "Packing today",
+      followUpDate: dayOf(atDay(1, 10, 0)),
       source: "phone",
       neededBy: dayOf(atDay(2, 17, 30)),
       timeSlot: "17:30",
@@ -650,6 +719,7 @@ async function seedBusiness(seed: DevBusinessSeed, seedIndex: number) {
       customer: people[4],
       code: "ORD-1005",
       status: "waiting_client",
+      followUpDate: dayOf(atDay(1, 12, 0)),
       source: "whatsapp_store",
       neededBy: dayOf(atDay(1, 11, 0)),
       timeSlot: "11:00",
@@ -705,6 +775,8 @@ async function seedBusiness(seed: DevBusinessSeed, seedIndex: number) {
       customer: people[2],
       code: "ORD-1009",
       status: "under_review",
+      followUpDate: dayOf(atDay(1, 10, 0)),
+      progressNote: "Waiting for the buyer to confirm the flavour",
       source: "whatsapp_store",
       neededBy: dayOf(atDay(1, 9, 30)),
       timeSlot: "09:30",
@@ -729,6 +801,7 @@ async function seedBusiness(seed: DevBusinessSeed, seedIndex: number) {
       customer: people[1],
       code: "ORD-1010",
       status: "in_progress",
+      progressNote: "On the work bench",
       source: "phone",
       neededBy: dayOf(atDay(-3, 14, 0)),
       timeSlot: null,
@@ -809,10 +882,23 @@ async function seedBusiness(seed: DevBusinessSeed, seedIndex: number) {
     await seedOrder(business.id, order);
   }
 
-  await db
-    .update(customers)
-    .set({ lastPaidAt: new Date(atDay(0, 10, 15).getTime()) })
-    .where(eq(customers.id, people[0].id));
+  // last_paid_at is a timestamp, so seed it from the actual payment rows.
+  const paidDates = await db
+    .select({ customerId: orders.customerId, paidAt: orderPayments.paidAt })
+    .from(orderPayments)
+    .innerJoin(orders, eq(orderPayments.orderId, orders.id))
+    .where(eq(orders.businessId, business.id));
+
+  for (const person of people) {
+    const dates = paidDates
+      .filter((payment) => payment.customerId === person.id)
+      .map((payment) => payment.paidAt.getTime());
+    if (dates.length === 0) continue;
+    await db
+      .update(customers)
+      .set({ lastPaidAt: new Date(Math.max(...dates)) })
+      .where(eq(customers.id, person.id));
+  }
 
   await db.insert(expenses).values([
     {
@@ -906,8 +992,7 @@ async function seedBusiness(seed: DevBusinessSeed, seedIndex: number) {
       code: group.code,
       buyerName: group.buyer.name,
       buyerPhone:
-        group.buyer.phone ??
-        `98765${String(seedIndex * 10 + 3).padStart(5, "0")}`,
+        group.buyer.phone ?? devCustomerPhone(seedIndex, 4),
       neededBy: group.neededBy,
       timeSlot: group.timeSlot,
       note: group.note,

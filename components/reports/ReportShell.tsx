@@ -14,6 +14,8 @@ export function ReportShell({
   subtitle,
   action,
   tiles,
+  tileColumns = 3,
+  summary,
   filters,
   children,
 }: {
@@ -21,6 +23,10 @@ export function ReportShell({
   subtitle: string;
   action?: ReactNode;
   tiles: ReportTile[];
+  /** Reports with four metrics opt in; the rest keep the shared three-up strip. */
+  tileColumns?: 3 | 4;
+  /** Replaces the metric tiles with a custom summary, for example filter cards. */
+  summary?: ReactNode;
   filters: ReactNode;
   children: ReactNode;
 }) {
@@ -28,23 +34,24 @@ export function ReportShell({
     <>
       <PageHeader title={title} subtitle={subtitle} action={action} />
 
-      {tiles.length > 0 ? (
-        <section
-          aria-label={`${title} summary`}
-          className="mb-5 grid grid-cols-2 gap-2 md:grid-cols-3"
-        >
-          {tiles.map((tile) => (
-            <MetricTile
-              key={tile.label}
-              label={tile.label}
-              value={tile.value}
-              period={tile.period}
-              tone={tile.tone}
-              hint={tile.hint}
-            />
-          ))}
-        </section>
-      ) : null}
+      {summary ??
+        (tiles.length > 0 ? (
+          <section
+            aria-label={`${title} summary`}
+            className={`mb-5 grid grid-cols-2 gap-2 ${tileColumns === 4 ? "md:grid-cols-4" : "md:grid-cols-3"}`}
+          >
+            {tiles.map((tile) => (
+              <MetricTile
+                key={tile.label}
+                label={tile.label}
+                value={tile.value}
+                period={tile.period}
+                tone={tile.tone}
+                hint={tile.hint}
+              />
+            ))}
+          </section>
+        ) : null)}
 
       <div className="mb-4">{filters}</div>
 
