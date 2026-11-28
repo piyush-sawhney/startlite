@@ -171,6 +171,7 @@ export const customers = pgTable(
       .references(() => businesses.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     phone: text("phone"),
+    email: text("email"),
     subLabel: text("sub_label"),
     notes: text("notes"),
     address: jsonb("address").$type<CustomerAddress | null>(),

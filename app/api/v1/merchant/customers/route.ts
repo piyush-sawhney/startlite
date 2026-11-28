@@ -71,6 +71,16 @@ const addressSchema = z.object({
 const createCustomerSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(80),
   phone: z.string().trim().max(20).nullable().optional(),
+  email: z
+    .string()
+    .trim()
+    .max(254)
+    .nullable()
+    .optional()
+    .refine(
+      (value) => !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+      "Invalid email address",
+    ),
   subLabel: z.string().trim().max(100).nullable().optional(),
   notes: z.string().trim().max(500).nullable().optional(),
   address: addressSchema.nullable().optional(),
@@ -89,8 +99,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const { name, phone, subLabel, notes, address } = parsed.data;
+  const { name, phone, email, subLabel, notes, address } = parsed.data;
   const cleanPhone = phone ? phone.replace(/\D/g, "").slice(-10) || null : null;
+  const cleanEmail = email?.trim() || null;
   const cleanAddress =
     address === undefined ? undefined : normalizeCustomerAddress(address);
 
@@ -112,6 +123,7 @@ export async function POST(request: Request) {
         .update(customers)
         .set({
           name: name || existing.name,
+          email: cleanEmail,
           subLabel: subLabel ?? existing.subLabel,
           notes: notes ?? existing.notes,
           ...(cleanAddress !== undefined ? { address: cleanAddress } : {}),
@@ -129,6 +141,7 @@ export async function POST(request: Request) {
       businessId: auth.business.id,
       name,
       phone: cleanPhone,
+      email: cleanEmail,
       subLabel: subLabel || null,
       notes: notes || null,
       address: cleanAddress ?? null,

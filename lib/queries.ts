@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   businesses,
@@ -345,6 +345,7 @@ export async function getCustomersReport(
     id: string;
     name: string;
     phone?: string;
+    email?: string;
     subLabel?: string;
     address: CustomerAddress | null;
     orderRows: CustomerSummaryOrder[];
@@ -359,6 +360,7 @@ export async function getCustomersReport(
       id: customer.id,
       name: customer.name,
       phone: customer.phone || undefined,
+      email: customer.email || undefined,
       subLabel: customer.subLabel || undefined,
       address: customer.address ?? null,
       orderRows: [],
@@ -425,7 +427,7 @@ export async function getCustomersReport(
     },
   ];
 
-  const query = filters.query.trim().toLowerCase().replace(/\D/g, "");
+  const digits = filters.query.trim().toLowerCase().replace(/\D/g, "");
   const text = filters.query.trim().toLowerCase();
   let rows = all;
   if (filters.segment === "dues") rows = withDues;
@@ -434,21 +436,54 @@ export async function getCustomersReport(
   if (text) {
     rows = rows.filter(({ entry }) => {
       const nameHit = entry.name.toLowerCase().includes(text);
-      const phoneHit = query.length > 0 &&
-        (entry.phone ?? "").replace(/\D/g, "").includes(query);
-      return nameHit || phoneHit;
+      const labelHit = (entry.subLabel ?? "").toLowerCase().includes(text);
+      const emailHit = (entry.email ?? "").toLowerCase().includes(text);
+      const phoneHit =
+        digits.length > 0 &&
+        (entry.phone ?? "").replace(/\D/g, "").includes(digits);
+      return nameHit || labelHit || emailHit || phoneHit;
     });
   }
 
+  function sortValue(
+    entry: Entry,
+    summary: ReturnType<typeof summarizeCustomerOrders>,
+    key: CustomersFilters["sort"],
+  ): string | number {
+    switch (key) {
+      case "name":
+        return entry.name.toLowerCase();
+      case "label":
+        return (entry.subLabel ?? "").toLowerCase();
+      case "phone":
+        return (entry.phone ?? "").replace(/\D/g, "");
+      case "locality":
+        return `${entry.address?.locality ?? ""} ${entry.address?.pincode ?? ""}`
+          .trim()
+          .toLowerCase();
+      case "billed":
+        return summary.totalBilled.toNumber();
+      case "paid":
+        return summary.totalPaid.toNumber();
+      case "orders":
+        return summary.orderCount;
+      case "recent":
+        return entry.created.getTime();
+      case "due":
+      default:
+        return summary.pending.toNumber();
+    }
+  }
+
   const sorted = [...rows].sort((a, b) => {
-    if (filters.sort === "name") return a.entry.name.localeCompare(b.entry.name);
-    if (filters.sort === "recent") {
-      return b.entry.created.getTime() - a.entry.created.getTime();
-    }
-    if (a.summary.pending.equals(b.summary.pending)) {
-      return a.entry.name.localeCompare(b.entry.name);
-    }
-    return a.summary.pending.greaterThan(b.summary.pending) ? -1 : 1;
+    const left = sortValue(a.entry, a.summary, filters.sort);
+    const right = sortValue(b.entry, b.summary, filters.sort);
+    const comparison =
+      typeof left === "number" && typeof right === "number"
+        ? left - right
+        : String(left).localeCompare(String(right));
+    if (comparison === 0) return a.entry.name.localeCompare(b.entry.name);
+    return filters.dir === "asc" ? comparison : -comparison;
   });
 
   const mapped: CustomerReportRow[] = sorted.map(({ entry, summary }) => ({
@@ -467,6 +502,9 @@ export async function getCustomersReport(
     totalBilled: formatAmount(summary.totalBilled),
     totalPaid: formatAmount(summary.totalPaid),
     pending: formatAmount(summary.pending),
+    totalBilledValue: summary.totalBilled.toNumber(),
+    totalPaidValue: summary.totalPaid.toNumber(),
+    dueValue: summary.pending.toNumber(),
     hasDues: summary.pending.greaterThan(0),
     linked: entry.linked,
   }));
@@ -671,6 +709,32 @@ export async function getCustomerOrders(businessId: string, customerId: string) 
       ),
     )
     .orderBy(desc(orders.createdAt));
+}
+
+/** Top three items by quantity bought, excluding cancelled and declined orders. */
+export async function getCustomerTopItems(
+  businessId: string,
+  customerId: string,
+): Promise<Array<{ name: string; count: number }>> {
+  const rows = await db
+    .select({
+      name: orderItems.itemNameSnapshot,
+      count: sql<string>`coalesce(sum(${orderItems.quantity}), 0)::text`,
+    })
+    .from(orderItems)
+    .innerJoin(orders, eq(orderItems.orderId, orders.id))
+    .where(
+      and(
+        eq(orderItems.businessId, businessId),
+        eq(orders.customerId, customerId),
+        notInArray(orders.status, ["cancelled", "declined"]),
+      ),
+    )
+    .groupBy(orderItems.itemNameSnapshot)
+    .orderBy(desc(sql`sum(${orderItems.quantity})`))
+    .limit(3);
+
+  return rows.map((row) => ({ name: row.name, count: Number(row.count) }));
 }
 
 export async function nextBillNo(businessId: string) {

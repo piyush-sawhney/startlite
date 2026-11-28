@@ -13,15 +13,28 @@ export type ReportTile = {
   hint?: string;
 };
 
-export type ReportSort = "pending" | "name" | "recent";
+/** Every column in the People table is sortable. `recent` is kept for old links. */
+export type ReportSort =
+  | "name"
+  | "label"
+  | "phone"
+  | "locality"
+  | "billed"
+  | "paid"
+  | "due"
+  | "orders"
+  | "recent";
 
-/** A customer group you can filter the list to by tapping a summary card. */
+export type ReportDirection = "asc" | "desc";
+
+/** A group you can filter the list to by tapping a summary card. */
 export type CustomerSegment = "all" | "dues" | "paid" | "active";
 
 export type CustomersFilters = {
   query: string;
   segment: CustomerSegment;
   sort: ReportSort;
+  dir: ReportDirection;
 };
 
 export type CustomerReportRow = {
@@ -45,6 +58,10 @@ export type CustomerReportRow = {
   totalBilled: string;
   totalPaid: string;
   pending: string;
+  /** Rupee numbers behind the formatted figures, for sorting and column filters. */
+  totalBilledValue: number;
+  totalPaidValue: number;
+  dueValue: number;
   hasDues: boolean;
   /** False for a buyer found in orders with no customer record. */
   linked: boolean;

@@ -55,7 +55,7 @@ replaces the bottom tabs. The 360 px right column stays empty on report pages.
 │ Customers  18 people · All │
 ├────────────────────────────┤
 │ ┌──────────┬──────────┐    │
-│ │All cust. │With dues │    │
+│ │All       │With dues │    │
 │ │18  •     │7   ₹14.2k│    │
 │ ├──────────┼──────────┤    │
 │ │Has paid  │Active    │    │
@@ -64,27 +64,29 @@ replaces the bottom tabs. The 360 px right column stays empty on report pages.
 ├────────────────────────────┤
 │ Search name or phone       │
 ├────────────────────────────┤
-│ Customers: Total 18        │
 │ ─────────────────────────  │
-│ Sana · Regular             │
-│ Kothrud · 411038           │
-│ ••••••3210 · Paid on 21-Nov│
-│ 4  ·  2 done · 1 cancelled │
-│ ₹5,600  ₹4,900  ₹700 due   │
+│ ← sideways to see columns →│
+│ NAME ▾ │ PHONE │ LANDMARK  │
+│ [filter] [filter] [filter] │
+│ Sana   │••••3210│Kothrud…  │
+│ Regular│       │ 411038    │
+│ ₹5,600 │ ₹4,900 │ ₹700 │ 4 │
 └────────────────────────────┘
 ```
 
 ```text
 1200 px
-rail │ main column                                │ right column
-     │ Customers  18 people · All                 │ empty
-     │ ┌─────────┬──────────┬─────────┬─────────┐ │
-     │ │All      │ With dues│ Has paid│ Active  │ │
-     │ └─────────┴──────────┴─────────┴─────────┘ │
-     │ [Search name or phone]                     │
-     │ Customers: Total 18       Sort: Pending     │
-     │ NAME MOBILE ORDERS BILLED PAID DUE         │
-     │ row · row · row · row                       │
+rail │ main column                                    │ right column
+     │ Customers  18 people · All                     │ empty
+     │ ┌─────────┬──────────┬─────────┬─────────────┐ │
+     │ │All      │ With dues│ Has paid│ Active orders│ │
+     │ └─────────┴──────────┴─────────┴─────────────┘ │
+     │ [Search name or phone]                         │
+     │ NAME ▾ │ PHONE │ LANDMARK │ BILLED │ PAID …    │
+     │ [filter] [filter] [filter]  │       │          │
+     │ Sana          │••••3210│Kothrud│₹5,600│₹4,900… │
+     │ Regular       │       │ 411038│ ₹700 │ 4      │
+     │ Clear filters (only when a column filter is on)│
 ```
 
 | Zone | Below 768 px | 768 to 1023 px | 1024 px and above |
@@ -99,10 +101,11 @@ rail │ main column                                │ right column
 
 ### Page header
 
-The title is **Customers**. The subtitle states the count and the period, for
-example `18 people · All`. There is no filled action button on the page. New
-customer records start from a sale or from a previous due in customer detail.
-Hidden: the page header keeps the title but drops the count while loading.
+The title is **Customers** — the only place on the page that repeats the tab
+name. The subtitle states the count and the active segment, for example
+`18 people · With dues`. There is no filled action button on the page. New
+records start from a sale or from a previous due in detail. Hidden: the page
+header keeps the title but drops the count while loading.
 
 ### Filter cards
 
@@ -111,7 +114,7 @@ detail line, and tapping it filters the list to that group:
 
 | Card | Filters to | Detail line |
 |---|---|---|
-| `All customers` | Every buyer | `Everyone` |
+| `All` | Every buyer | `Everyone` |
 | `With dues` | Positive balance on open orders | Pending amount |
 | `Has paid` | At least one payment ever | Lifetime collected amount |
 | `Active orders` | At least one non-closed order | Number of open orders |
@@ -122,63 +125,95 @@ shows zero. Hidden: the cards are hidden for a session-expired owner.
 
 ### Filters
 
-The search field accepts a name or phone digits. The old `All | With dues` pills
-are gone: the cards are the only segment control, so the same choice is not
-shown twice. The default segment is `All customers`. Sort keys are `Pending`,
-`Name`, and `Recently added`. There is no period filter because customer records
-have no period. Empty: the filter bar is hidden when the shop has no customers.
+The search field matches a name, label, mobile digits, or email address and
+updates the list as you type (300 ms debounce). It keeps the query in the URL so
+the view can be refreshed or shared. The cards are the only segment control; the
+same choice is never shown twice. The default segment is `All`.
+There is no separate sort menu: every table header sorts its own column. A filter
+input sits under the Name, Phone, and Landmark headers only; amount and count
+columns are sortable but never filterable. The default view sorts by Due with the
+highest amount at the top. There is no period filter because records have no
+period. Empty: the filter bar is hidden when the shop has no people.
 
-### Customer list
+### People table
 
-The card header follows the
-[report list anatomy](README.md#report-list-anatomy). It shows `Customers:`,
-`Total {count}`, and the collapse chevron. It has no total amount: money totals
-live on the filter cards and in the money columns, not in the header. `Pending`
-is the default sort. Sort ties break on name. The list has no row cap. Empty:
-`No customers yet.` and Add sale. Hidden: the list card is hidden while loading.
+The table card has no header strip: no segment label, count, total, or collapse
+chevron. The active segment and count already sit in the page subtitle, and the
+amounts sit in their columns. `Clear filters` appears above the table only while
+a column filter is set. The table has no row cap. Empty: `Nothing here yet.` and
+Add sale; `No matches.` and Clear filters when a filter excludes everything.
+Hidden: the card is hidden while loading.
 
-### Customer row
+The list is one real table with seven short headers: `Name`, `Phone`,
+`Landmark`, `Billed`, `Paid`, `Due`, `Orders`. Every header is a sort button.
+Only the text columns have a filter input, with substring matching; numeric
+columns are sort-only. The table scrolls sideways below 900 px, so headers stay
+with their columns on a phone. The default sort is `Due` descending — the
+highest amount due is on the first row. Text columns sort A to Z when clicked.
+Sort ties break on name. Every header exposes `aria-sort`.
 
-On desktop the list has aligned columns with eyebrow headings: `Name`, `Mobile`,
-`Orders`, `Total billed`, `Total paid`, and `Balance due`. A row uses one grid
-and one `figure` column for each amount. On mobile the same cells stack in one
-column.
-
-| Cell | Content |
-|---|---|
-| Name | Name, or the phone when no name exists. Sub-label on a second line; `locality · pincode` from the stored address on a third line |
-| Mobile | Phone masked to the last four digits (e.g. `••••••3210`), or `No phone`; `Paid on {date}` on a second line |
-| Orders | Count only on desktop (`4`); `{n} orders` on mobile. Caption `{completed} done · {cancelled} cancelled` |
-| Total billed | Lifetime sum of order totals, `figure` utility |
-| Total paid | Lifetime sum of payments, `figure` utility |
-| Balance due | Positive balance on open orders, `figure` utility. Caption `Due` or `Clear` on mobile |
+| Column | Cell content | Filter |
+|---|---|---|
+| Name | Name on the first line; stored `subLabel` on a second line. Falls back to the phone when no name exists | Text, matches both lines |
+| Phone | Masked to the last four digits (e.g. `••••••3210`), or `No phone` | Text on masked digits |
+| Landmark | Landmark and pincode from the stored address, or `—` | Text |
+| Billed | Lifetime sum of order totals, `figure` utility | None |
+| Paid | Lifetime sum of payments, `figure` utility | None |
+| Due | Positive balance on open orders, `figure` utility; sorted high to low by default | None |
+| Orders | Every order, including closed ones | None |
 
 Raw phone digits are never sent to the list; search still matches them on the
-server. A row with no pending amount stays in the list under `All customers`. It
-is hidden under `With dues`. Names, masked phone numbers, and the locality line
-truncate instead of wrapping.
+server. A row with no pending amount stays in the table under `All`. It is hidden
+under `With dues`. Names, labels, masked numbers, and the landmark line truncate
+instead of wrapping. A linked row opens detail on tap; rows without a stored
+record are not links.
 
-### Customer detail
+### Detail and edit
 
-`/customers/{id}` opens one customer record. It answers who the buyer is and
-what they owe. Four cards use the list's card anatomy: `Orders` (with a
-`completed · cancelled` detail line), `Total billed`, `Total paid`, and `Balance
-due`. Billed and paid cover every order; the balance covers open orders only.
-There is no separate Completed or Cancelled tile because the Orders card already
-carries that split.
+`/customers/{id}` opens one record. It answers who the buyer is, what they owe,
+and lets the merchant correct the record in place. The page is a compact
+workspace, not a stack of cards: one header, one hairline stats strip, and two
+columns from 1280 px with the editor on the left and orders in the 360 px column
+on the right. Above 1280 px the right column is sticky; below it the sections
+stack in the same order.
 
-The header subtitle shows `locality · pincode`, or `Customer since {date}` when
-there is no address. The header never repeats the phone or label: the details
-card is the only place for phone, label, address, last paid, customer since, and
-notes from [customers](../data-model.md#customers). Contact actions are `Call`,
-`SMS`, and `WhatsApp` and still use the full number. The address uses
-`line1`–`line3`, then `locality, city, state`, then `country pincode`. The guest
-detail shows phone and address in its own card.
+The four figures (`Orders`, `Billed`, `Paid`, `Due`) sit in one ruled strip with
+eyebrow labels and a value line. Billed and paid cover every order; due covers
+open orders only. The `Orders` figure carries the full status mix as a caption:
+`done · ready · to finish · cancelled`, each count paired with its word and
+colour. No extra tile or chart is needed.
 
-The orders card lists every order for that buyer under `Order`, `Needed`,
-`Placed`, `Status`, `Bill total`, `Paid`, and `Balance`. Add previous due stays
-below the orders. Empty: the orders card says `No orders yet.` Hidden: contact
-actions are hidden when the customer has no phone.
+The header shows the name only. Landmark and pincode stay in the address section,
+and `Since` stays in the form footer. The header never repeats the mobile or
+label. `Call`, `SMS`, and
+`WhatsApp` are compact icon links in the header, not a separate button row, and
+still use the full number; `Email` opens a `mailto:` link. Links appear only for
+the contact details that exist.
+
+The `Details` card is an editable form, not a read-only list. Its fields are
+grouped into three meaningful sections with hairline dividers: `Contact`
+(`Name` required, `Label`, `Mobile`, optional `Email`), `Address` (`Address 1`,
+`Address 2`, `Landmark`, `City`, `State`, `Country`, `Pincode`), and `Note`. Each
+section uses a 12-column grid on desktop with widths matched to typical values:
+a short label or mobile stays narrow, while email and address lines get more
+room. Every field wrapper has `min-w-0`, so nothing overflows. `line3` from
+[customers](../data-model.md#customers) is retained in storage for older records
+but has no input. `Last paid` and `Since` are read-only facts in the footer row
+beside the buttons. The form opens with values filled in; `Save` and `Discard`
+stay disabled until a value changes. A save shows `Saved`, revalidates the server
+data, and refreshes the header and strip in place. An invalid email or a
+duplicate mobile shows the error beside the form. Empty address values clear the
+stored address. The guest detail shows phone and address in its own card, with
+no edit form.
+
+A compact `Top items` card sits above orders in the right column. It lists the
+three items bought in the greatest quantity with the count beside each name.
+Cancelled and declined orders are excluded. Empty: `No items yet.`
+
+The orders column lists every order as one compact row: code and status on the
+first line, needed date and amounts on the second, and the balance only when it
+is positive. Add previous due stays under the editor. Empty: the orders column
+says `No orders yet.`
 
 ## Guest and owner
 
@@ -203,7 +238,10 @@ gives no phone stays a separate record. See
 The owner adapter is `getCustomersReport(businessId, filters)` in
 [queries.ts](../../lib/queries.ts). It returns `CustomersReportData` from
 [report-types.ts](../../lib/report-types.ts) and renders through
-`components/reports/CustomersReport.tsx`. The guest list is built from
+`components/reports/CustomersReport.tsx`. Each row carries the rupee number
+behind its formatted amount so the table can sort and filter by value, not by
+label. Detail edits post to `PATCH /api/v1/merchant/customers/{id}`, which
+re-checks ownership and phone uniqueness before writing. The guest list is built from
 `guestCustomers(state)` in [guest-store.ts](../../lib/guest-store.ts) and renders
 through `components/guest/GuestCustomers.tsx`. ADR-040 describes a shared report
 page; the guest report adapter has not been built yet, so the two views share the
@@ -216,7 +254,7 @@ directly.
 | Counts, billed, paid | `summarizeCustomerOrders()` over every order; declined counts as cancelled |
 | Pending | Positive balance on open orders only. Closed orders are excluded |
 | Masked phone | `maskPhoneLast4()` in [contact.ts](../../lib/contact.ts) |
-| Locality, pincode | `address` on the customer record, or guest `address` in local storage |
+| Landmark, pincode | `address` on the customer record, or guest `address` in local storage |
 | Last paid | `last_paid_at` on the customer record, written by a payment |
 | Label, notes, customer since | `sub_label`, `notes`, and `created_at` on the customer record |
 | Search index | Customer lookup `(business_id, phone)` in [data-model.md](../data-model.md#indexes) |
@@ -229,24 +267,29 @@ which can promote a paid `ready` order to `completed`.
 
 | Action | Result |
 |---|---|
-| Tap a row | Opens `/customers/{id}` with filters kept in the URL |
+| Tap a linked row | Opens `/customers/{id}` with filters kept in the URL |
 | Type in search | Updates the URL and filters the list |
-| Tap a filter card | Sets the customer segment and updates the URL |
-| Tap sort | Opens a small menu. One tap sets the sort and closes the menu |
-| Tap the chevron | Collapses or expands the list. State is local to the page |
+| Tap a filter card | Sets the segment and updates the URL |
+| Tap a column header | Sorts that column; a second tap reverses the direction |
+| Type in a text-column filter | Keeps rows that match that column only |
+| Tap the `×` in a filter | Clears that one column's filter |
+| Tap `Clear filters` | Removes all column filters (and server filters from the empty state) |
+| Edit detail fields, then `Save` | Writes the record and refreshes the header and summary |
+| Tap `Discard` | Restores the last saved values |
 | Back | Returns to the previous view with filters kept |
-| Swipe | No swipe gesture on this page |
+| Swipe | Scroll the table sideways for more columns, vertically for more rows |
 
 ## States
 
 | State | What appears |
 |---|---|
 | First run | Empty state with Add sale |
-| Loading | Skeleton with the final header, four card outlines, search bar, and five row heights |
-| Empty filter | `No customers for this filter.` and Clear filters |
+| Loading | Skeleton with the final header, four card outlines, search bar, and five table rows |
+| Empty filter | `No matches.` and Clear filters |
 | Offline owner | Last loaded rows and the `Offline` pill |
 | Offline guest | All rows work. Pill stays `Not saved` |
-| Load error | `Could not load customers.` and Try again |
+| Load error | `Could not load the table.` and Try again |
+| Edit error | Field values stay put, `Save failed`, and the server message |
 | Session expired | Sign-in state. No guest rows |
 
 ## Copy
@@ -254,38 +297,47 @@ which can promote a paid `ready` order to `completed`.
 | Element | Text |
 |---|---|
 | Page title | `Customers` |
-| Subtitle | `{n} people · All` |
-| Filter cards | `All customers`, `With dues`, `Has paid`, `Active orders` |
-| Search placeholder | `Search name or phone` |
-| Sort options | `Pending`, `Name`, `Recently added` |
-| Column labels | `Name`, `Mobile`, `Orders`, `Total billed`, `Total paid`, `Balance due` |
-| Row labels | `No phone`, `—`, `{n} orders`, `{n} done · {n} cancelled`, `No payments`, `Paid on {date}` |
-| Amount captions | `Due`, `Clear` |
-| Detail cards | `Orders`, `Total billed`, `Total paid`, `Balance due` |
-| Detail table labels | `Order`, `Needed`, `Placed`, `Status`, `Bill total`, `Paid`, `Balance` |
-| Detail labels | `Customer details`, `Phone`, `Label`, `Address`, `Last paid`, `Customer since`, `Note:`, `No orders yet.` |
-| Detail actions | `Call`, `SMS`, `WhatsApp`, `Add previous due` |
-| Empty list | `No customers yet.` and `Add sale` |
-| Empty filter | `No customers for this filter.` and `Clear filters` |
-| Error | `Could not load customers.` and `Try again` |
+| Subtitle | `{n} people · {segment}` |
+| Filter cards | `All`, `With dues`, `Has paid`, `Active orders` |
+| Search placeholder | `Search name, label, mobile or email` |
+| Column labels | `Name`, `Phone`, `Landmark`, `Billed`, `Paid`, `Due`, `Orders` |
+| Filter placeholders | `Search name or label`, `Search phone`, `Search landmark` |
+| Filter clear label | `Clear {column} filter` |
+| Row labels | `No phone`, `—` |
+| Table controls | `Clear filters` only while a column filter is set |
+| Stats strip | `Orders`, `Billed`, `Paid`, `Due` |
+| Orders mix | `done`, `ready`, `to finish`, `cancelled` counts |
+| Detail table labels | `Order`, `Needed`, `Status`, `Paid`, `Due` |
+| Detail labels | `Details`, `Contact`, `Name`, `Label`, `Mobile`, `Email (optional)`, `Address`, `Address 1`, `Address 2`, `Landmark`, `City`, `State`, `Country`, `Pincode`, `Note`, `Last paid`, `Since` |
+| Detail contact links | `Call`, `SMS`, `WhatsApp`, `Email` |
+| Right column | `Top items`, `No items yet.`, `{n} ordered`, `Orders`, `No orders yet.` |
+| Detail form states | `Saved`, `Save failed`, `Unsaved changes`, `Save`, `Discard` |
+| Detail actions | `Call`, `SMS`, `WhatsApp`, `Email`, `Add previous due` |
+| Empty list | `Nothing here yet.` and `Add sale` |
+| Empty filter | `No matches.` and `Clear filters` |
+| Error | `Not saved. Try again.` and `That phone is already saved.` |
 
 ## Accessibility and performance
 
-- Each row is one link with an accessible name that includes the customer name,
-  masked phone, and balance due.
+- Each linked row's name is one link with an accessible name that includes the
+  name, masked phone, and balance due.
 - Filter cards are links with `aria-current` on the active segment.
+- Every sortable header sets `aria-sort`; text filters have a screen-reader label,
+  a contextual placeholder, and a named clear button.
+- Amount and count figures are right aligned in both header and cells, with
+  tabular numerals; text columns stay left aligned.
+- Header rows and the Name column stay visible while the table scrolls.
+- Details inputs have visible labels; form errors announce with `aria-live`.
 - Contact actions in detail use the shared 44 px target and an accessible name.
-- Amounts use tabular numerals and never animate.
-- Search input has a visible label. The placeholder is not the label.
-- The sort menu uses `aria-expanded`.
+- Amounts never animate. The placeholder is never the only label.
 - Tap targets are at least 44 px with 8 px gaps.
-- The list has no cap. The adapter sorts and filters before render.
+- The table has no cap. The adapter sorts and filters before render.
 - Loading uses final heights. Data replaces the skeleton in place.
 
 ## Out of scope
 
 - Charts and account statements.
-- Inline editing of a customer record.
+- Bulk edit or import from this page.
 - A phone number as the primary key shown on screen.
 - A period filter. Customer records have no period.
 - Sending a bulk WhatsApp message from the list.

@@ -1,24 +1,25 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Mail, MessageCircle, MessageSquare, Phone } from "lucide-react";
 import { OpeningDueForm } from "@/components/OpeningDueForm";
-import { CustomerDetailCards } from "@/components/reports/CustomerCards";
+import { CustomerEditForm } from "@/components/CustomerEditForm";
+import type { CustomerEditValues } from "@/components/CustomerEditForm";
 import { Card, PageHeader, StatusPill } from "@/components/ui";
 import { whatsappLink } from "@/lib/bill";
 import { summarizeCustomerOrders } from "@/lib/customer-summary";
-import { callLink, maskPhoneLast4, smsLink } from "@/lib/contact";
-import {
-  formatCustomerAddress,
-  localityAndPincode,
-} from "@/lib/customer-address";
+import { callLink, smsLink } from "@/lib/contact";
+import { isReady, isToFinish } from "@/lib/order-status";
 import { formatDateDMY, istDateString } from "@/lib/date";
 import { dec, formatAmount } from "@/lib/money";
-import { getCustomer, getCustomerOrders, orderDue } from "@/lib/queries";
+import {
+  getCustomer,
+  getCustomerOrders,
+  getCustomerTopItems,
+  orderDue,
+} from "@/lib/queries";
 import { requireBusiness } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
-
-const ORDER_GRID =
-  "grid grid-cols-2 gap-x-4 gap-y-1 px-3 py-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.8fr)] lg:items-center";
 
 export default async function CustomerPage({
   params,
@@ -30,7 +31,10 @@ export default async function CustomerPage({
   const customer = await getCustomer(business.id, id);
   if (!customer) notFound();
 
-  const orders = await getCustomerOrders(business.id, customer.id);
+  const [orders, topItems] = await Promise.all([
+    getCustomerOrders(business.id, customer.id),
+    getCustomerTopItems(business.id, customer.id),
+  ]);
   const rows = orders.map((order) => ({
     order,
     total: dec(order.grandTotal),
@@ -44,149 +48,218 @@ export default async function CustomerPage({
     ? `Namaste ${customer.name}, gentle reminder from ${business.businessName} regarding pending balance of ${formatAmount(pending)}.`
     : `Namaste ${customer.name}, thank you for your business at ${business.businessName}.`;
 
+  const formValues: CustomerEditValues = {
+    id: customer.id,
+    name: customer.name,
+    phone: customer.phone ?? "",
+    email: customer.email ?? "",
+    subLabel: customer.subLabel ?? "",
+    notes: customer.notes ?? "",
+    address: customer.address ?? {
+      line1: "",
+      line2: "",
+      line3: "",
+      locality: "",
+      city: "",
+      state: "",
+      country: "",
+      pincode: "",
+    },
+    lastPaid: customer.lastPaidAt
+      ? formatDateDMY(istDateString(customer.lastPaidAt))
+      : "—",
+    since: formatDateDMY(istDateString(customer.createdAt)),
+  };
+
+  const readyCount = orders.filter((order) => isReady(order.status)).length;
+  const toFinishCount = orders.filter((order) => isToFinish(order.status)).length;
+
+  type Stat = {
+    label: string;
+    value: string;
+    tone?: string;
+    parts?: Array<{ label: string; tone: string }>;
+  };
+  const stats: Stat[] = [
+    {
+      label: "Orders",
+      value: String(summary.orderCount),
+      parts: [
+        { label: `${summary.completedCount} done`, tone: "text-success" },
+        { label: `${readyCount} ready`, tone: "text-warning" },
+        { label: `${toFinishCount} to finish`, tone: "text-info" },
+        { label: `${summary.cancelledCount} cancelled`, tone: "text-ink-subtle" },
+      ],
+    },
+    { label: "Billed", value: formatAmount(summary.totalBilled) },
+    { label: "Paid", value: formatAmount(summary.totalPaid) },
+    {
+      label: "Due",
+      value: formatAmount(pending),
+      tone: pending.greaterThan(0) ? "text-warning" : "text-ink",
+    },
+  ];
+
+  const contactLink =
+    "inline-flex items-center gap-1 text-caption font-semibold text-ink-muted transition hover:text-accent-strong";
+
   return (
     <>
-      <div className="mb-1">
-        <Link href="/customers" className="text-small font-semibold text-accent-strong">
-          ← Customers
-        </Link>
-      </div>
+      <Link href="/customers" className="text-small font-semibold text-accent-strong">
+        ← Back
+      </Link>
 
       <PageHeader
         title={customer.name}
-        subtitle={
-          localityAndPincode(customer.address) ||
-          `Customer since ${formatDateDMY(istDateString(customer.createdAt))}`
+        action={
+          customer.phone || customer.email ? (
+            <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 pt-1">
+              {customer.phone ? (
+                <>
+                  <a href={callLink(customer.phone, "+91")} className={contactLink}>
+                    <Phone className="h-3.5 w-3.5" aria-hidden="true" />
+                    Call
+                  </a>
+                  <a
+                    href={smsLink(customer.phone, "+91", reminder)}
+                    className={contactLink}
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
+                    SMS
+                  </a>
+                  <a
+                    href={whatsappLink(customer.phone, reminder)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`${contactLink} hover:text-success`}
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                    WhatsApp
+                  </a>
+                </>
+              ) : null}
+              {customer.email ? (
+                <a href={`mailto:${customer.email}`} className={contactLink}>
+                  <Mail className="h-3.5 w-3.5" aria-hidden="true" />
+                  Email
+                </a>
+              ) : null}
+            </div>
+          ) : null
         }
       />
 
-      <CustomerDetailCards
-        orderCount={summary.orderCount}
-        completedCount={summary.completedCount}
-        cancelledCount={summary.cancelledCount}
-        billed={formatAmount(summary.totalBilled)}
-        paid={formatAmount(summary.totalPaid)}
-        due={formatAmount(pending)}
-      />
-
-      {customer.phone ? (
-        <div className="mb-4 grid grid-cols-3 gap-2">
-          <a
-            href={callLink(customer.phone, "+91")}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-line bg-surface text-small font-semibold text-ink transition hover:bg-muted"
+      <section
+        aria-label="Summary"
+        className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-3 border-y border-line py-2.5"
+      >
+        {stats.map((stat, index) => (
+          <div
+            key={stat.label}
+            className={`min-w-[96px] px-1 ${
+              index > 0 ? "border-l border-line pl-6" : "pl-0"
+            }`}
           >
-            Call
-          </a>
-          <a
-            href={smsLink(customer.phone, "+91", reminder)}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-line bg-surface text-small font-semibold text-ink transition hover:bg-muted"
-          >
-            SMS
-          </a>
-          <a
-            href={whatsappLink(customer.phone, reminder)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-success/30 bg-success-soft text-small font-semibold text-success transition hover:bg-success/15"
-          >
-            WhatsApp
-          </a>
-        </div>
-      ) : null}
+            <p className="eyebrow text-ink-subtle">{stat.label}</p>
+            <p className={`tnum mt-0.5 text-body font-semibold ${stat.tone ?? "text-ink"}`}>
+              {stat.value}
+            </p>
+            {stat.parts ? (
+              <p className="mt-0.5 flex max-w-[260px] flex-wrap gap-x-1.5 text-caption">
+                {stat.parts.map((part, partIndex) => (
+                  <span key={part.label} className={part.tone}>
+                    {partIndex > 0 ? (
+                      <span className="text-ink-subtle">· </span>
+                    ) : null}
+                    {part.label}
+                  </span>
+                ))}
+              </p>
+            ) : null}
+          </div>
+        ))}
+      </section>
 
-      <Card className="mb-4 p-0">
-        <div className="border-b border-line px-3 py-2.5">
-          <h2 className="text-small font-bold text-ink">Customer details</h2>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="min-w-0">
+          <CustomerEditForm values={formValues} />
+          <div className="mt-3">
+            <OpeningDueForm customerId={customer.id} />
+          </div>
         </div>
-        <dl className="divide-y divide-line px-3">
-          <div className="flex items-center justify-between gap-3 py-2.5">
-            <dt className="text-caption text-ink-muted">Phone</dt>
-            <dd className="text-small font-semibold text-ink">
-              {maskPhoneLast4(customer.phone)}
-            </dd>
-          </div>
-          <div className="flex items-center justify-between gap-3 py-2.5">
-            <dt className="text-caption text-ink-muted">Label</dt>
-            <dd className="text-small font-semibold text-ink">{customer.subLabel ?? "—"}</dd>
-          </div>
-          <div className="flex items-start justify-between gap-3 py-2.5">
-            <dt className="shrink-0 text-caption text-ink-muted">Address</dt>
-            <dd className="whitespace-pre-line text-right text-small font-semibold text-ink">
-              {formatCustomerAddress(customer.address) || "—"}
-            </dd>
-          </div>
-          <div className="flex items-center justify-between gap-3 py-2.5">
-            <dt className="text-caption text-ink-muted">Last paid</dt>
-            <dd className="text-small font-semibold text-ink">
-              {customer.lastPaidAt ? formatDateDMY(istDateString(customer.lastPaidAt)) : "—"}
-            </dd>
-          </div>
-          <div className="flex items-center justify-between gap-3 py-2.5">
-            <dt className="text-caption text-ink-muted">Customer since</dt>
-            <dd className="text-small font-semibold text-ink">
-              {formatDateDMY(istDateString(customer.createdAt))}
-            </dd>
-          </div>
-        </dl>
-        {customer.notes ? (
-          <p className="border-t border-line px-3 py-2.5 text-small text-ink-muted">
-            Note: <span className="font-bold text-ink">{customer.notes}</span>
-          </p>
-        ) : null}
-      </Card>
 
-      <Card className="mb-4 overflow-hidden p-0">
-        <div className="border-b border-line px-3 py-2.5">
-          <h2 className="text-small font-bold text-ink">Orders</h2>
-        </div>
-        {rows.length === 0 ? (
-          <p className="px-3 py-6 text-center text-small text-ink-muted">No orders yet.</p>
-        ) : (
-          <>
-            <div aria-hidden="true" className={`${ORDER_GRID} hidden border-b border-line py-2 lg:grid`}>
-              <span className="eyebrow text-ink-subtle">Order</span>
-              <span className="eyebrow text-ink-subtle">Needed</span>
-              <span className="eyebrow text-ink-subtle">Placed</span>
-              <span className="eyebrow text-ink-subtle">Status</span>
-              <span className="eyebrow text-right text-ink-subtle">Bill total</span>
-              <span className="eyebrow text-right text-ink-subtle">Paid</span>
-              <span className="eyebrow text-right text-ink-subtle">Balance</span>
+        <div className="space-y-3 xl:sticky xl:top-4 xl:self-start">
+          <Card className="p-0">
+            <div className="border-b border-line px-3 py-2">
+              <h2 className="text-small font-bold text-ink">Top items</h2>
             </div>
-            <div className="divide-y divide-line">
-              {rows.map(({ order, total, paid, due }) => (
-                <Link
-                  key={order.id}
-                  href={`/app/sales/${order.id}`}
-                  aria-label={`Order ${order.orderCode}, ${formatAmount(due)} balance`}
-                  className={ORDER_GRID}
-                >
-                  <span className="truncate text-small font-bold text-ink">
-                    #{order.orderCode}
-                  </span>
-                  <span className="text-caption text-ink-muted">
-                    {formatDateDMY(order.neededBy)}
-                  </span>
-                  <span className="text-caption text-ink-muted">
-                    {formatDateDMY(istDateString(order.createdAt))}
-                  </span>
-                  <span><StatusPill status={order.status} /></span>
-                  <span className="figure text-small text-ink">{formatAmount(total)}</span>
-                  <span className="figure text-small text-ink-muted">
-                    {formatAmount(paid)}
-                  </span>
-                  <span
-                    className={`figure text-small font-bold ${due.greaterThan(0) ? "text-warning" : "text-success"}`}
+            {topItems.length === 0 ? (
+              <p className="px-3 py-5 text-center text-small text-ink-muted">
+                No items yet.
+              </p>
+            ) : (
+              <ol className="divide-y divide-line">
+                {topItems.map((item, index) => (
+                  <li
+                    key={item.name}
+                    className="flex items-center justify-between gap-2 px-3 py-2"
                   >
-                    {due.greaterThan(0) ? formatAmount(due) : "Paid"}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </>
-        )}
-      </Card>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="tnum grid h-5 w-5 shrink-0 place-items-center rounded-md bg-muted text-caption font-bold text-ink-muted">
+                        {index + 1}
+                      </span>
+                      <span className="truncate text-small text-ink">{item.name}</span>
+                    </span>
+                    <span className="tnum shrink-0 text-caption font-semibold text-ink-muted">
+                      {item.count} ordered
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </Card>
 
-      <OpeningDueForm customerId={customer.id} />
+          <Card className="p-0">
+            <div className="flex items-center justify-between gap-2 border-b border-line px-3 py-2">
+              <h2 className="text-small font-bold text-ink">Orders</h2>
+              <span className="tnum text-caption text-ink-muted">{rows.length}</span>
+            </div>
+            {rows.length === 0 ? (
+              <p className="px-3 py-8 text-center text-small text-ink-muted">
+                No orders yet.
+              </p>
+            ) : (
+              <div className="max-h-[52vh] divide-y divide-line overflow-auto">
+                {rows.map(({ order, total, paid, due }) => (
+                  <Link
+                    key={order.id}
+                    href={`/app/sales/${order.id}`}
+                    className="block px-3 py-2.5 transition hover:bg-muted/60"
+                  >
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="text-small font-bold text-ink">
+                        #{order.orderCode}
+                      </span>
+                      <StatusPill status={order.status} />
+                    </span>
+                    <span className="mt-1 flex items-center justify-between gap-2 text-caption text-ink-muted">
+                      <span>Needed {formatDateDMY(order.neededBy)}</span>
+                      <span className="tnum">
+                        {formatAmount(total)} · Paid {formatAmount(paid)}
+                      </span>
+                    </span>
+                    {due.greaterThan(0) ? (
+                      <span className="mt-0.5 block text-caption font-bold text-warning">
+                        {formatAmount(due)} due
+                      </span>
+                    ) : null}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+      </div>
     </>
   );
 }

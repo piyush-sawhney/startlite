@@ -20,6 +20,7 @@ export type CustomerInput = {
   name: string;
   countryCode: string;
   phone?: string;
+  email?: string;
   subLabel?: string;
   address: CustomerAddressInput | null;
 };
@@ -44,11 +45,11 @@ export function AddCustomerModal({
   const [name, setName] = useState("");
   const [countryCode, setCountryCode] = useState("+91");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [subLabel, setSubLabel] = useState("");
   const [storeAddress, setStoreAddress] = useState(false);
   const [line1, setLine1] = useState("");
   const [line2, setLine2] = useState("");
-  const [line3, setLine3] = useState("");
   const [locality, setLocality] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
@@ -67,11 +68,11 @@ export function AddCustomerModal({
     setName("");
     setCountryCode("+91");
     setPhone("");
+    setEmail("");
     setSubLabel("");
     setStoreAddress(false);
     setLine1("");
     setLine2("");
-    setLine3("");
     setLocality("");
     setCity("");
     setState("");
@@ -90,6 +91,10 @@ export function AddCustomerModal({
       setError("Enter a valid WhatsApp number, or leave it empty.");
       return;
     }
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError("Enter a valid email, or leave it empty.");
+      return;
+    }
     if (storeAddress && !line1.trim() && !locality.trim() && !pincode.trim()) {
       setError("Enter an address line or locality, or turn the address off.");
       return;
@@ -102,12 +107,12 @@ export function AddCustomerModal({
         name: name.trim(),
         countryCode,
         phone: digits || undefined,
+        email: email.trim() || undefined,
         subLabel: subLabel.trim() || undefined,
         address: storeAddress
           ? {
               line1: line1.trim(),
               line2: line2.trim() || undefined,
-              line3: line3.trim() || undefined,
               locality: locality.trim() || undefined,
               city: city.trim() || undefined,
               state: state.trim() || undefined,
@@ -194,6 +199,20 @@ export function AddCustomerModal({
             />
           </div>
 
+          <div>
+            <Label>Email (optional)</Label>
+            <input
+              type="email"
+              autoComplete="email"
+              spellCheck={false}
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className={inputClass}
+              placeholder="name@example.com"
+              maxLength={254}
+            />
+          </div>
+
           <label className="flex items-center justify-between gap-3 rounded-xl border border-line px-3 py-2.5">
             <span className="text-small font-medium text-ink">Store address</span>
             <input
@@ -229,18 +248,7 @@ export function AddCustomerModal({
                 />
               </div>
               <div>
-                <Label>Address line 3</Label>
-                <input
-                  type="text"
-                  value={line3}
-                  onChange={(event) => setLine3(event.target.value)}
-                  className={inputClass}
-                  placeholder="Optional"
-                  maxLength={80}
-                />
-              </div>
-              <div>
-                <Label>Locality</Label>
+                <Label>Landmark</Label>
                 <input
                   type="text"
                   value={locality}

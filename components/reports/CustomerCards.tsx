@@ -3,9 +3,6 @@
 import Link from "next/link";
 import {
   AlertCircle,
-  CheckCircle2,
-  Clock3,
-  FileText,
   Package,
   Users,
   Wallet,
@@ -23,7 +20,7 @@ const SEGMENT_META: Record<
   { label: string; icon: LucideIcon; tone: string }
 > = {
   all: {
-    label: "All customers",
+    label: "All",
     icon: Users,
     tone: "bg-accent-soft text-accent-strong",
   },
@@ -48,7 +45,10 @@ function segmentHref(segment: CustomerSegment, filters: CustomersFilters): strin
   const params = new URLSearchParams();
   if (filters.query.trim()) params.set("q", filters.query.trim());
   if (segment !== "all") params.set("segment", segment);
-  if (filters.sort !== "pending") params.set("sort", filters.sort);
+  if (filters.sort !== "due" || filters.dir !== "desc") {
+    params.set("sort", filters.sort);
+    params.set("dir", filters.dir);
+  }
   const query = params.toString();
   return query ? `/customers?${query}` : "/customers";
 }
@@ -112,7 +112,7 @@ export function CustomerFilterCards({
 }) {
   return (
     <section
-      aria-label="Filter customers"
+      aria-label="Filter people"
       className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-4"
     >
       {segments.map((segment) => {
@@ -130,59 +130,6 @@ export function CustomerFilterCards({
           />
         );
       })}
-    </section>
-  );
-}
-
-/** The same card anatomy on the detail page, without duplicating phone or dues. */
-export function CustomerDetailCards({
-  orderCount,
-  completedCount,
-  cancelledCount,
-  billed,
-  paid,
-  due,
-}: {
-  orderCount: number;
-  completedCount: number;
-  cancelledCount: number;
-  billed: string;
-  paid: string;
-  due: string;
-}) {
-  return (
-    <section
-      aria-label="Customer summary"
-      className="mb-5 grid grid-cols-2 gap-2 md:grid-cols-4"
-    >
-      <Card
-        label="Orders"
-        value={String(orderCount)}
-        detail={`${completedCount} completed · ${cancelledCount} cancelled`}
-        icon={FileText}
-        tone="bg-accent-soft text-accent-strong"
-      />
-      <Card
-        label="Total billed"
-        value={billed}
-        detail="All orders"
-        icon={Clock3}
-        tone="bg-info-soft text-info"
-      />
-      <Card
-        label="Total paid"
-        value={paid}
-        detail="All orders"
-        icon={Wallet}
-        tone="bg-success-soft text-success"
-      />
-      <Card
-        label="Balance due"
-        value={due}
-        detail="Open orders only"
-        icon={CheckCircle2}
-        tone="bg-warning-soft text-warning"
-      />
     </section>
   );
 }

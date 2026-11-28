@@ -479,6 +479,7 @@ export function HomeDashboard({
         body: JSON.stringify({
           name: customer.name,
           phone: customer.phone ?? "",
+          email: customer.email ?? "",
           subLabel: customer.subLabel ?? "",
           address: customer.address,
         }),

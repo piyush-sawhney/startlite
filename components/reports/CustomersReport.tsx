@@ -1,27 +1,114 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ArrowDown, ArrowUp, ArrowUpDown, Search, X } from "lucide-react";
 import { Card, EmptyState, primaryButton } from "@/components/ui";
-import { ListHeader } from "@/components/home/ListHeader";
 import type {
+  CustomerReportRow,
+  CustomerSegment,
   CustomersFilters,
   CustomersReportData,
-  ReportSort,
+  ReportDirection,
 } from "@/lib/report-types";
-import { ChevronDown } from "lucide-react";
 import { CustomerFilterCards } from "./CustomerCards";
 import { ReportShell } from "./ReportShell";
 
-const SORT_LABELS: Record<ReportSort, string> = {
-  pending: "Pending",
-  name: "Name",
-  recent: "Recently added",
+type ColumnKey = "name" | "phone" | "locality" | "billed" | "paid" | "due" | "orders";
+type Column = {
+  key: ColumnKey;
+  label: string;
+  numeric?: boolean;
+  width: string;
 };
 
-const GRID =
-  "grid grid-cols-1 gap-x-4 gap-y-1 px-3 py-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,0.85fr)_minmax(0,0.85fr)_minmax(0,0.9fr)] lg:items-center";
+const COLUMNS: Column[] = [
+  { key: "name", label: "Name", width: "24%" },
+  { key: "phone", label: "Phone", width: "15%" },
+  { key: "locality", label: "Landmark", width: "17%" },
+  { key: "billed", label: "Billed", width: "12%", numeric: true },
+  { key: "paid", label: "Paid", width: "12%", numeric: true },
+  { key: "due", label: "Due", width: "12%", numeric: true },
+  { key: "orders", label: "Orders", width: "8%", numeric: true },
+];
+
+const SEGMENT_TITLES: Record<CustomerSegment, string> = {
+  all: "Everyone",
+  dues: "With dues",
+  paid: "Has paid",
+  active: "Active orders",
+};
+
+const FILTER_HINTS: Partial<Record<ColumnKey, string>> = {
+  name: "Search name or label",
+  phone: "Search phone",
+  locality: "Search landmark",
+};
+
+const CELL =
+  "border-b border-line/70 bg-surface px-3 py-3 align-middle transition-colors group-hover:bg-muted/50";
+
+function initialSort(sort: CustomersFilters["sort"]): ColumnKey {
+  switch (sort) {
+    case "name":
+    case "phone":
+    case "locality":
+    case "billed":
+    case "paid":
+    case "due":
+    case "orders":
+      return sort;
+    default:
+      return "due";
+  }
+}
+
+function cellValue(row: CustomerReportRow, key: ColumnKey): string | number {
+  switch (key) {
+    case "name":
+      return row.name;
+    case "phone":
+      return row.phoneMasked ?? "";
+    case "locality":
+      return [row.locality, row.pincode].filter(Boolean).join(" · ");
+    case "billed":
+      return row.totalBilledValue;
+    case "paid":
+      return row.totalPaidValue;
+    case "due":
+      return row.dueValue;
+    case "orders":
+      return row.orderCount;
+  }
+}
+
+/** The Name column shows the label on a second line, so both are searchable. */
+function filterValue(row: CustomerReportRow, key: ColumnKey): string {
+  if (key === "name") {
+    return `${cellValue(row, "name")} ${row.subLabel ?? ""}`.toLowerCase();
+  }
+  return String(cellValue(row, key)).toLowerCase();
+}
+
+function displayValue(row: CustomerReportRow, key: ColumnKey): string {
+  switch (key) {
+    case "name":
+      return row.name;
+    case "phone":
+      return row.phoneMasked ?? "No phone";
+    case "locality":
+      return [row.locality, row.pincode].filter(Boolean).join(" · ") || "—";
+    case "billed":
+      return row.totalBilled;
+    case "paid":
+      return row.totalPaid;
+    case "due":
+      return row.hasDues ? row.pending : "—";
+    case "orders":
+      return String(row.orderCount);
+  }
+}
 
 export function CustomersReport({
   data,
@@ -32,21 +119,70 @@ export function CustomersReport({
 }) {
   const router = useRouter();
   const [search, setSearch] = useState(filters.query);
-  const [collapsed, setCollapsed] = useState(false);
-  const [showSort, setShowSort] = useState(false);
+  const [sort, setSort] = useState<ColumnKey>(() => initialSort(filters.sort));
+  const [dir, setDir] = useState<ReportDirection>(filters.dir);
+  const [columnFilters, setColumnFilters] = useState<Partial<Record<ColumnKey, string>>>(
+    {},
+  );
+  const firstSearch = useRef(true);
 
-  function update(next: Partial<CustomersFilters>) {
-    const merged = { ...filters, ...next };
-    const params = new URLSearchParams();
-    if (merged.query.trim()) params.set("q", merged.query.trim());
-    if (merged.segment !== "all") params.set("segment", merged.segment);
-    if (merged.sort !== "pending") params.set("sort", merged.sort);
-    const query = params.toString();
-    router.push(query ? `/customers?${query}` : "/customers");
+  // Live search: keep the query in the URL so a view can be refreshed or shared.
+  useEffect(() => {
+    if (firstSearch.current) {
+      firstSearch.current = false;
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      const query = search.trim();
+      if (query) params.set("q", query);
+      else params.delete("q");
+      const next = params.toString();
+      router.replace(next ? `/customers?${next}` : "/customers", { scroll: false });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [search, router]);
+
+  function toggleSort(key: ColumnKey) {
+    if (key === sort) {
+      setDir(dir === "asc" ? "desc" : "asc");
+      return;
+    }
+    const numeric = COLUMNS.find((column) => column.key === key)?.numeric;
+    setSort(key);
+    setDir(numeric ? "desc" : "asc");
   }
 
-  const subtitle = `${data.totalCount} ${data.totalCount === 1 ? "person" : "people"} · All`;
+  function clearAll() {
+    setColumnFilters({});
+    setSearch("");
+    router.push("/customers");
+  }
+
+  const visible = useMemo(() => {
+    const matched = data.rows.filter((row) =>
+      COLUMNS.every((column) => {
+        if (column.numeric) return true;
+        const raw = columnFilters[column.key]?.trim();
+        return !raw || filterValue(row, column.key).includes(raw.toLowerCase());
+      }),
+    );
+
+    return [...matched].sort((left, right) => {
+      const a = cellValue(left, sort);
+      const b = cellValue(right, sort);
+      const comparison =
+        typeof a === "number" && typeof b === "number"
+          ? a - b
+          : String(a).localeCompare(String(b));
+      if (comparison === 0) return left.name.localeCompare(right.name);
+      return dir === "asc" ? comparison : -comparison;
+    });
+  }, [data.rows, columnFilters, sort, dir]);
+
+  const hasColumnFilters = Object.values(columnFilters).some((value) => value?.trim());
   const hasRows = data.rows.length > 0;
+  const subtitle = `${data.totalCount} ${data.totalCount === 1 ? "person" : "people"} · ${SEGMENT_TITLES[filters.segment]}`;
 
   return (
     <ReportShell
@@ -58,20 +194,17 @@ export function CustomersReport({
         <div className="flex flex-wrap items-center gap-2">
           <form
             className="min-w-[12rem] flex-1"
-            onSubmit={(event) => {
-              event.preventDefault();
-              update({ query: search });
-            }}
+            onSubmit={(event) => event.preventDefault()}
           >
-            <label htmlFor="customer-search" className="sr-only">
-              Search name or phone
+            <label htmlFor="people-search" className="sr-only">
+              Search name, label, mobile or email
             </label>
             <input
-              id="customer-search"
+              id="people-search"
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search name or phone"
+              placeholder="Search name, label, mobile or email"
               className="block min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-small text-ink placeholder:text-ink-subtle focus:border-accent/50 focus:outline-none"
             />
           </form>
@@ -80,90 +213,170 @@ export function CustomersReport({
     >
       {!hasRows ? (
         <EmptyState
-          title={
-            data.totalCount === 0
-              ? "No customers yet."
-              : "No customers for this filter."
-          }
+          title="Nothing here yet."
+          body="Add a sale and people show up here."
           action={
-            data.totalCount === 0 ? (
-              <Link href="/app/sales/new" className={primaryButton()}>
-                Add sale
-              </Link>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearch("");
-                  router.push("/customers");
-                }}
-                className={primaryButton()}
-              >
-                Clear filters
-              </button>
-            )
+            <Link href="/app/sales/new" className={primaryButton()}>
+              Add sale
+            </Link>
+          }
+        />
+      ) : visible.length === 0 ? (
+        <EmptyState
+          title="No matches."
+          body="Clear the filters to see everyone."
+          action={
+            <button type="button" onClick={clearAll} className={primaryButton()}>
+              Clear filters
+            </button>
           }
         />
       ) : (
-        <Card className="overflow-hidden p-0">
-          <ListHeader
-            title="Customers"
-            count={data.totalCount}
-            totalLabel="Pending"
-            controlsId="customers-report-list"
-            collapsed={collapsed}
-            onToggle={() => setCollapsed(!collapsed)}
-          >
-            <div className="relative">
+        <Card className="p-0">
+          {hasColumnFilters ? (
+            <div className="flex justify-end border-b border-line px-3 py-1">
               <button
                 type="button"
-                onClick={() => setShowSort(!showSort)}
-                aria-expanded={showSort}
-                aria-label={`Sort customers: ${SORT_LABELS[filters.sort]}`}
-                className="relative inline-flex min-h-11 items-center gap-1 rounded-xl px-2 text-caption font-bold text-ink transition after:absolute after:-inset-1 after:content-[''] hover:bg-muted"
+                onClick={() => setColumnFilters({})}
+                className="min-h-9 rounded-lg px-2 text-caption font-bold text-accent-strong hover:bg-muted"
               >
-                {SORT_LABELS[filters.sort]}
-                <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+                Clear filters
               </button>
-              {showSort ? (
-                <div className="absolute right-0 top-12 z-20 w-40 overflow-hidden rounded-xl border border-line bg-surface shadow-lg">
-                  {(Object.keys(SORT_LABELS) as ReportSort[]).map((key) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => {
-                        setShowSort(false);
-                        update({ sort: key });
-                      }}
-                      className={`block w-full px-3 py-2 text-left text-small transition hover:bg-muted ${
-                        key === filters.sort ? "font-bold text-ink" : "text-ink"
-                      }`}
-                    >
-                      {SORT_LABELS[key]}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
             </div>
-          </ListHeader>
+          ) : null}
 
-          {collapsed ? null : (
-            <div id="customers-report-list">
-              <div
-                aria-hidden="true"
-                className={`${GRID} hidden border-b border-line py-2 lg:grid`}
-              >
-                <span className="eyebrow text-ink-subtle">Name</span>
-                <span className="eyebrow text-ink-subtle">Mobile</span>
-                <span className="eyebrow text-ink-subtle">Orders</span>
-                <span className="eyebrow text-ink-subtle">Total billed</span>
-                <span className="eyebrow text-ink-subtle">Total paid</span>
-                <span className="eyebrow text-right text-ink-subtle">Balance due</span>
-              </div>
-              <div className="divide-y divide-line">
-                {data.rows.map((row) => {
-                  const content = (
-                    <>
+          <div className="max-h-[68vh] overflow-auto rounded-b-2xl">
+            <table className="w-full min-w-[900px] table-fixed border-separate border-spacing-0 text-left">
+              <colgroup>
+                {COLUMNS.map((column) => (
+                  <col key={column.key} style={{ width: column.width }} />
+                ))}
+              </colgroup>
+              <thead>
+                <tr>
+                  {COLUMNS.map((column, index) => {
+                    const active = sort === column.key;
+                    return (
+                      <th
+                        key={column.key}
+                        scope="col"
+                        aria-sort={
+                          active
+                            ? dir === "asc"
+                              ? "ascending"
+                              : "descending"
+                            : "none"
+                        }
+                        className={`sticky top-0 z-30 h-12 border-b border-line bg-muted/70 px-3 ${
+                          index === 0 ? "sticky left-0 z-40" : "border-l border-line/60"
+                        } ${column.numeric ? "text-right" : "text-left"}`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => toggleSort(column.key)}
+                          className={`inline-flex h-11 w-full items-center gap-1.5 whitespace-nowrap eyebrow transition hover:text-accent-strong ${
+                            column.numeric ? "justify-end" : "justify-start"
+                          } ${
+                            active ? "text-accent-strong" : "text-ink-subtle"
+                          }`}
+                        >
+                          <span>{column.label}</span>
+                          {active ? (
+                            dir === "asc" ? (
+                              <ArrowUp className="h-3 w-3" aria-hidden="true" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" aria-hidden="true" />
+                            )
+                          ) : (
+                            <ArrowUpDown
+                              className="h-3 w-3 opacity-40"
+                              aria-hidden="true"
+                            />
+                          )}
+                        </button>
+                      </th>
+                    );
+                  })}
+                </tr>
+                <tr>
+                  {COLUMNS.map((column, index) => {
+                    if (column.numeric) {
+                      return (
+                        <th
+                          key={column.key}
+                          scope="col"
+                          className={`sticky top-12 z-20 h-12 border-b border-line bg-surface ${
+                            index === 0 ? "sticky left-0 z-30" : "border-l border-line/60"
+                          }`}
+                        />
+                      );
+                    }
+
+                    const term = columnFilters[column.key] ?? "";
+                    return (
+                      <th
+                        key={column.key}
+                        scope="col"
+                        className={`sticky top-12 z-20 h-12 border-b border-line bg-surface px-2 ${
+                          index === 0 ? "sticky left-0 z-30" : "border-l border-line/60"
+                        }`}
+                      >
+                        <label htmlFor={`filter-${column.key}`} className="sr-only">
+                          Filter by {column.label}
+                        </label>
+                        <div className="relative">
+                          <Search
+                            className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-subtle"
+                            aria-hidden="true"
+                          />
+                          <input
+                            id={`filter-${column.key}`}
+                            type="text"
+                            inputMode="search"
+                            value={term}
+                            onChange={(event) =>
+                              setColumnFilters((current) => ({
+                                ...current,
+                                [column.key]: event.target.value,
+                              }))
+                            }
+                            placeholder={FILTER_HINTS[column.key]}
+                            className={`block h-9 w-full rounded-lg border border-line bg-surface pl-7 text-caption text-ink placeholder:text-ink-subtle focus:border-accent/50 focus:outline-none ${
+                              term ? "pr-8" : "pr-2"
+                            }`}
+                          />
+                          {term ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setColumnFilters((current) => ({
+                                  ...current,
+                                  [column.key]: "",
+                                }))
+                              }
+                              aria-label={`Clear ${column.label} filter`}
+                              className="absolute right-1 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-md text-ink-subtle transition hover:bg-muted hover:text-ink"
+                            >
+                              <X className="h-3.5 w-3.5" aria-hidden="true" />
+                            </button>
+                          ) : null}
+                        </div>
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((row) => {
+                  const label = `${row.name}, ${row.phoneMasked ?? "no phone"}, ${row.pending} due`;
+                  const nameCell = (
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span
+                        aria-hidden="true"
+                        className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-accent-soft text-caption font-bold text-accent-strong"
+                      >
+                        {row.name.charAt(0).toUpperCase()}
+                      </span>
                       <span className="min-w-0">
                         <span className="block truncate text-small font-bold text-ink">
                           {row.name}
@@ -173,85 +386,71 @@ export function CustomersReport({
                             {row.subLabel}
                           </span>
                         ) : null}
-                        {row.locality || row.pincode ? (
-                          <span className="block truncate text-caption text-ink-subtle">
-                            {[row.locality, row.pincode].filter(Boolean).join(" · ")}
-                          </span>
-                        ) : null}
                       </span>
-                      <span className="min-w-0">
-                        <span className="block truncate text-caption text-ink-muted">
-                          {row.phoneMasked ?? "No phone"}
-                        </span>
-                        <span className="block truncate text-caption text-ink-subtle">
-                          {row.lastPaidDate
-                            ? `Paid on ${row.lastPaidDate}`
-                            : "No payments"}
-                        </span>
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block text-small font-semibold text-ink">
-                          <span className="lg:hidden">
-                            {row.orderCount} {row.orderCount === 1 ? "order" : "orders"}
-                          </span>
-                          <span className="hidden lg:inline">{row.orderCount}</span>
-                        </span>
-                        <span className="block truncate text-caption text-ink-muted">
-                          {row.completedCount} done · {row.cancelledCount} cancelled
-                        </span>
-                      </span>
-                      <span className="text-small text-ink">
-                        <span className="text-caption text-ink-subtle lg:hidden">
-                          Billed ·{" "}
-                        </span>
-                        <span className="figure">{row.totalBilled}</span>
-                      </span>
-                      <span className="text-small text-ink">
-                        <span className="text-caption text-ink-subtle lg:hidden">
-                          Paid ·{" "}
-                        </span>
-                        <span className="figure">{row.totalPaid}</span>
-                      </span>
-                      <span className="text-left lg:text-right">
-                        <span
-                          className={`figure block text-small font-bold ${row.hasDues ? "text-warning" : "text-ink-muted"}`}
-                        >
-                          {row.pending}
-                        </span>
-                        <span
-                          className={`mt-0.5 block text-caption font-semibold lg:hidden ${row.hasDues ? "text-warning" : "text-ink-subtle"}`}
-                        >
-                          {row.hasDues ? "Due" : "Clear"}
-                        </span>
-                      </span>
-                    </>
+                    </span>
                   );
 
-                  const className = `${GRID} transition hover:bg-muted/60`;
-                  const label = `${row.name}, ${row.phoneMasked ?? "no phone"}, ${row.pending} due`;
-                  return row.linked ? (
-                    <Link
+                  return (
+                    <tr
                       key={row.id}
-                      href={`/customers/${row.id}`}
-                      aria-label={label}
-                      className={className}
+                      className="group"
+                      onClick={
+                        row.linked
+                          ? () => router.push(`/customers/${row.id}`)
+                          : undefined
+                      }
                     >
-                      {content}
-                    </Link>
-                  ) : (
-                    <div
-                      key={row.id}
-                      role="group"
-                      aria-label={label}
-                      className={className}
-                    >
-                      {content}
-                    </div>
+                      {COLUMNS.map((column, index) => {
+                        const numeric = Boolean(column.numeric);
+                        return (
+                          <td
+                            key={column.key}
+                            className={`${CELL} ${
+                              index === 0
+                                ? "sticky left-0 z-10"
+                                : "border-l border-line/60"
+                            } ${numeric ? "figure text-right" : ""} ${
+                              row.linked && index === 0 ? "cursor-pointer" : ""
+                            }`}
+                          >
+                            {column.key === "name" ? (
+                              row.linked ? (
+                                <Link
+                                  href={`/customers/${row.id}`}
+                                  aria-label={label}
+                                  onClick={(event) => event.stopPropagation()}
+                                  className="block min-w-0"
+                                >
+                                  {nameCell}
+                                </Link>
+                              ) : (
+                                <span className="block min-w-0">{nameCell}</span>
+                              )
+                            ) : (
+                              <span
+                                className={`block truncate text-small ${
+                                  column.key === "phone" ? "tnum" : ""
+                                } ${
+                                  numeric
+                                    ? "whitespace-nowrap " +
+                                      (column.key === "due" && row.hasDues
+                                        ? "font-bold text-warning"
+                                        : "text-ink")
+                                    : "text-ink-muted"
+                                }`}
+                              >
+                                {displayValue(row, column.key)}
+                              </span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
                   );
                 })}
-              </div>
-            </div>
-          )}
+              </tbody>
+            </table>
+          </div>
         </Card>
       )}
     </ReportShell>
