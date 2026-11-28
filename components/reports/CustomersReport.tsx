@@ -7,11 +7,11 @@ import { ArrowDown, ArrowUp, ArrowUpDown, Search, X } from "lucide-react";
 import { Card, EmptyState, primaryButton } from "@/components/ui";
 import type {
   CustomerReportRow,
-  CustomerSegment,
   CustomersFilters,
   CustomersReportData,
   ReportDirection,
 } from "@/lib/report-types";
+import { AddCustomerButton } from "@/components/AddCustomerButton";
 import { CustomerFilterCards } from "./CustomerCards";
 import { ReportShell } from "./ReportShell";
 
@@ -32,13 +32,6 @@ const COLUMNS: Column[] = [
   { key: "due", label: "Due", width: "12%", numeric: true },
   { key: "orders", label: "Orders", width: "8%", numeric: true },
 ];
-
-const SEGMENT_TITLES: Record<CustomerSegment, string> = {
-  all: "Everyone",
-  dues: "With dues",
-  paid: "Has paid",
-  active: "Active orders",
-};
 
 const FILTER_HINTS: Partial<Record<ColumnKey, string>> = {
   name: "Search name or label",
@@ -182,12 +175,11 @@ export function CustomersReport({
 
   const hasColumnFilters = Object.values(columnFilters).some((value) => value?.trim());
   const hasRows = data.rows.length > 0;
-  const subtitle = `${data.totalCount} ${data.totalCount === 1 ? "person" : "people"} · ${SEGMENT_TITLES[filters.segment]}`;
 
   return (
     <ReportShell
       title="Customers"
-      subtitle={subtitle}
+      action={<AddCustomerButton />}
       tiles={[]}
       summary={<CustomerFilterCards segments={data.segments} filters={filters} />}
       filters={

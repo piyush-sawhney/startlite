@@ -27,6 +27,67 @@ export type ReportSort =
 
 export type ReportDirection = "asc" | "desc";
 
+export type OrderPeriod = "today" | "month" | "all";
+export type OrderSegment =
+  | "all"
+  | "to_finish"
+  | "payment_due"
+  | "paid"
+  | "cancelled";
+export type OrderSort =
+  | "newest"
+  | "needed"
+  | "placed"
+  | "code"
+  | "customer"
+  | "status"
+  | "payment"
+  | "items"
+  | "total"
+  | "paid"
+  | "due";
+
+export type OrdersFilters = {
+  query: string;
+  period: OrderPeriod;
+  segment: OrderSegment;
+  sort: OrderSort;
+  dir: ReportDirection;
+};
+
+export type OrderReportRow = {
+  id: string;
+  code: string;
+  customerName: string;
+  phoneMasked?: string;
+  neededBy: string;
+  placed: string;
+  status: string;
+  payment: "paid" | "partial" | "due";
+  itemCount: number;
+  totalBilled: string;
+  totalPaid: string;
+  pending: string;
+  totalValue: number;
+  paidValue: number;
+  dueValue: number;
+  fromStore: boolean;
+};
+
+export type OrdersReportData = {
+  rows: OrderReportRow[];
+  /** Count before the 100-row cap. */
+  totalCount: number;
+  totals: {
+    orders: number;
+    toFinish: number;
+    due: string;
+    received: string;
+  };
+  /** Counts for every segment, independent of the active segment. */
+  counts: Record<OrderSegment, number>;
+};
+
 /** A group you can filter the list to by tapping a summary card. */
 export type CustomerSegment = "all" | "dues" | "paid" | "active";
 

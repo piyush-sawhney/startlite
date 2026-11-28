@@ -52,7 +52,7 @@ replaces the bottom tabs. The 360 px right column stays empty on report pages.
 ```text
 360 px
 ┌────────────────────────────┐
-│ Customers  18 people · All │
+│ Customers        + Add      │
 ├────────────────────────────┤
 │ ┌──────────┬──────────┐    │
 │ │All       │With dues │    │
@@ -77,7 +77,7 @@ replaces the bottom tabs. The 360 px right column stays empty on report pages.
 ```text
 1200 px
 rail │ main column                                    │ right column
-     │ Customers  18 people · All                     │ empty
+     │ Customers                        + Add customer │ empty
      │ ┌─────────┬──────────┬─────────┬─────────────┐ │
      │ │All      │ With dues│ Has paid│ Active orders│ │
      │ └─────────┴──────────┴─────────┴─────────────┘ │
@@ -102,10 +102,9 @@ rail │ main column                                    │ right column
 ### Page header
 
 The title is **Customers** — the only place on the page that repeats the tab
-name. The subtitle states the count and the active segment, for example
-`18 people · With dues`. There is no filled action button on the page. New
-records start from a sale or from a previous due in detail. Hidden: the page
-header keeps the title but drops the count while loading.
+name. There is no subtitle and no count line under it; the counts live in the
+filter cards and the table. The one filled action is `Add customer`, which opens
+the add-customer sheet. Hidden: the page header keeps the title while loading.
 
 ### Filter cards
 
@@ -297,7 +296,7 @@ which can promote a paid `ready` order to `completed`.
 | Element | Text |
 |---|---|
 | Page title | `Customers` |
-| Subtitle | `{n} people · {segment}` |
+| Page action | `Add customer` |
 | Filter cards | `All`, `With dues`, `Has paid`, `Active orders` |
 | Search placeholder | `Search name, label, mobile or email` |
 | Column labels | `Name`, `Phone`, `Landmark`, `Billed`, `Paid`, `Due`, `Orders` |

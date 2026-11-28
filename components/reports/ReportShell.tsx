@@ -20,7 +20,7 @@ export function ReportShell({
   children,
 }: {
   title: string;
-  subtitle: string;
+  subtitle?: string;
   action?: ReactNode;
   tiles: ReportTile[];
   /** Reports with four metrics opt in; the rest keep the shared three-up strip. */

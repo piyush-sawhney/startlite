@@ -9,6 +9,13 @@ const nextConfig: NextConfig = {
         destination: "/customers/:id",
         permanent: true,
       },
+      { source: "/orders", destination: "/app/sales", permanent: true },
+      { source: "/orders/:id", destination: "/app/sales/:id", permanent: true },
+      {
+        source: "/orders/:id/bill",
+        destination: "/app/sales/:id/bill",
+        permanent: true,
+      },
     ];
   },
   output: "standalone",

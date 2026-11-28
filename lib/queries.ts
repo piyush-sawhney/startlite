@@ -22,6 +22,7 @@ import {
 import { dec, formatAmount, formatCompactAmount } from "./money";
 import { getPassStatus } from "./pass-status";
 import { hasScheduledTime, summarizeIncompleteOrders } from "./home-orders";
+import { paymentStatus } from "./payment-status";
 import { orderSummary } from "./order-summary";
 import {
   isCancelled,
@@ -29,6 +30,7 @@ import {
   isCompleted,
   isOpen,
   isReady,
+  isToFinish,
   TO_FINISH_STATUSES,
   type OrderStatus,
 } from "./order-status";
@@ -45,6 +47,10 @@ import type {
   CustomerSegmentData,
   CustomersFilters,
   CustomersReportData,
+  OrderReportRow,
+  OrdersFilters,
+  OrdersReportData,
+  OrderSegment,
 } from "./report-types";
 
 export type PublicItem = {
@@ -514,6 +520,168 @@ export async function getCustomersReport(
     totalCount: all.length,
     pendingTotal: formatAmount(pendingTotal),
     rows: mapped,
+  };
+}
+
+/** The owner adapter for the Orders report. Search, filter and sort before render. */
+export async function getOrdersReport(
+  businessId: string,
+  filters: OrdersFilters,
+): Promise<OrdersReportData> {
+  const [orderRows, countRows] = await Promise.all([
+    db
+      .select()
+      .from(orders)
+      .where(eq(orders.businessId, businessId))
+      .orderBy(desc(orders.createdAt)),
+    db
+      .select({
+        orderId: orderItems.orderId,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(orderItems)
+      .where(eq(orderItems.businessId, businessId))
+      .groupBy(orderItems.orderId),
+  ]);
+
+  const itemCounts = new Map(countRows.map((row) => [row.orderId, row.count]));
+  const periodStart =
+    filters.period === "today"
+      ? startOfTodayIst()
+      : filters.period === "month"
+        ? startOfMonthIst()
+        : null;
+  const inPeriod = periodStart
+    ? orderRows.filter((order) => order.createdAt.getTime() >= periodStart.getTime())
+    : orderRows;
+
+  const entries = inPeriod.map((order) => {
+    const due = dec(orderDue(order));
+    return {
+      order,
+      due,
+      dueValue: due.toNumber(),
+      payStatus: paymentStatus(order.grandTotal, due.toFixed(2)),
+      itemCount: itemCounts.get(order.id) ?? 0,
+    };
+  });
+
+  const counts: Record<OrderSegment, number> = {
+    all: entries.length,
+    to_finish: entries.filter((entry) => isToFinish(entry.order.status)).length,
+    payment_due: entries.filter(
+      (entry) => entry.dueValue > 0 && !isCancelled(entry.order.status),
+    ).length,
+    paid: entries.filter(
+      (entry) =>
+        entry.payStatus === "paid" && !isCancelled(entry.order.status),
+    ).length,
+    cancelled: entries.filter((entry) => isCancelled(entry.order.status)).length,
+  };
+  const dueTotal = entries.reduce((total, entry) => total.plus(entry.due), dec(0));
+  const received = entries
+    .filter((entry) => !isCancelled(entry.order.status))
+    .reduce((total, entry) => total.plus(dec(entry.order.paidTotal)), dec(0));
+
+  let matched = entries;
+  if (filters.segment === "to_finish") {
+    matched = matched.filter((entry) => isToFinish(entry.order.status));
+  } else if (filters.segment === "payment_due") {
+    matched = matched.filter(
+      (entry) => entry.dueValue > 0 && !isCancelled(entry.order.status),
+    );
+  } else if (filters.segment === "paid") {
+    matched = matched.filter(
+      (entry) => entry.payStatus === "paid" && !isCancelled(entry.order.status),
+    );
+  } else if (filters.segment === "cancelled") {
+    matched = matched.filter((entry) => isCancelled(entry.order.status));
+  }
+
+  const query = filters.query.trim().toLowerCase();
+  const digits = query.replace(/\D/g, "");
+  if (query) {
+    matched = matched.filter((entry) => {
+      const nameHit = (entry.order.customerName ?? "").toLowerCase().includes(query);
+      const codeHit = entry.order.orderCode.toLowerCase().includes(query);
+      const phoneHit =
+        digits.length > 0 &&
+        (entry.order.customerPhone ?? "").replace(/\D/g, "").includes(digits);
+      return nameHit || codeHit || phoneHit;
+    });
+  }
+
+  type Entry = (typeof entries)[number];
+  function sortValue(entry: Entry, key: OrdersFilters["sort"]): string | number {
+    switch (key) {
+      case "needed":
+        return entry.order.neededBy;
+      case "placed":
+        return istDateString(entry.order.createdAt);
+      case "code":
+        return entry.order.orderCode.toLowerCase();
+      case "customer":
+        return (entry.order.customerName ?? "").toLowerCase();
+      case "status":
+        return entry.order.status;
+      case "payment":
+        return { due: 0, partial: 1, paid: 2 }[entry.payStatus];
+      case "items":
+        return entry.itemCount;
+      case "total":
+        return dec(entry.order.grandTotal).toNumber();
+      case "paid":
+        return dec(entry.order.paidTotal).toNumber();
+      case "due":
+        return entry.dueValue;
+      case "newest":
+      default:
+        return entry.order.createdAt.getTime();
+    }
+  }
+
+  const sorted = [...matched].sort((a, b) => {
+    const left = sortValue(a, filters.sort);
+    const right = sortValue(b, filters.sort);
+    const comparison =
+      typeof left === "number" && typeof right === "number"
+        ? left - right
+        : String(left).localeCompare(String(right));
+    if (comparison === 0) {
+      return b.order.createdAt.getTime() - a.order.createdAt.getTime();
+    }
+    return filters.dir === "asc" ? comparison : -comparison;
+  });
+
+  const rows: OrderReportRow[] = sorted.slice(0, 100).map((entry) => ({
+    id: entry.order.id,
+    code: entry.order.orderCode,
+    customerName: entry.order.customerName?.trim() || "Walk-in sale",
+    phoneMasked: maskPhoneLast4(entry.order.customerPhone),
+    neededBy: entry.order.neededBy,
+    placed: istDateString(entry.order.createdAt),
+    status: entry.order.status,
+    payment: entry.payStatus,
+    itemCount: entry.itemCount,
+    totalBilled: formatAmount(entry.order.grandTotal),
+    totalPaid: formatAmount(entry.order.paidTotal),
+    pending: formatAmount(entry.due),
+    totalValue: dec(entry.order.grandTotal).toNumber(),
+    paidValue: dec(entry.order.paidTotal).toNumber(),
+    dueValue: entry.dueValue,
+    fromStore: entry.order.source === "whatsapp_store",
+  }));
+
+  return {
+    rows,
+    totalCount: matched.length,
+    totals: {
+      orders: entries.length,
+      toFinish: counts.to_finish,
+      due: formatAmount(dueTotal),
+      received: formatAmount(received),
+    },
+    counts,
   };
 }
 
